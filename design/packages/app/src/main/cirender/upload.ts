@@ -56,8 +56,8 @@
 
 import { mkdir, rename, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { sha256File, splitFile } from "@material-bluemap/parts";
-import type { PartsManifest } from "@material-bluemap/parts";
+import { sha256File, splitFile } from "@worldlens/parts";
+import type { PartsManifest } from "@worldlens/parts";
 import {
     CHEAP_LFS_POINTER_VERSION,
     GitHubCallError,
@@ -487,7 +487,7 @@ async function releaseFor(
 /** The release notes. Plain, and honest about what the release is for. */
 function releaseNotes(source: BackupSource): string {
     return [
-        `A Material BlueMap copy of the Minecraft world \`${source.label}\`, published so that`,
+        `A Worldlens copy of the Minecraft world \`${source.label}\`, published so that`,
         "GitHub's runners can render it.",
         "",
         "The bytes are the release assets on this release. `backup.json` says what was uploaded",

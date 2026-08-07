@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { animate, EasingFunctions } from "@material-bluemap/viewer";
-import type { Animation, BlueMapApp } from "@material-bluemap/viewer";
+import { animate, EasingFunctions } from "@worldlens/viewer";
+import type { Animation, BlueMapApp } from "@worldlens/viewer";
 import IconButton from "./IconButton.vue";
 import { prefersReducedMotion, useControlBarApp } from "./useControlBarApp.js";
 

@@ -2,7 +2,7 @@
 /**
  * Copies upstream's already-built webapp bundle (`vendor/BlueMap/common/webapp/dist` —
  * the same HTML/JS/CSS `BlueMapCLI`'s own `-g`/`createOrUpdateWebApp` copies out of the
- * jar's resources) into this package's `dist/webapp`, so a built `@material-bluemap/cli`
+ * jar's resources) into this package's `dist/webapp`, so a built `@worldlens/cli`
  * can serve a real map viewer without depending on the `vendor/BlueMap` submodule being
  * checked out at runtime.
  *

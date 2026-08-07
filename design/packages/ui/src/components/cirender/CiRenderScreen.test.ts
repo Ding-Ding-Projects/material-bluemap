@@ -112,7 +112,7 @@ function preflight(overrides: Partial<CiPreflight> = {}): CiPreflight {
             configuration: {
                 route: "project-archive",
                 complete: true,
-                file: "material-bluemap.project.json",
+                file: "worldlens.project.json",
             },
             notCarried: [],
         },
@@ -695,7 +695,7 @@ describe("what it says about an upload", () => {
                         configuration: {
                             route: "project-archive",
                             complete: true,
-                            file: "material-bluemap.project.json",
+                            file: "worldlens.project.json",
                         },
                         notCarried: [],
                     },
@@ -704,7 +704,7 @@ describe("what it says about an upload", () => {
         );
         await check(wrapper);
         expect(wrapper.find('[data-test="config-transport"]').text()).toContain(
-            "material-bluemap.project.json",
+            "worldlens.project.json",
         );
         expect(wrapper.find('[data-test="config-transport"]').text()).toContain(
             "complete render mask",
@@ -958,7 +958,7 @@ describe("the world folder: a picker of what this machine already knows about", 
     });
 
     it("fills the field from the shared browse affordance when this build carries it", async () => {
-        vi.stubGlobal("materialBluemap", {
+        vi.stubGlobal("worldlens", {
             dialog: { pickFolder: () => Promise.resolve("/browsed/world") },
         });
         try {

@@ -25,7 +25,7 @@ import {
     StaticHandler,
     RemoteProxyHandler,
     type RemoteProfile,
-} from "@material-bluemap/server";
+} from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
 import { upstreamJavaEngine } from "./render/engine.js";
 import { installRenderIpc } from "./render/ipc.js";
@@ -35,6 +35,7 @@ import type { DownloadIpc } from "./download/ipc.js";
 import { releaseTokenSource } from "./download/token.js";
 import { totalmem } from "node:os";
 import {
+    createFileUpdateFeedHandoff,
     engineFromAutoUpdater,
     installUpdateIpc,
     resolveFeed,
@@ -120,8 +121,64 @@ import { spawnProcessRunner } from "./sysdeps/process.js";
 import { registerGhCliHandlers } from "./ghcli/ipc.js";
 import type { GhCliIpc } from "./ghcli/ipc.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
+import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
+import { migrateWorldlensProfile } from "./migration/index.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Pin storage to the immutable product identity before Electron initializes a renderer.
+ * A user-configurable display name is renderer state and never reaches either call.
+ */
+const applicationDataDirectory = app.getPath("appData");
+app.setName(WORLDLENS_IDENTITY.shippedName);
+app.setPath("userData", join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName));
+
+async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
+    const answer = await dialog.showMessageBox({
+        type: "question",
+        title: "Bring your existing profile to Worldlens?",
+        message: "Worldlens found data from Material BlueMap.",
+        detail:
+            "Copy and verify your consent record, settings, GitHub credential references, projects, histories, " +
+            "cache and maps for Worldlens. The old profile stays in place so this can be retried or rolled back.\n\n" +
+            `Legacy profile folder: ${LEGACY_MATERIAL_BLUEMAP_IDENTITY.dataDirectorySegments.join("\\")}\n` +
+            `Worldlens profile folder: ${WORLDLENS_IDENTITY.dataDirectoryName}`,
+        buttons: ["Copy and verify", "Not now"],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+    });
+    return answer.response === 0 ? "accept" : "deny";
+}
+
+async function prepareWorldlensProfile(): Promise<boolean> {
+    const outcome = await migrateWorldlensProfile({
+        appDataDirectory: applicationDataDirectory,
+        requestConsent: requestProfileMigrationConsent,
+    });
+    if (
+        outcome.kind === "no-legacy-profile" ||
+        outcome.kind === "already-migrated" ||
+        outcome.kind === "denied" ||
+        outcome.kind === "migrated"
+    ) {
+        console.info(`[worldlens] profile migration: ${outcome.kind}`);
+        return true;
+    }
+
+    const detail =
+        outcome.kind === "collision"
+            ? `Both profiles contain different versions of: ${outcome.paths.join(", ")}. Neither profile was changed.`
+            : outcome.message;
+    console.error(`[worldlens] profile migration ${outcome.kind}: ${detail}`);
+    dialog.showErrorBox(
+        "Worldlens kept your old profile safe",
+        `${detail}\n\nWorldlens did not open because continuing could hide or overwrite data. ` +
+            "The Material BlueMap profile remains intact; correct the reported problem and start Worldlens again.",
+    );
+    return false;
+}
 
 /** Built UI bundle (packages/ui/dist), resolved relative to the app package. */
 function resolveUiRoot(): string {
@@ -638,21 +695,16 @@ function startUpdates(render: RenderIpc): void {
             platform: process.platform,
             arch: process.arch,
             version: app.getVersion(),
-            // Baked in by esbuild's `define` in build.mjs (see globals.d.ts), never written
-            // here as a literal. 114 installers already shipped with "Ding-Ding-Projects/
-            // material-bluemap" hardcoded at this exact call site; a rename that moves the
-            // repository would leave every one of them asking an address that only works
-            // until GitHub's redirect lapses, is reused, or the repo moves again - and the
-            // failure is invisible, because a client that cannot reach its feed just stops
-            // hearing about updates rather than raising an error anyone sees. Deriving it at
-            // build time means a rename changes nothing here; the `MATERIAL_BLUEMAP_UPDATE_
-            // FEED` runtime override that `environment` below still feeds into `resolveFeed`
-            // remains the way to point an already-installed client somewhere else without a
-            // rebuild - which is what actually rescues those 114 installers during a rename.
-            repository: __MATERIAL_BLUEMAP_REPOSITORY__,
+            // Both repositories are baked in by build.mjs. The current feed is always tried
+            // first; the previous host is a bounded bridge fallback until this profile has
+            // actually downloaded from the Worldlens feed. That proof is persisted below,
+            // so the handoff does not depend on a repository redirect remaining in place.
+            repository: __WORLDLENS_REPOSITORY__,
+            legacyRepository: __WORLDLENS_LEGACY_REPOSITORY__,
             environment: process.env,
         }),
         engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,
+        feedHandoff: createFileUpdateFeedHandoff(app.getPath("userData")),
         renderInProgress: () => render.orchestrator.activeRenderIds().length > 0,
         broadcast: (state) => {
             for (const window of BrowserWindow.getAllWindows()) {
@@ -1268,23 +1320,44 @@ async function launch(): Promise<void> {
         await createWindow();
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error("[material-bluemap] startup failed:", error);
+        console.error("[worldlens] startup failed:", error);
         dialog.showErrorBox(
-            "Material BlueMap could not start",
+            "Worldlens could not start",
             `${message}\n\nThis is a bug. Please report it with this message at\n` +
-                `https://github.com/Ding-Ding-Projects/material-bluemap/issues`,
+                `https://github.com/Ding-Ding-Projects/worldlens/issues`,
         );
         app.exit(1);
     }
 }
 
-app.whenReady().then(() => {
-    void launch();
-    app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) void launch();
-    });
-});
+const ownsSingleInstance = app.requestSingleInstanceLock();
 
-app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
-});
+if (!ownsSingleInstance) {
+    // Profile migration happens before any window or writable app-owned store is opened.
+    // A second process must therefore stop here, before it can stage or cut over the same
+    // profile while the owning process is validating its exact current manifest.
+    app.quit();
+} else {
+    app.on("second-instance", () => {
+        const window = BrowserWindow.getAllWindows()[0];
+        if (window === undefined || window.isDestroyed()) return;
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+    });
+
+    app.whenReady().then(async () => {
+        if (!(await prepareWorldlensProfile())) {
+            app.exit(1);
+            return;
+        }
+        await launch();
+        app.on("activate", () => {
+            if (BrowserWindow.getAllWindows().length === 0) void launch();
+        });
+    });
+
+    app.on("window-all-closed", () => {
+        if (process.platform !== "darwin") app.quit();
+    });
+}

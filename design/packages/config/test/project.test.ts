@@ -8,8 +8,11 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    LEGACY_PROJECT_FILE_NAME,
+    LEGACY_PROJECT_SCHEMA_ID,
     PROJECT_FILE_NAME,
     PROJECT_FORMAT_VERSION,
+    PROJECT_SCHEMA_ID,
     parseProjectFile,
     projectFileSchema,
     serializeProjectFile,
@@ -29,7 +32,8 @@ function project(overrides: Partial<ProjectFile> = {}): ProjectFile {
 
 describe("the file it writes", () => {
     it("is named clearly enough to belong to somebody, in a folder many tools write to", () => {
-        expect(PROJECT_FILE_NAME).toBe("material-bluemap.project.json");
+        expect(PROJECT_FILE_NAME).toBe("worldlens.project.json");
+        expect(LEGACY_PROJECT_FILE_NAME).toBe("material-bluemap.project.json");
         // Not hidden: a file somebody cannot see is one they cannot back up or delete on purpose.
         expect(PROJECT_FILE_NAME.startsWith(".")).toBe(false);
     });
@@ -38,7 +42,7 @@ describe("the file it writes", () => {
         const original = project({ maps: [] });
         const read = parseProjectFile(serializeProjectFile(original));
         expect(read.ok).toBe(true);
-        if (read.ok) expect(read.project).toEqual(original);
+        if (read.ok) expect(read.project).toEqual({ ...original, schema: PROJECT_SCHEMA_ID });
     });
 
     it("writes its keys in a fixed order, so one changed setting is one changed line", () => {
@@ -94,10 +98,46 @@ describe("reading one somebody else wrote", () => {
         );
         expect(read.ok).toBe(true);
         if (read.ok) {
+            expect(read.project.version).toBe(PROJECT_FORMAT_VERSION);
+            expect(read.project.schema).toBe(PROJECT_SCHEMA_ID);
             expect(read.project.maps).toEqual([]);
             expect(read.project.render.force).toBe(false);
             expect(read.project.fromWizard).toBe(false);
         }
+    });
+
+    it("adapts the explicit legacy schema id and preserves unknown fields", () => {
+        const read = parseProjectFile(
+            JSON.stringify({
+                version: 1,
+                schema: LEGACY_PROJECT_SCHEMA_ID,
+                id: "p",
+                name: "n",
+                createdAt: "2026-08-04T12:00:00-04:00",
+                updatedAt: "2026-08-04T12:00:00-04:00",
+                futureExtension: { kept: true },
+                maps: [
+                    {
+                        id: "home",
+                        name: "Home",
+                        dimension: "minecraft:overworld",
+                        config: "",
+                        futureMapField: 42,
+                    },
+                ],
+            }),
+        );
+        expect(read.ok).toBe(true);
+        if (!read.ok) return;
+        expect(read.project).toMatchObject({
+            version: PROJECT_FORMAT_VERSION,
+            schema: PROJECT_SCHEMA_ID,
+            futureExtension: { kept: true },
+        });
+        expect(read.project.maps[0]).toMatchObject({ futureMapField: 42 });
+        const serialized = JSON.parse(serializeProjectFile(read.project)) as Record<string, unknown>;
+        expect(serialized.futureExtension).toEqual({ kept: true });
+        expect((serialized.maps as Record<string, unknown>[])[0]?.futureMapField).toBe(42);
     });
 });
 

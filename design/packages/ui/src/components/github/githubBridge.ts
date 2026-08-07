@@ -2,7 +2,7 @@
  * The seam between the GitHub sign-in section and the main process.
  *
  * Every type here is a structural mirror of one the Electron preload exposes on
- * `window.materialBluemap`, restated rather than imported for the same reason
+ * `window.worldlens`, restated rather than imported for the same reason
  * `settings/settingsBridge.ts` and `world/worldBridge.ts` restate theirs: this package
  * compiles and runs in three places and only one of them has a preload. In a browser tab
  * there is no main process to ask, and under Vitest the whole surface is driven by a fake.
@@ -243,7 +243,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** The preload, or null when there is none. Every method on it is still optional. */
 export function resolveGitHubBridge(): GitHubBridge | null {
-    const host = (globalThis as { materialBluemap?: GitHubBridge }).materialBluemap;
+    const host = (globalThis as { worldlens?: GitHubBridge }).worldlens;
     return host ?? null;
 }
 

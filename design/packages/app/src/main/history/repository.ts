@@ -1001,7 +1001,7 @@ export async function restoreRevisionFiles(
  * Putting one setting back is not a copy, it is a merge: the file keeps every other setting,
  * every comment, and its formatting, and only the chosen keys take their old values. Doing
  * that correctly needs a HOCON reader and writer that round-trip, which is
- * `@material-bluemap/config`, and that package belongs to the editor rather than to this
+ * `@worldlens/config`, and that package belongs to the editor rather than to this
  * process. Duplicating it here would give this feature a second HOCON implementation to
  * disagree with the one that writes every save, which is a worse outcome than the one this
  * paragraph exists to explain.

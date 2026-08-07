@@ -28,7 +28,7 @@ import {
     mdiWeb,
 } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VIcon } from "vuetify/components";
-import type { MarkerSetData } from "@material-bluemap/viewer";
+import type { MarkerSetData } from "@worldlens/viewer";
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";

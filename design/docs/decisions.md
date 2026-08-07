@@ -2,7 +2,7 @@
 
 Decisions locked during planning (see `../../plan.md` for full context):
 
-- **D1 — NBT**: hand-rolled `@material-bluemap/nbt` mirroring BlueNBT's adapter model
+- **D1 — NBT**: hand-rolled `@worldlens/nbt` mirroring BlueNBT's adapter model
   (lazy/streaming reads on the chunk hot path, writer for renderstate/tasks.dat).
   `PackedIntArrayAccess` bit math on 32-bit halves; no per-block BigInt.
 - **D2 — Compression**: gzip/deflate via `node:zlib`; zstd via `@bokuweb/zstd-wasm`;

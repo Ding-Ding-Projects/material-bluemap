@@ -35,8 +35,8 @@ describe("publishBindAddress", () => {
 describe("remoteHostingContainerName", () => {
     it("is never confusable with a render's own container, on the same host", () => {
         const name = remoteHostingContainerName("overworld-abc123");
-        expect(name).toContain("material-bluemap-host");
-        expect(name).not.toContain("material-bluemap-remote");
+        expect(name).toContain("worldlens-host");
+        expect(name).not.toContain("worldlens-remote");
     });
 });
 
@@ -44,14 +44,14 @@ describe("remoteServeDockerRunArguments", () => {
     const args = remoteServeDockerRunArguments({
         target: testTarget(),
         paths: PATHS,
-        containerName: "material-bluemap-host-overworld-abc123",
+        containerName: "worldlens-host-overworld-abc123",
         mapIds: ["overworld", "nether"],
         publish: { hostPort: 8123, bindMode: "loopback" },
     });
     const line = args.join(" ");
 
     it("is detached and set to survive a reboot, never --rm", () => {
-        expect(line).toContain("run -d --restart unless-stopped --name material-bluemap-host-overworld-abc123");
+        expect(line).toContain("run -d --restart unless-stopped --name worldlens-host-overworld-abc123");
         expect(line).not.toContain("--rm");
     });
 
@@ -63,7 +63,7 @@ describe("remoteServeDockerRunArguments", () => {
         const publicArgs = remoteServeDockerRunArguments({
             target: testTarget(),
             paths: PATHS,
-            containerName: "material-bluemap-host-overworld-abc123",
+            containerName: "worldlens-host-overworld-abc123",
             mapIds: ["overworld"],
             publish: { hostPort: 8100, bindMode: "public" },
         }).join(" ");
@@ -123,23 +123,23 @@ describe("remoteServeDockerRunArguments", () => {
 
 describe("remoteHostingTeardownArguments", () => {
     it("is one idempotent command: force-remove by name", () => {
-        expect(remoteHostingTeardownArguments(testTarget(), "material-bluemap-host-x")).toEqual([
+        expect(remoteHostingTeardownArguments(testTarget(), "worldlens-host-x")).toEqual([
             "docker",
             "rm",
             "-f",
-            "material-bluemap-host-x",
+            "worldlens-host-x",
         ]);
     });
 });
 
 describe("remoteHostingStatusArguments", () => {
     it("filters ps to exactly this container's name", () => {
-        const args = remoteHostingStatusArguments(testTarget(), "material-bluemap-host-x");
+        const args = remoteHostingStatusArguments(testTarget(), "worldlens-host-x");
         expect(args).toEqual([
             "docker",
             "ps",
             "--filter",
-            "name=^/material-bluemap-host-x$",
+            "name=^/worldlens-host-x$",
             "--format",
             "{{.Status}}",
         ]);

@@ -9,6 +9,8 @@
  * enforced it is enforced there, not by this file remembering to ask.
  */
 
+// Must evaluate before controllers below hydrate their localStorage-backed state.
+import "./legacyStorageMigration.js";
 import "./theme/tokens.css";
 import "./theme/base.css";
 import "./tabs/tabs.css";
@@ -840,7 +842,7 @@ function showBootFailure(error: unknown): void {
     notice.appendChild(detail);
 
     const link = document.createElement("a");
-    link.href = "https://github.com/Ding-Ding-Projects/material-bluemap/issues";
+    link.href = "https://github.com/Ding-Ding-Projects/worldlens/issues";
     link.textContent = reportText;
     link.rel = "noopener noreferrer";
     notice.appendChild(link);
@@ -1195,7 +1197,7 @@ function boot(): void {
                     .filter((record): record is NotificationRecord => record !== undefined)
                     .map(notificationLine);
                 if (lines.length === 0) return;
-                downloadMarkdown(lines, "material-bluemap-notifications-selected.md");
+                downloadMarkdown(lines, "worldlens-notifications-selected.md");
                 i18n.bindText(status, "site.selectionExported");
             });
 
@@ -1232,7 +1234,7 @@ function boot(): void {
             exportButton.addEventListener("click", () => {
                 downloadMarkdown(
                     notifications.list().map(notificationLine),
-                    "material-bluemap-notifications.md",
+                    "worldlens-notifications.md",
                 );
                 i18n.bindText(status, "site.notificationsExported");
             });
@@ -1359,7 +1361,7 @@ function createBrand(
 
     // The proper noun stays literal text; only the accessible label (below) is localised,
     // matching how every other proper noun on the site is handled.
-    brand.appendChild(el("span", "mb-brand-word", "material-bluemap"));
+    brand.appendChild(el("span", "mb-brand-word", "worldlens"));
 
     i18n.bindAttr(brand, "aria-label", "site.brandAria");
     brand.addEventListener("click", goHome);

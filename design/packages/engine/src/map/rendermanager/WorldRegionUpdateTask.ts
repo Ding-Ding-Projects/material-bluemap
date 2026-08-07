@@ -39,10 +39,10 @@
  * registry that dispatches every task's `Serialized` form by a stable type-key.
  */
 
-import { IOException, TypeToken } from "@material-bluemap/nbt";
-import type { ObjectSchema } from "@material-bluemap/nbt";
-import { Vector2i } from "@material-bluemap/shared";
-import type { Grid } from "@material-bluemap/shared";
+import { IOException, TypeToken } from "@worldlens/nbt";
+import type { ObjectSchema } from "@worldlens/nbt";
+import { Vector2i } from "@worldlens/shared";
+import type { Grid } from "@worldlens/shared";
 import type { BmMap } from "../BmMap.js";
 import { Chunk } from "../../world/Chunk.js";
 import { ChunkConsumer } from "../../world/ChunkConsumer.js";

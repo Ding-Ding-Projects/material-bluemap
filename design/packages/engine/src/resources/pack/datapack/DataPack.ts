@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { DimensionType } from "../../../world/DimensionType.js";
 import type { Biome } from "../../../world/biome/Biome.js";
 import { LegacyBiomes } from "../../../world/mca/chunk/LegacyBiomes.js";

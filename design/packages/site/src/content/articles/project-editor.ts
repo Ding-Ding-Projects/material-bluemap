@@ -39,7 +39,7 @@ export const projectEditor: Article = {
                 {
                     kind: "definitions",
                     items: [
-                        { term: "Layout key", description: "material-bluemap-project-editor-tabs, isolated from the shell and every other settings surface." },
+                        { term: "Layout key", description: "worldlens-project-editor-tabs, isolated from the shell and every other settings surface." },
                         { term: "Sections", description: "Maps, Storages, How it renders, History, Core, Web app, Web server and Plugin." },
                         { term: "Pointer boundary", description: "A typed host prop controls pass-through; nested panels default to pointer-events auto." },
                         { term: "Responsive floor", description: "Primary controls retain 44 CSS-pixel targets, wrap long labels and stack the editor at narrow container widths." },

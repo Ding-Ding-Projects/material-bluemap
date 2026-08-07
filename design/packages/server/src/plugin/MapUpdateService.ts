@@ -74,9 +74,9 @@
  *   test can assert on what was logged instead of only on side effects.
  */
 
-import type { BmMap, RenderManager } from "@material-bluemap/engine";
-import { WatchService, WorldRegionUpdateTask } from "@material-bluemap/engine";
-import type { Vector2i } from "@material-bluemap/shared";
+import type { BmMap, RenderManager } from "@worldlens/engine";
+import { WatchService, WorldRegionUpdateTask } from "@worldlens/engine";
+import type { Vector2i } from "@worldlens/shared";
 
 /** upstream: the bare `5000` literal in `updateRegion(Vector2i)`. */
 const DEFAULT_MIN_UPDATE_DELAY_MS = 5_000;

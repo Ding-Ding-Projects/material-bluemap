@@ -1,4 +1,4 @@
-import { Color, Vector2i } from "@material-bluemap/shared";
+import { Color, Vector2i } from "@worldlens/shared";
 import { ColorAdapter } from "../resources/adapter/ColorAdapter.js";
 import type { JsonValue } from "../resources/adapter/JsonMapper.js";
 import { Vector2iAdapter } from "../resources/adapter/Vector2iAdapter.js";

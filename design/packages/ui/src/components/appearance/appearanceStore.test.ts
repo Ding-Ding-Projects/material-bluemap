@@ -25,6 +25,7 @@ import {
     exportTheme,
     GLOBAL_TARGET,
     importTheme,
+    LEGACY_APPEARANCE_FORMAT,
     readAppearanceState,
     recordFor,
     resolveTarget,
@@ -211,6 +212,22 @@ describe("export and import", () => {
         // of "High contrast" over whatever a newer build means by it.
         const written: unknown = JSON.parse(exportTheme(emptyState()));
         expect(written).toMatchObject({ format: APPEARANCE_FORMAT, presets: [] });
+    });
+
+    it("imports the legacy appearance format and exports only the Worldlens format", () => {
+        const result = importTheme(
+            JSON.stringify({
+                format: LEGACY_APPEARANCE_FORMAT,
+                version: 1,
+                elements: { "app.tab": { typography: { bold: true } } },
+            }),
+        );
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(JSON.parse(exportTheme(result.state))).toMatchObject({
+            format: APPEARANCE_FORMAT,
+            elements: { "app.tab": { typography: { bold: true } } },
+        });
     });
 
     it("keeps a section from a newer build instead of deleting it", () => {

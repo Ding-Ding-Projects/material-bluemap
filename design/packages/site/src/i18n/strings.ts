@@ -658,18 +658,18 @@ export const VOICED = {
     },
     "home.lede": {
         en: [
-            "material-bluemap is a TypeScript port of BlueMap with a Material Design 3 interface. This site documents what exists and what does not.",
-            "material-bluemap is a TypeScript port of BlueMap with a Material Design 3 interface. This site documents what exists and what does not.",
-            "material-bluemap is BlueMap ported to TypeScript, wearing Material Design 3. This site documents what exists and, just as usefully, what does not.",
-            "material-bluemap is BlueMap rebuilt in TypeScript with a Material Design 3 face. This site says what exists and, more usefully, what does not.",
-            "material-bluemap is BlueMap reborn in TypeScript with a Material Design 3 makeover. This site says what exists and, far more usefully, what does not.",
+            "worldlens is a TypeScript port of BlueMap with a Material Design 3 interface. This site documents what exists and what does not.",
+            "worldlens is a TypeScript port of BlueMap with a Material Design 3 interface. This site documents what exists and what does not.",
+            "worldlens is BlueMap ported to TypeScript, wearing Material Design 3. This site documents what exists and, just as usefully, what does not.",
+            "worldlens is BlueMap rebuilt in TypeScript with a Material Design 3 face. This site says what exists and, more usefully, what does not.",
+            "worldlens is BlueMap reborn in TypeScript with a Material Design 3 makeover. This site says what exists and, far more usefully, what does not.",
         ],
         yue: [
-            "material-bluemap 係 BlueMap 嘅 TypeScript 移植版，配 Material Design 3 介面。本站記錄現有功能同尚未完成的部分。",
-            "material-bluemap 係 BlueMap 嘅 TypeScript 移植版，配 Material Design 3 介面。本站記錄咗有咩同未有咩。",
-            "material-bluemap 就係 BlueMap 用 TypeScript 重寫，著上 Material Design 3。本站寫低有咩，同埋一樣重要嘅：未有咩。",
-            "material-bluemap 就係 BlueMap 用 TypeScript 重生，仲整咗個 Material Design 3 靚面。本站講明有咩，仲更加有用咁講明未有咩。",
-            "material-bluemap 就係 BlueMap 用 TypeScript 投胎，順便做埋 Material Design 3 全身整容。本站坦白講有咩，仲坦白講未有咩。",
+            "worldlens 係 BlueMap 嘅 TypeScript 移植版，配 Material Design 3 介面。本站記錄現有功能同尚未完成的部分。",
+            "worldlens 係 BlueMap 嘅 TypeScript 移植版，配 Material Design 3 介面。本站記錄咗有咩同未有咩。",
+            "worldlens 就係 BlueMap 用 TypeScript 重寫，著上 Material Design 3。本站寫低有咩，同埋一樣重要嘅：未有咩。",
+            "worldlens 就係 BlueMap 用 TypeScript 重生，仲整咗個 Material Design 3 靚面。本站講明有咩，仲更加有用咁講明未有咩。",
+            "worldlens 就係 BlueMap 用 TypeScript 投胎，順便做埋 Material Design 3 全身整容。本站坦白講有咩，仲坦白講未有咩。",
         ],
     },
     "home.statusBody": {
@@ -923,7 +923,7 @@ export const VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const FIXED = {
-    "brand.name": { en: "material-bluemap", yue: "material-bluemap" },
+    "brand.name": { en: "worldlens", yue: "worldlens" },
     "common.close": { en: "Close", yue: "關閉" },
     "common.cancel": { en: "Cancel", yue: "取消" },
     "common.apply": { en: "Apply", yue: "套用" },
@@ -1027,7 +1027,7 @@ export const FIXED = {
     "bulk.scope.group": { en: "Group: {name}", yue: "群組：{name}" },
     "bulk.eligible": { en: "{count} pages in scope", yue: "範圍內有 {count} 頁" },
 
-    "home.title": { en: "material-bluemap", yue: "material-bluemap" },
+    "home.title": { en: "worldlens", yue: "worldlens" },
     "home.statusHeading": { en: "Current state", yue: "目前狀態" },
     "home.shellHeading": { en: "What this shell provides", yue: "呢個外殼有咩" },
     "home.tabLabel": { en: "Home", yue: "主頁" },
@@ -1159,8 +1159,8 @@ export const FIXED = {
     },
     "site.editAppearance": { en: "Edit appearance…", yue: "編輯外觀…" },
     "site.brandAria": {
-        en: "material-bluemap: go to Home",
-        yue: "material-bluemap：返回主頁",
+        en: "worldlens: go to Home",
+        yue: "worldlens：返回主頁",
     },
     "site.descriptionScreenshots": {
         en: "See real captures from continuous integration",

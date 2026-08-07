@@ -55,10 +55,10 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
         "printf 'BlueMap %s server plugins\\n\\n' \"$BLUEMAP_VERSION\"",
       ]),
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
-        'extras="material-bluemap-${RELEASE_TAG}-extras"',
-        "printf 'material-bluemap %s - extras\\n\\n' \"$RELEASE_TAG\"",
+        'extras="worldlens-${RELEASE_TAG}-extras"',
+        "printf 'Worldlens %s - extras\\n\\n' \"$RELEASE_TAG\"",
         'gh release create "$RELEASE_TAG" \\',
-        '--title "material-bluemap $RELEASE_TAG" \\',
+        '--title "Worldlens $RELEASE_TAG" \\',
         'gh release edit "$RELEASE_TAG" \\',
         'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body \\',
         'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \\',
@@ -79,13 +79,13 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     }),
     Publish: Object.freeze({
       env: "f951560bc01336f0c08b2b8fc66f8b9bc7745b1593b3560718edb128c9f3b823",
-      run: "34d56f3aab6404983c64a52a6abade8cbc1d35e082dfe282030b972b39ea5cdf",
+      run: "af16d0b8b87cfc2564dbca37bd489909047b7e9dd552e9cd55a332ce6ddf9eb5",
     }),
   }),
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "9e570f9952d5290a40c91a21b188c91823a192f71a3f7d1dbaf853c78925b10e";
+  "20e55262565f1d57cf9402404320fd6717a037d9563dac7f1d6e490f2fd6882f";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({

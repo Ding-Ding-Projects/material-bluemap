@@ -30,10 +30,10 @@ let resolveWorldBridge: () => ResolvedBridge | null;
 
 beforeAll(async () => {
     const call = vi.mocked(contextBridge.exposeInMainWorld).mock.calls[0];
-    expect(call?.[0]).toBe("materialBluemap");
+    expect(call?.[0]).toBe("worldlens");
     exposed = call?.[1];
 
-    (globalThis as { materialBluemap?: unknown }).materialBluemap = exposed;
+    (globalThis as { worldlens?: unknown }).worldlens = exposed;
     const url = new URL("../../../ui/src/components/world/worldBridge.ts", import.meta.url).href;
     const module = await import(/* @vite-ignore */ url) as {
         resolveWorldBridge(): ResolvedBridge | null;

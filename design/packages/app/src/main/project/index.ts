@@ -1,7 +1,7 @@
 /**
  * A world's project: the file that records how that world should be rendered.
  *
- * The shape of a project is fixed in `@material-bluemap/config`, which owns the schema, the
+ * The shape of a project is fixed in `@worldlens/config`, which owns the schema, the
  * file name, the format version and the pure reader. This directory is the main-process half
  * of it - the only code allowed to put a byte inside somebody's Minecraft world - and it is
  * arranged the same way `world/`, `config/` and `history/` are:

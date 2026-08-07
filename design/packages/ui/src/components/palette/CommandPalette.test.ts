@@ -18,7 +18,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import CommandPalette from "./CommandPalette.vue";
 import { usePaletteShortcut } from "./palettePrefs.js";
 import { setBlueMapApp } from "../../stores/bluemap.js";
@@ -473,6 +473,6 @@ describe("size", () => {
         await nextTick();
 
         expect(document.querySelector(".mb-palette--full")).not.toBeNull();
-        expect(localStorage.getItem("material-bluemap-palette")).toBe('{"size":"full"}');
+        expect(localStorage.getItem("worldlens-palette")).toBe('{"size":"full"}');
     });
 });

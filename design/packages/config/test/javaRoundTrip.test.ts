@@ -60,7 +60,7 @@ afterAll(() => {
 });
 
 function newWorkspace(): string {
-    const workspace = mkdtempSync(join(tmpdir(), "material-bluemap-config-"));
+    const workspace = mkdtempSync(join(tmpdir(), "worldlens-config-"));
     workspaces.push(workspace);
     return workspace;
 }

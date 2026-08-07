@@ -42,7 +42,7 @@ import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
 import { normalize, resolve, sep } from "node:path";
-import type { HttpHandler } from "@material-bluemap/server";
+import type { HttpHandler } from "@worldlens/server";
 
 const gunzipAsync = promisify(gunzip);
 

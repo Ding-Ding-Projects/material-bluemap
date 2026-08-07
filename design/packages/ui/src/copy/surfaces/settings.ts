@@ -631,6 +631,75 @@ export const SETTINGS_VOICED = {
     },
 
     /* ---------------------------------------------------------------- */
+    /* The cosmetic product display name                                 */
+    /* ---------------------------------------------------------------- */
+
+    "settings.productName.hint": {
+        en: [
+            "Shown in the title bar, About, notifications and introductions.",
+            "Shown in the title bar, About, notifications and introductions.",
+            "Shown in the title bar, About, notifications and introductions.",
+            "Shown in the title bar, About, notifications and introductions; the app changes its badge, not its passport.",
+            "Shown in the title bar, About, notifications and introductions; the app can change its name tag without moving house.",
+        ],
+        yue: [
+            "會顯示喺標題列、關於、通知同介紹入面。",
+            "會顯示喺標題列、關於、通知同介紹入面。",
+            "會顯示喺標題列、關於、通知同介紹入面。",
+            "會顯示喺標題列、關於、通知同介紹入面；換名牌，唔係換身份證。",
+            "會顯示喺標題列、關於、通知同介紹入面；個 app 可以換胸牌，唔使連屋都搬埋。",
+        ],
+    },
+    "settings.productName.boundary": {
+        en: [
+            "This changes presentation only. The data folder, installer, packages, update feed, repository markers and diagnostic product name remain Worldlens.",
+            "This changes presentation only. The data folder, installer, packages, update feed, repository markers and diagnostic product name remain Worldlens.",
+            "This changes presentation only. The data folder, installer, packages, update feed, repository markers and diagnostic product name all remain Worldlens.",
+            "This changes presentation only. The data folder, installer, packages, update feed, repository markers and diagnostic product name stay Worldlens; none of the machinery follows the new sign.",
+            "This changes presentation only. The data folder, installer, packages, update feed, repository markers and diagnostic product name stay Worldlens; the sign may sparkle, but the machinery keeps its legal name.",
+        ],
+        yue: [
+            "呢個只會改顯示。資料夾、安裝程式、packages、更新 feed、repository markers 同診斷產品名仍然係 Worldlens。",
+            "呢個只會改顯示。資料夾、安裝程式、packages、更新 feed、repository markers 同診斷產品名仍然係 Worldlens。",
+            "呢個只會改顯示。資料夾、安裝程式、packages、更新 feed、repository markers 同診斷產品名全部仍然係 Worldlens。",
+            "呢個只會改顯示。資料夾、安裝程式、packages、更新 feed、repository markers 同診斷產品名照樣係 Worldlens；機器唔會跟住新招牌搬屋。",
+            "呢個只會改顯示。資料夾、安裝程式、packages、更新 feed、repository markers 同診斷產品名照樣係 Worldlens；招牌可以閃令令，機器身份證一個字都唔郁。",
+        ],
+    },
+    "settings.productName.default": {
+        en: [
+            "Current value: the built-in name Worldlens.",
+            "Current value: the built-in name Worldlens.",
+            "Current value: the built-in name Worldlens.",
+            "Current value: the built-in name Worldlens, straight from the box.",
+            "Current value: the built-in name Worldlens; the name tag is still wearing factory clothes.",
+        ],
+        yue: [
+            "目前值：內置名稱 Worldlens。",
+            "目前值：內置名稱 Worldlens。",
+            "目前值：內置名稱 Worldlens。",
+            "目前值：內置名稱 Worldlens，原裝出廠。",
+            "目前值：內置名稱 Worldlens；塊名牌仲着住原廠套衫。",
+        ],
+    },
+    "settings.productName.saved": {
+        en: [
+            "Current value: {name}, saved on this device.",
+            "Current value: {name}, saved on this device.",
+            "Current value: {name}, saved on this device.",
+            "Current value: {name}, saved on this device and ready for the next launch.",
+            "Current value: {name}, saved on this device; the new name tag will report for duty next launch too.",
+        ],
+        yue: [
+            "目前值：{name}，已儲存喺呢部裝置。",
+            "目前值：{name}，已儲存喺呢部裝置。",
+            "目前值：{name}，已儲存喺呢部裝置。",
+            "目前值：{name}，已儲存喺呢部裝置，下次開機都會用。",
+            "目前值：{name}，已儲存喺呢部裝置；塊新名牌下次開機都會準時返工。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
     /* The History section                                               */
     /* ---------------------------------------------------------------- */
 
@@ -893,6 +962,20 @@ export const SETTINGS_FIXED = {
         yue: "名稱、說明，或者畫面上見到嘅值",
     },
 
+    /* The cosmetic product display-name row. */
+    "settings.productName.label": {
+        en: "Name shown by the app",
+        yue: "個 app 顯示嘅名稱",
+    },
+    "settings.productName.save": {
+        en: "Use this display name",
+        yue: "用呢個顯示名稱",
+    },
+    "settings.productName.reset": {
+        en: "Reset to Worldlens",
+        yue: "重設做 Worldlens",
+    },
+
     /* The docked panel's own chrome. */
     "dock.chooser.list": { en: "Placement", yue: "位置" },
     "dock.chooser.reset": { en: "Reset", yue: "重設" },
@@ -1010,6 +1093,36 @@ export const SETTINGS_FACTS = {
     "settings.search.total": { en: ["{n}"], yue: ["{n}"] },
     "settings.search.found": { en: ["{shown}", "{total}"], yue: ["{shown}", "{total}"] },
     "settings.search.noMatches": { en: ["this screen", "match"], yue: ["呢個畫面", "符合"] },
+
+    "settings.productName.hint": {
+        en: ["title bar", "About", "notifications", "introductions"],
+        yue: ["標題列", "關於", "通知", "介紹"],
+    },
+    "settings.productName.boundary": {
+        en: [
+            "data folder",
+            "installer",
+            "packages",
+            "update feed",
+            "repository markers",
+            "diagnostic product name",
+            "Worldlens",
+        ],
+        yue: [
+            "資料夾",
+            "安裝程式",
+            "packages",
+            "更新 feed",
+            "repository markers",
+            "診斷產品名",
+            "Worldlens",
+        ],
+    },
+    "settings.productName.default": { en: ["Worldlens"], yue: ["Worldlens"] },
+    "settings.productName.saved": {
+        en: ["{name}", "saved"],
+        yue: ["{name}", "儲存"],
+    },
 
     // The preference was honoured even though the panel is not where it was asked to be.
     "dock.adjusted.floating": {

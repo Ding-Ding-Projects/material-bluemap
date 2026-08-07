@@ -64,16 +64,16 @@ quietly incorrect.
 
 Actions → **Render world** → Run workflow.
 
-| Input | What it does |
-| --- | --- |
-| `world-source` | `repository`, `url` or `release-asset` |
-| `world` | where the world is, read according to `world-source` — see below |
-| `dimension` | overworld, nether or end |
-| `map-id` / `map-name` | the storage id used in paths, and the display name in the webapp |
-| `output` | `artifact`, or `artifact-and-pages` to also publish it |
-| `budget-minutes` | how long one job may spend rendering before the world is split (default 240) |
-| `max-jobs` | cap on parallel jobs (default 64; GitHub itself refuses more than 256) |
-| `force-shards` | skip the estimate and use exactly this many shards |
+| Input                 | What it does                                                                 |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `world-source`        | `repository`, `url` or `release-asset`                                       |
+| `world`               | where the world is, read according to `world-source` — see below             |
+| `dimension`           | overworld, nether or end                                                     |
+| `map-id` / `map-name` | the storage id used in paths, and the display name in the webapp             |
+| `output`              | `artifact`, or `artifact-and-pages` to also publish it                       |
+| `budget-minutes`      | how long one job may spend rendering before the world is split (default 240) |
+| `max-jobs`            | cap on parallel jobs (default 64; GitHub itself refuses more than 256)       |
+| `force-shards`        | skip the estimate and use exactly this many shards                           |
 
 ### `map-id` accepts anything; BlueMap sanitizes it before using it as a path
 
@@ -90,7 +90,7 @@ private String sanitiseMapId(String id) {
 }
 ```
 
-Java's `\W` here is the *default*, ASCII-only word class (nothing on this call path sets
+Java's `\W` here is the _default_, ASCII-only word class (nothing on this call path sets
 `UNICODE_CHARACTER_CLASS`), so `\w` means exactly `[A-Za-z0-9_]` and `\W` is everything
 outside it. Every character that is not an ASCII letter, digit or underscore — hyphens,
 spaces, dots, parentheses, accented and non-Latin letters, emoji, anything — becomes an
@@ -112,17 +112,17 @@ already-sanitized id as its `map-id` output, which every downstream job path (th
 output directory, the published `site/maps/<id>`, the partial-merge staging shape) uses
 instead of re-deriving the rule in shell.
 
-The only place the *raw*, un-sanitized id is deliberately kept is the `maps/<map-id>.conf`
+The only place the _raw_, un-sanitized id is deliberately kept is the `maps/<map-id>.conf`
 file name itself — that is what BlueMap's own sanitiser reads and transforms at load time,
 so writing an already-sanitized file name there would be redundant, not required — and the
 human-facing `map-name` display string, which is never used in a path at all.
 
 ### `world`, one field with three meanings
 
-| `world-source` | what `world` holds | example |
-| --- | --- | --- |
-| `repository` | a path inside this repository | `worlds/world` |
-| `url` | a link to a `.zip` holding the world | `https://example.com/world.zip` |
+| `world-source`  | what `world` holds                           | example                              |
+| --------------- | -------------------------------------------- | ------------------------------------ |
+| `repository`    | a path inside this repository                | `worlds/world`                       |
+| `url`           | a link to a `.zip` holding the world         | `https://example.com/world.zip`      |
 | `release-asset` | an asset name or glob, optionally `tag/glob` | `world*.zip`, or `v1.4.0/world*.zip` |
 
 For `release-asset` the tag defaults to `latest`. The split is on the **last** slash, and a
@@ -159,7 +159,7 @@ two workflows share the `pages` concurrency group, so they queue instead of raci
 
 The engine stores hires tiles gzipped: the file on disk is `0.prbm.gz`, and the map's
 texture data is `textures.json.gz`. The viewer asks for `0.prbm` and `textures.json`
-— *unless* the web app's `settings.json` says `clientDecompression: true`, in which case it
+— _unless_ the web app's `settings.json` says `clientDecompression: true`, in which case it
 appends `.gz` itself and inflates the bytes in the browser with `DecompressionStream`.
 
 Upstream defaults that to `false`, correctly, because BlueMap's own web server answers a
@@ -187,12 +187,12 @@ viewer requests returns `200` with gzip magic bytes, and the uncompressed name r
 
 #### What Pages will not host
 
-| Limit | What happens |
-| --- | --- |
+| Limit                                                | What happens                                                                                                                                                                |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A map delivered in parts (more than one merge group) | Publishing is skipped, with a note in the run summary. No single runner ever holds the whole map, which is the point of the split — see [large-worlds.md](large-worlds.md). |
-| 1 GB site | GitHub's soft limit. `static-host` reports the size and warns past it; publishing may be refused or throttled. |
-| 100 MB per file | GitHub's hard limit. `static-host` fails the run rather than discovering it mid-push. |
-| 100 GB/month bandwidth | GitHub's soft limit on serving. A popular map is a lot of tiles. |
+| 1 GB site                                            | GitHub's soft limit. `static-host` reports the size and warns past it; publishing may be refused or throttled.                                                              |
+| 100 MB per file                                      | GitHub's hard limit. `static-host` fails the run rather than discovering it mid-push.                                                                                       |
+| 100 GB/month bandwidth                               | GitHub's soft limit on serving. A popular map is a lot of tiles.                                                                                                            |
 
 ## Doing it from the app
 
@@ -212,15 +212,15 @@ every local render and the viewer cannot tell the two apart.
 
 ### What it refuses, and why each refusal exists
 
-| Refusal | Why |
-| --- | --- |
-| `eula-not-accepted` | Mojang's licence has not been accepted on this computer. The app will not accept it for somebody; it points at the setting that already asks. |
-| `public-not-acknowledged` | The repository is PUBLIC and the warning has not been accepted. A world carries builds, coordinates and whatever a friend left in a chest. |
-| `upload-not-acknowledged` | Uploading a world sends it to GitHub, and that is said in as many words before it happens rather than after. |
-| `world-too-large` | The archive would pass a release asset's 2 GiB limit. Refused **before** anything is packed, from the folder's own byte total. |
-| `unsupported-dimension` | The project's map renders a dimension the workflow's `dimension` choice does not offer. Caught here rather than as GitHub's generic 422. |
-| `map-shipped-in-parts` | The run published `map-lowres` plus hires parts. Unpacking the lowres alone gives a map that loads and has no detail at any zoom, which reads as a broken render. |
-| `run-failure`, `run-timed_out`, ... | The run ended badly. The failing job is named and the tail of its log is carried back, and **no map is downloaded or registered**. |
+| Refusal                             | Why                                                                                                                                                               |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `eula-not-accepted`                 | Mojang's licence has not been accepted on this computer. The app will not accept it for somebody; it points at the setting that already asks.                     |
+| `public-not-acknowledged`           | The repository is PUBLIC and the warning has not been accepted. A world carries builds, coordinates and whatever a friend left in a chest.                        |
+| `upload-not-acknowledged`           | Uploading a world sends it to GitHub, and that is said in as many words before it happens rather than after.                                                      |
+| `world-too-large`                   | The archive would pass a release asset's 2 GiB limit. Refused **before** anything is packed, from the folder's own byte total.                                    |
+| `unsupported-dimension`             | The project's map renders a dimension the workflow's `dimension` choice does not offer. Caught here rather than as GitHub's generic 422.                          |
+| `map-shipped-in-parts`              | The run published `map-lowres` plus hires parts. Unpacking the lowres alone gives a map that loads and has no detail at any zoom, which reads as a broken render. |
+| `run-failure`, `run-timed_out`, ... | The run ended badly. The failing job is named and the tail of its log is carried back, and **no map is downloaded or registered**.                                |
 
 ### An unchanged world is not uploaded twice
 
@@ -229,10 +229,10 @@ relative path, size and modification time. If that matches what was uploaded las
 **and** GitHub still holds that asset on that release, the upload is skipped entirely and
 the workflow is dispatched against the release that is already there.
 
-Both halves matter. The local record says what *was* uploaded; only GitHub can say what is
+Both halves matter. The local record says what _was_ uploaded; only GitHub can say what is
 still there, and a release somebody deleted by hand would otherwise have a re-sync dispatch
 a run whose first step cannot find the world. The fingerprint is a change detector rather
-than a content digest — a file edited and restored to exactly its old size *and* mtime
+than a content digest — a file edited and restored to exactly its old size _and_ mtime
 reads as unchanged — so there is a **Upload again even if the world looks unchanged**
 control for the case where it is wrong. Computing the real digest means packing the whole
 world, which is most of the cost of the upload it would be avoiding.
@@ -434,7 +434,7 @@ So hires tile column `cx` covers blocks `32*cx + 2` through `32*cx + 33`. Tile 1
 blocks 482 to 513, and tile 16 starts at 514.
 
 An anvil region is 512 blocks, and 512 is a multiple of 32 — but **not** of 32 with the
-offset. A shard cut on a region boundary therefore lands *inside* a hires tile, and both
+offset. A shard cut on a region boundary therefore lands _inside_ a hires tile, and both
 neighbouring shards render that tile, each with the other half masked away. They write
 the same file path with different contents, one silently wins, and a 32-block stripe of
 terrain is missing from the map.
@@ -534,7 +534,7 @@ reference render. `settings.json` matched across all three too.
 
 ### So the merge asserts it anyway
 
-Determinism holds *for a fixed resource pack*. What is not guaranteed is that every shard
+Determinism holds _for a fixed resource pack_. What is not guaranteed is that every shard
 resolved the same one: a client jar downloaded at a moment when Mojang published a new
 version, a mod jar present on one runner and not another, a partial download. Any of
 those changes the pool, changes the ordinals, and corrupts the merge silently.
@@ -576,15 +576,15 @@ terrain and the other held an erasure.
 
 The merge resolves it by ranking three states rather than two:
 
-| State | Meta alpha | Colour and height | Wins against |
-| --- | --- | --- | --- |
-| rendered terrain | 0xFF | any non-zero | everything |
-| erased, or a genuinely void column | 0xFF | all zero | untouched |
-| never touched | 0 | all zero | nothing |
+| State                              | Meta alpha | Colour and height | Wins against |
+| ---------------------------------- | ---------- | ----------------- | ------------ |
+| rendered terrain                   | 0xFF       | any non-zero      | everything   |
+| erased, or a genuinely void column | 0xFF       | all zero          | untouched    |
+| never touched                      | 0          | all zero          | nothing      |
 
 An erasure and a truly void column are indistinguishable, and that is harmless: both
 shards then write the identical empty pixel, so the merged result is the same either way.
-Two shards holding *different* terrain for one pixel is impossible when every column is
+Two shards holding _different_ terrain for one pixel is impossible when every column is
 rendered by exactly one shard, so that case is reported as an error rather than guessed
 at.
 
@@ -617,16 +617,16 @@ one.
 
 ## What the merge does, layer by layer
 
-| Layer | Treatment |
-| --- | --- |
+| Layer              | Treatment                                                       |
+| ------------------ | --------------------------------------------------------------- |
 | `textures.json.gz` | asserted byte-identical across shards, then copied from shard 0 |
-| `settings.json` | asserted byte-identical, then copied from shard 0 |
-| `tiles/0` (hires) | disjoint union, with zero path collisions asserted |
-| `tiles/1` (lod 1) | composited pixel by pixel, terrain over erasure |
-| `tiles/2`+ | shards' versions discarded, rebuilt from the merged lod 1 |
-| `live/` | placeholders, copied from shard 0 |
-| `assets/` | union; differing duplicates are an error |
-| `rstate/` | **not merged** — see below |
+| `settings.json`    | asserted byte-identical, then copied from shard 0               |
+| `tiles/0` (hires)  | disjoint union, with zero path collisions asserted              |
+| `tiles/1` (lod 1)  | composited pixel by pixel, terrain over erasure                 |
+| `tiles/2`+         | shards' versions discarded, rebuilt from the merged lod 1       |
+| `live/`            | placeholders, copied from shard 0                               |
+| `assets/`          | union; differing duplicates are an error                        |
+| `rstate/`          | **not merged** — see below                                      |
 
 `rstate` is BlueMap's own record of which tiles it considers up to date. Its files group
 tiles into regions that straddle shard cuts, so no shard's copy describes the merged map.
@@ -756,7 +756,7 @@ The logic is a workspace package, not shell in the workflow, so all of it runs l
 
 ```bash
 cd design
-pnpm --filter "@material-bluemap/render-actions..." run build
+pnpm --filter "@worldlens/render-actions..." run build
 
 node packages/render-actions/dist/cli.js plan   --world path/to/world --out plan.json
 node packages/render-actions/dist/cli.js config --plan plan.json --shard 0 --world path/to/world

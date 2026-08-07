@@ -669,7 +669,7 @@ const url = "https://example.com/not/an/import"; // trailing comment, not stripp
     it("ignores a bare specifier, which resolves through node_modules rather than git", () => {
         expect(candidateTargets("design/packages/ui/src/App.ts", "vue")).toEqual([]);
         expect(
-            candidateTargets("design/packages/ui/src/App.ts", "@material-bluemap/shared"),
+            candidateTargets("design/packages/ui/src/App.ts", "@worldlens/shared"),
         ).toEqual([]);
     });
 

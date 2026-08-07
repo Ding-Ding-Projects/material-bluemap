@@ -57,26 +57,32 @@ import {
     revokeDownloadConsent,
 } from "./consent.js";
 
-const ENV_KEY = "MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD";
+const ENV_KEY = "WORLDLENS_ACCEPT_DOWNLOAD";
+const LEGACY_ENV_KEY = "MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD";
 
 /** The terms version currently in force. Not exported, so it is restated here. */
 const CURRENT_TERMS_VERSION = 1;
 
 let root = "";
 let savedEnv: string | undefined;
+let savedLegacyEnv: string | undefined;
 
 beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "mbm-consent-"));
     electron.userData = root;
     electron.version = "0.1.0";
     savedEnv = process.env[ENV_KEY];
+    savedLegacyEnv = process.env[LEGACY_ENV_KEY];
     delete process.env[ENV_KEY];
+    delete process.env[LEGACY_ENV_KEY];
 });
 
 afterEach(async () => {
     vi.useRealTimers();
     if (savedEnv === undefined) delete process.env[ENV_KEY];
     else process.env[ENV_KEY] = savedEnv;
+    if (savedLegacyEnv === undefined) delete process.env[LEGACY_ENV_KEY];
+    else process.env[LEGACY_ENV_KEY] = savedLegacyEnv;
     await rm(root, { recursive: true, force: true });
 });
 
@@ -414,6 +420,16 @@ describe("revokeDownloadConsent", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("acceptedViaEnvironment", () => {
+    it("keeps accepting the legacy variable after the product rename", () => {
+        process.env[LEGACY_ENV_KEY] = "1";
+        expect(acceptedViaEnvironment()).toBe(true);
+    });
+
+    it("lets the current Worldlens variable win when both are present", () => {
+        process.env[ENV_KEY] = "0";
+        process.env[LEGACY_ENV_KEY] = "1";
+        expect(acceptedViaEnvironment()).toBe(false);
+    });
     const yes = ["1", "true", "yes", "TRUE", "Yes", " true ", "\tYES\n"];
     const no = ["", "0", "false", "no", "off", "maybe", " ", "2", "true-ish"];
 

@@ -2,7 +2,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { AppearanceStore, THEME_FORMAT } from "./store.js";
+import { AppearanceStore, LEGACY_THEME_FORMAT, THEME_FORMAT } from "./store.js";
 
 /**
  * The storage this jsdom does not ship with. `AppearanceStore` reads and writes
@@ -181,6 +181,19 @@ describe("AppearanceStore", () => {
         expect(report.presetsApplied).toBe(1);
         expect(fresh.get("card#a").typography.fontSize).toBe(20);
         expect(fresh.presets().map((preset) => preset.name)).toEqual(["Preset one"]);
+    });
+
+    it("imports the legacy theme format and exports only the Worldlens format", () => {
+        const store = new AppearanceStore();
+        const report = store.importTheme({
+            format: LEGACY_THEME_FORMAT,
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            styles: {},
+            presets: [],
+        });
+        expect(report.error).toBeNull();
+        expect(store.exportTheme().format).toBe(THEME_FORMAT);
     });
 
     it("preserves an unrecognised property from an imported theme instead of dropping it", () => {

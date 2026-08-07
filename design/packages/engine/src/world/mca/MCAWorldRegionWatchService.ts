@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { watch, type FSWatcher } from "chokidar";
-import type { Vector2i } from "@material-bluemap/shared";
+import type { Vector2i } from "@worldlens/shared";
 import { WatchService } from "../../util/WatchService.js";
 import { logDebug } from "./MCAUtil.js";
 import { RegionType } from "./region/RegionType.js";

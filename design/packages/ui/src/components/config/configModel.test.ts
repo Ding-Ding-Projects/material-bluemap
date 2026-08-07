@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { descriptorFor, renderMapTemplate, type FieldMeta } from "@material-bluemap/config";
+import { descriptorFor, renderMapTemplate, type FieldMeta } from "@worldlens/config";
 import {
     baselineFieldValue,
     changedFields,

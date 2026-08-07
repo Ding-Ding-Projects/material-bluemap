@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { resolveBedrockBridge } from "./bedrockBridge.js";
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 function stub(overrides: Record<string, unknown> = {}) {
@@ -23,7 +23,7 @@ describe("resolving the Bedrock bridge", () => {
     });
 
     it("is null when the shell has no bedrock namespace", () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {};
+        (globalThis as { worldlens?: unknown }).worldlens = {};
         expect(resolveBedrockBridge()).toBeNull();
     });
 
@@ -32,12 +32,12 @@ describe("resolving the Bedrock bridge", () => {
         // here, because a note offering Cancel on a bridge with none would throw on click.
         const partial: Record<string, unknown> = stub();
         delete partial["cancel"];
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { bedrock: partial };
+        (globalThis as { worldlens?: unknown }).worldlens = { bedrock: partial };
         expect(resolveBedrockBridge()).toBeNull();
     });
 
     it("resolves every method when all six are present", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { bedrock: stub() };
+        (globalThis as { worldlens?: unknown }).worldlens = { bedrock: stub() };
         const bridge = resolveBedrockBridge();
         expect(bridge).not.toBeNull();
         await expect(bridge?.detect("/srv/world")).resolves.toEqual({ ok: true });

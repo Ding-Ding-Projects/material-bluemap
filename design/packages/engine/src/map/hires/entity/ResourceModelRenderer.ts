@@ -1,4 +1,4 @@
-import { Color, MatrixM4f, VectorM2f, VectorM3f, type Key } from "@material-bluemap/shared";
+import { Color, MatrixM4f, VectorM2f, VectorM3f, type Key } from "@worldlens/shared";
 import type { ResourcePath } from "../../../resources/ResourcePath.js";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { Part } from "../../../resources/pack/resourcepack/entitystate/Part.js";

@@ -7,7 +7,7 @@ import {
     mdiMapMarkerOutline,
     mdiMapOutline,
 } from "@mdi/js";
-import type { BlueMapApp, MarkerSetData } from "@material-bluemap/viewer";
+import type { BlueMapApp, MarkerSetData } from "@worldlens/viewer";
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import CompassButton from "./CompassButton.vue";
 import ControlsSwitch from "./ControlsSwitch.vue";

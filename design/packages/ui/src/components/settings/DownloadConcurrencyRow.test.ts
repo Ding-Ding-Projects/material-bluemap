@@ -77,7 +77,7 @@ function fakeBridge(): SettingsBridge & { readonly written: number[] } {
 }
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 describe("the default view", () => {

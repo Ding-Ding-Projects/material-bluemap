@@ -7,7 +7,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
-import { findField } from "@material-bluemap/config";
+import { findField } from "@worldlens/config";
 import WorldWizard from "./WorldWizard.vue";
 import type { MapWizard } from "./wizardModel.js";
 import { mapDescriptor } from "./wizardSteps.js";

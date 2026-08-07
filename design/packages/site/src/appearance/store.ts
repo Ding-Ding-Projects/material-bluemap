@@ -19,8 +19,9 @@ import {
 import type { TypographyKey, TypographyValues } from "./type/model.js";
 import { TYPOGRAPHY_DEFAULTS } from "./type/model.js";
 
-const STORAGE_KEY = "material-bluemap.site.appearance.v1";
-export const THEME_FORMAT = "material-bluemap.site.theme";
+const STORAGE_KEY = "worldlens.site.appearance.v1";
+export const THEME_FORMAT = "worldlens.site.theme";
+export const LEGACY_THEME_FORMAT = "material-bluemap.site.theme";
 export const THEME_VERSION = 1;
 
 export interface AppearancePreset {
@@ -267,7 +268,10 @@ export class AppearanceStore {
      * discovering later that it vanished.
      */
     importTheme(data: unknown): ThemeImportReport {
-        if (!isRecord(data) || data["format"] !== THEME_FORMAT) {
+        if (
+            !isRecord(data) ||
+            (data["format"] !== THEME_FORMAT && data["format"] !== LEGACY_THEME_FORMAT)
+        ) {
             return {
                 stylesApplied: 0,
                 presetsApplied: 0,

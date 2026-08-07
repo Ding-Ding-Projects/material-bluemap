@@ -216,7 +216,7 @@ function exportHeader(): string {
                   " {dropped} earlier lines were already dropped: the console keeps the most recent {cap}.",
               )
             : "";
-    return `# ${t("world.console.exportTitle", "Material BlueMap render console")}\n# ${scope}${cut}`;
+    return `# ${t("world.console.exportTitle", "Worldlens render console")}\n# ${scope}${cut}`;
 }
 
 function currentText(): string {
@@ -392,7 +392,7 @@ function openSetting(target: SettingsTarget): void {
                             size="14"
                             aria-hidden="true"
                         />
-                        <span class="mb-console__speaker">{{ t("world.console.speaker", "Material BlueMap") }}</span>
+                        <span class="mb-console__speaker">{{ t("world.console.speaker", "Worldlens") }}</span>
                         <span class="mb-console__adviceText">{{ adviceText(annotation) }}</span>
                         <v-btn
                             v-if="annotation.settings"

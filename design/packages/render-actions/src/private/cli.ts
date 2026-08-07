@@ -20,10 +20,16 @@
 import { appendFile, mkdir, readdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { PrivateCryptoError, keyFromEnvironment } from "./crypto.js";
-import { assetPattern, deriveProjectId, manifestAssetName, stagingTag } from "./ids.js";
+import {
+    assetPattern,
+    deriveLegacyProjectId,
+    deriveProjectId,
+    manifestAssetName,
+    stagingTag,
+} from "./ids.js";
 import { PrivatePayloadError, openPayload, readManifest, sealPayload } from "./payload.js";
 
-const USAGE = `material-bluemap private transport
+const USAGE = `Worldlens private transport
 
 Seals and opens the encrypted payloads that move a private world to a public runner and
 the rendered map back again. Every command needs the encryption key, which is read from
@@ -241,7 +247,6 @@ async function commandOpen(args: Args): Promise<number> {
 
     const key = keyFromEnvironment(args.flags.get("key-env") ?? DEFAULT_KEY_ENV);
     const label = resolveLabel(args);
-    const projectId = deriveProjectId(key, label);
     const inputDirectory = resolve(required(args, "in", OPEN_USAGE));
 
     // Said before anything is decrypted, because "the download brought nothing" and "the
@@ -255,6 +260,14 @@ async function commandOpen(args: Args): Promise<number> {
             `Nothing was downloaded into ${inputDirectory}, so there is no payload to open.`,
         );
     }
+
+    const currentProjectId = deriveProjectId(key, label);
+    const legacyProjectId = deriveLegacyProjectId(key, label);
+    const projectId = present.includes(manifestAssetName(currentProjectId))
+        ? currentProjectId
+        : present.includes(manifestAssetName(legacyProjectId))
+          ? legacyProjectId
+          : currentProjectId;
 
     const manifest = await readManifest({ key, inputDirectory, projectId });
     process.stderr.write(`Opening ${manifest.partCount} part(s), ${manifest.totalBytes} bytes\n`);

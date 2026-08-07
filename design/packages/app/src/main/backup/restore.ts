@@ -11,7 +11,7 @@
  * to `main/download/`, "the surface that already fetches parts, verifies each one, rejoins
  * them and unpacks". That was never true. `main/download/` understands exactly one split
  * format: a `<name>.parts.json` manifest beside `<name>.001`, `<name>.002`, ... - the format
- * `@material-bluemap/parts` writes for CI-rendered maps and world sources. A backup's parts
+ * `@worldlens/parts` writes for CI-rendered maps and world sources. A backup's parts
  * are named `<archive>.<index>-<sha16>` by `partAssetName` in `runner.ts`, and no
  * `.parts.json` is ever published beside them - the Cheap LFS pointer is the manifest, and
  * it is a different shape on purpose, because it has to stay byte-for-byte what
@@ -22,7 +22,7 @@
  * and nothing before this file ever exercised it against a real release to find out.
  *
  * This module is what actually restores one, by translating the pointer into a
- * `@material-bluemap/parts` `PartsManifest` in memory - same digests, same total, same part
+ * `@worldlens/parts` `PartsManifest` in memory - same digests, same total, same part
  * order, just relabelled into the shape `joinParts` already knows how to verify and rejoin -
  * so the rejoin itself is not reimplemented, only pointed at translated data.
  *
@@ -41,8 +41,8 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { joinParts, sha256File } from "@material-bluemap/parts";
-import type { PartRecord, PartsManifest } from "@material-bluemap/parts";
+import { joinParts, sha256File } from "@worldlens/parts";
+import type { PartRecord, PartsManifest } from "@worldlens/parts";
 import { downloadToFile, isAbort } from "../download/http.js";
 import { extractZip } from "../download/extract.js";
 import { MAX_SIDECAR_BYTES, SIDECAR_ASSET_NAME, parseSidecar } from "./sidecar.js";
@@ -422,7 +422,7 @@ export class BackupRestoreRunner {
     }
 
     /**
-     * Translates the pointer into the manifest `@material-bluemap/parts` already knows how
+     * Translates the pointer into the manifest `@worldlens/parts` already knows how
      * to verify and rejoin, so the rejoin logic - per-part digest, resumable prefix
      * verification, whole-file digest, atomic replace on mismatch - is reused rather than
      * rewritten.
@@ -538,7 +538,7 @@ export class BackupRestoreRunner {
 function assetHeaders(token: string): Record<string, string> {
     return {
         accept: "application/octet-stream",
-        "user-agent": "material-bluemap",
+        "user-agent": "worldlens",
         authorization: `Bearer ${token}`,
     };
 }

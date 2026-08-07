@@ -4,8 +4,8 @@ import {
     TypeToken,
     type NBTReader,
     type TypeDeserializer,
-} from "@material-bluemap/nbt";
-import { Vector2d } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Vector2d } from "@worldlens/shared";
 
 /**
  * upstream: Vector2f — the shared math port has no immutable float vector, so a

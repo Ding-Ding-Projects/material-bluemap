@@ -29,7 +29,7 @@ import { createVuetify } from "vuetify";
 import * as vuetifyComponents from "vuetify/components";
 import * as vuetifyDirectives from "vuetify/directives";
 import { VApp, VBtn, VSlider, VSwitch } from "vuetify/components";
-import { generateConfigSet } from "@material-bluemap/config";
+import { generateConfigSet } from "@worldlens/config";
 
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ConfigApplyDialog from "../config/ConfigApplyDialog.vue";

@@ -63,10 +63,10 @@ describe("toBridgeDiscoveryResult", () => {
             ok: true,
             release: {
                 owner: "Ding-Ding-Projects",
-                repo: "material-bluemap",
+                repo: "worldlens",
                 tag: "v1.4.0",
                 name: "Har Gow",
-                htmlUrl: "https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v1.4.0",
+                htmlUrl: "https://github.com/Ding-Ding-Projects/worldlens/releases/tag/v1.4.0",
                 sources: [
                     {
                         name: "test-world-seed-1739.zip",
@@ -96,7 +96,7 @@ describe("toBridgeDiscoveryResult", () => {
                 name: "v1",
                 htmlUrl: "https://github.com/o/r/releases/tag/v1",
                 sources: [
-                    { name: "material-bluemap-setup.exe", kind: "whole", parts: 1, bytes: 91_400_000, verification: "none" },
+                    { name: "worldlens-setup.exe", kind: "whole", parts: 1, bytes: 91_400_000, verification: "none" },
                 ],
             },
         };
@@ -107,7 +107,7 @@ describe("toBridgeDiscoveryResult", () => {
                 tag: "v1",
                 name: "v1",
                 htmlUrl: "https://github.com/o/r/releases/tag/v1",
-                downloads: [{ name: "material-bluemap-setup.exe", split: false, parts: 1, bytes: 91_400_000 }],
+                downloads: [{ name: "worldlens-setup.exe", split: false, parts: 1, bytes: 91_400_000 }],
             },
         });
     });

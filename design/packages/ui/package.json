@@ -1,5 +1,5 @@
 {
-    "name": "@material-bluemap/ui",
+    "name": "@worldlens/ui",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -15,9 +15,9 @@
     "dependencies": {
         "@fontsource/roboto": "^5.3.0",
         "@fontsource/roboto-mono": "^5.3.0",
-        "@material-bluemap/config": "workspace:*",
-        "@material-bluemap/shared": "workspace:*",
-        "@material-bluemap/viewer": "workspace:*",
+        "@worldlens/config": "workspace:*",
+        "@worldlens/shared": "workspace:*",
+        "@worldlens/viewer": "workspace:*",
         "@mdi/js": "^7.4.47",
         "vue": "^3.5.40",
         "vue-i18n": "^9.14.5",

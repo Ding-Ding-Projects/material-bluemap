@@ -762,7 +762,7 @@ export interface ConfigPickFileOptions {
  * A namespace of its own rather than an extension of `ConfigBridge`, because it is reached
  * from screens that never sit under `provideConfigHost()` - Settings, Backup, the remote
  * target editor - and `configHost.ts` refuses a half-wired bridge outright. This one asks
- * nothing of its caller beyond `window.materialBluemap.dialog` existing.
+ * nothing of its caller beyond `window.worldlens.dialog` existing.
  */
 export interface DialogPickFolderOptions {
     title: string;
@@ -2259,7 +2259,7 @@ interface BackupSourceReport {
     readonly skipped: readonly { readonly name: string; readonly reason: string }[];
 }
 
-interface MaterialBlueMapBridge {
+interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
@@ -2741,7 +2741,7 @@ interface MaterialBlueMapBridge {
      * The screen-agnostic folder/file picker, for any path field in the app.
      *
      * Unlike `config`, this namespace needs no `provideConfigHost()` ancestor: it is reached
-     * straight from `window.materialBluemap.dialog`, so Settings, Backup and the remote
+     * straight from `window.worldlens.dialog`, so Settings, Backup and the remote
      * target editor can browse for a path exactly as the world and config screens already do.
      */
     dialog: DialogBridge;
@@ -3104,7 +3104,7 @@ interface MaterialBlueMapBridge {
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
 
-const bridge: MaterialBlueMapBridge = {
+const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
@@ -3648,4 +3648,4 @@ const bridge: MaterialBlueMapBridge = {
     },
 };
 
-contextBridge.exposeInMainWorld("materialBluemap", bridge);
+contextBridge.exposeInMainWorld("worldlens", bridge);

@@ -20,9 +20,9 @@ import {
     WatchService,
     WorldRegionUpdateTask,
     type World,
-} from "@material-bluemap/engine";
-import { Grid, Key, Vector2i } from "@material-bluemap/shared";
-import { generateWorld } from "@material-bluemap/worldgen";
+} from "@worldlens/engine";
+import { Grid, Key, Vector2i } from "@worldlens/shared";
+import { generateWorld } from "@worldlens/worldgen";
 import { MapUpdateService } from "../src/plugin/MapUpdateService.js";
 
 /*

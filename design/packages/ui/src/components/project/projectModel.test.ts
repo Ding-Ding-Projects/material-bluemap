@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { parseProjectFile, serializeProjectFile, type ProjectFile } from "@material-bluemap/config";
+import { parseProjectFile, serializeProjectFile, type ProjectFile } from "@worldlens/config";
 import { fieldValue, isExplicit, openConfigFile } from "../config/configModel.js";
 import {
     PROJECT_PRESETS,
@@ -490,7 +490,7 @@ describe("renaming the project itself", () => {
 const ROWS: ProjectRow[] = [
     {
         world: "C:/saves/Survival",
-        file: "C:/saves/Survival/material-bluemap.project.json",
+        file: "C:/saves/Survival/worldlens.project.json",
         id: "p1",
         name: "Survival",
         maps: 3,
@@ -502,7 +502,7 @@ const ROWS: ProjectRow[] = [
     },
     {
         world: "C:/saves/Creative",
-        file: "C:/saves/Creative/material-bluemap.project.json",
+        file: "C:/saves/Creative/worldlens.project.json",
         id: "p2",
         name: "Creative",
         maps: 1,
@@ -514,7 +514,7 @@ const ROWS: ProjectRow[] = [
     },
     {
         world: "C:/saves/Broken",
-        file: "C:/saves/Broken/material-bluemap.project.json",
+        file: "C:/saves/Broken/worldlens.project.json",
         id: "p3",
         name: "Broken",
         maps: 0,
@@ -571,7 +571,7 @@ describe("the list of them", () => {
     it("searches everything the row shows, including the path", () => {
         const text = projectSearchText(ROWS[0]!, t);
         expect(text).toContain("C:/saves/Survival");
-        expect(text).toContain("material-bluemap.project.json");
+        expect(text).toContain("worldlens.project.json");
         expect(text).toContain("3 maps");
     });
 });

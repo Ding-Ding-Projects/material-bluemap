@@ -2,7 +2,7 @@
 /**
  * Splits a file that is too large for a GitHub release asset into parts that are not.
  *
- * A thin command line over `@material-bluemap/parts`; every byte of the logic lives in
+ * A thin command line over `@worldlens/parts`; every byte of the logic lives in
  * the package, is unit tested there, and is the same code the desktop application runs
  * in reverse when it downloads what this produced.
  *
@@ -26,9 +26,9 @@ const packageDist = resolve(here, "../design/packages/parts/dist/index.js");
 
 if (!existsSync(packageDist)) {
     console.error(
-        "The @material-bluemap/parts package has not been built.\n" +
+        "The @worldlens/parts package has not been built.\n" +
             "Run this first:\n\n" +
-            "    cd design && pnpm install && pnpm --filter @material-bluemap/parts run build\n",
+            "    cd design && pnpm install && pnpm --filter @worldlens/parts run build\n",
     );
     process.exit(2);
 }

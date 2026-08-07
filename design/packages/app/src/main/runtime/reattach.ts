@@ -57,7 +57,7 @@ import { stopContainerArguments, type EngineLaunch } from "./plan.js";
 import { EngineProcess, type EngineProcessOptions } from "./process.js";
 
 /** The prefix `containerName` is called with for a render this app starts. */
-export const CONTAINER_PREFIX = "material-bluemap";
+export const CONTAINER_PREFIX = "worldlens";
 
 /** What one collection did, or honestly did not do. */
 export interface CollectReport {

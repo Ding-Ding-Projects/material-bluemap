@@ -280,8 +280,8 @@ describe("resolveWorkDir", () => {
     });
 
     it("leaves an absolute path exactly as it is", () => {
-        expect(resolveWorkDir("/srv/material-bluemap", "/home/renderer")).toBe(
-            "/srv/material-bluemap",
+        expect(resolveWorkDir("/srv/worldlens", "/home/renderer")).toBe(
+            "/srv/worldlens",
         );
     });
 

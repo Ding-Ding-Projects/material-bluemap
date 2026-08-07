@@ -11,6 +11,7 @@ import {
     readNoticeDurationLevel,
     writeNoticeDurationLevel,
 } from "../components/config/noticeDurationPrefs.js";
+import { productDisplayName } from "./productName.js";
 
 /**
  * The application's one notification corner.
@@ -55,7 +56,11 @@ export function raiseNotice(
     message: string,
     options?: string | NoticeOptions,
 ): Notice {
-    return notify(notices, level, message, options);
+    const resolved: NoticeOptions =
+        typeof options === "string"
+            ? { title: productDisplayName.value, detail: options }
+            : { ...(options ?? {}), title: options?.title ?? productDisplayName.value };
+    return notify(notices, level, message, resolved);
 }
 
 /**

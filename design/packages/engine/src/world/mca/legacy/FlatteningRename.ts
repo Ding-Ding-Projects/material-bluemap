@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import { BlockState } from "../../BlockState.js";
 

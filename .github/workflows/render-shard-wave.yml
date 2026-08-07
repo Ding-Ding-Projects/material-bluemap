@@ -90,7 +90,7 @@ jobs:
 
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@v4
         with:

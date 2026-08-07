@@ -1,4 +1,4 @@
-import { Color, Key } from "@material-bluemap/shared";
+import { Color, Key } from "@worldlens/shared";
 import { Biome } from "../../biome/Biome.js";
 import { GrassColorModifier } from "../../biome/GrassColorModifier.js";
 import { readLegacyJsonAsset } from "./assets.js";

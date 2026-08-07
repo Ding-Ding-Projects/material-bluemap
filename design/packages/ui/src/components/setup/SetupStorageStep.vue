@@ -25,7 +25,7 @@ import {
  * The browse button is `PathField.vue`, the same shared affordance every path field in
  * the app now adopts. It used to be gated on `canBrowse`, a prop that stayed false
  * forever because it watched `chooseMapStorageDirectory`, a preload method nobody ever
- * implemented; `PathField` reaches the real `window.materialBluemap.dialog` bridge
+ * implemented; `PathField` reaches the real `window.worldlens.dialog` bridge
  * instead, so the button now genuinely works in the desktop app and disables itself
  * with an honest explanation everywhere else. There is no `canBrowse` prop and no
  * `browse` event left to wire: `PathField` decides for itself whether a bridge exists.

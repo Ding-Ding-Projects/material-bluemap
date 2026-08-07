@@ -12,7 +12,7 @@ import {
     VExpansionPanels,
     VSwitch,
 } from "vuetify/components";
-import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
 import ConfigField from "../config/ConfigField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { GlossaryTerm } from "../glossary/index.js";
@@ -28,7 +28,7 @@ import { UNKNOWN_WORLD, type WorldOrientation } from "../config/maskCanvas.js";
  *
  * Not one of them is written out here. The groups, the fields inside them, the
  * controls, upstream's own documentation, the defaults and the re-render warnings
- * are all read from `@material-bluemap/config`, so a setting added to the schema
+ * are all read from `@worldlens/config`, so a setting added to the schema
  * appears on this step with no change to this component. A hand-written list of
  * 92 fields is a list that quietly stops being 92 fields.
  *

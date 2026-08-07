@@ -39,7 +39,7 @@
  */
 
 import { inject, provide, type InjectionKey } from "vue";
-import type { ProjectFile, ProjectReadFailure } from "@material-bluemap/config";
+import type { ProjectFile, ProjectReadFailure } from "@worldlens/config";
 import type { HistoryRestoreResult, HistoryRevision, HistoryWrite } from "../history/historyHost.js";
 import type { SimpleHistoryHost, SimpleHistoryListing } from "../history/simpleHistoryHost.js";
 
@@ -212,7 +212,7 @@ export function projectHostFromBridge(bridge: unknown): ProjectHost | null {
     };
 }
 
-const PROJECT_HOST = Symbol("material-bluemap-project-host") as InjectionKey<ProjectHost | null>;
+const PROJECT_HOST = Symbol("worldlens-project-host") as InjectionKey<ProjectHost | null>;
 
 /** Puts a host in reach of every project surface below this component. */
 export function provideProjectHost(host: ProjectHost | null): void {
@@ -233,7 +233,7 @@ export function useProjectHost(): ProjectHost | null {
 
 /** The bridge on `window`, probed. Exported for the surfaces that resolve their own. */
 export function resolveProjectHost(): ProjectHost | null {
-    return projectHostFromBridge(typeof globalThis === "undefined" ? null : (globalThis as { materialBluemap?: unknown }).materialBluemap);
+    return projectHostFromBridge(typeof globalThis === "undefined" ? null : (globalThis as { worldlens?: unknown }).worldlens);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -297,7 +297,7 @@ export function projectHistoryHostFor(bridge: unknown, worldFolder: string): Sim
 /** The bridge on `window`, probed and bound to `worldFolder`. */
 export function resolveProjectHistoryHost(worldFolder: string): SimpleHistoryHost | null {
     return projectHistoryHostFor(
-        typeof globalThis === "undefined" ? null : (globalThis as { materialBluemap?: unknown }).materialBluemap,
+        typeof globalThis === "undefined" ? null : (globalThis as { worldlens?: unknown }).worldlens,
         worldFolder,
     );
 }

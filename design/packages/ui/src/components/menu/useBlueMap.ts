@@ -1,7 +1,7 @@
 import { computed, inject, onBeforeUnmount, provide, watch } from "vue";
 import type { ComputedRef, InjectionKey } from "vue";
 import { useTheme } from "vuetify";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 
 /**
  * Upstream reaches the running app through the `$bluemap` global property installed in
@@ -13,7 +13,7 @@ import type { BlueMapApp } from "@material-bluemap/viewer";
  * asynchronously; every menu surface has to render the "no app yet" state and then light up
  * when it arrives.
  */
-export const blueMapKey = Symbol("material-bluemap.app") as InjectionKey<
+export const blueMapKey = Symbol("worldlens.app") as InjectionKey<
     ComputedRef<BlueMapApp | null>
 >;
 

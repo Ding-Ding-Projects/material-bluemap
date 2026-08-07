@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import type { Color, Vector2i } from "@material-bluemap/shared";
+import type { Color, Vector2i } from "@worldlens/shared";
 
 /**
  * upstream: {@code BufferedImage#getRGB} on a TYPE_INT_ARGB image (straight alpha),

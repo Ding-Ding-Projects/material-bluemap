@@ -1,7 +1,7 @@
 /**
  * `worldrepo:*` was registered in the main process and never reached the preload - eleven
  * channels the renderer had no way to call, and a broadcast nothing forwarded. This is the
- * test that fails if `window.materialBluemap.worldRepo` stops matching those channels, the
+ * test that fails if `window.worldlens.worldRepo` stops matching those channels, the
  * same way `downloadsRouting.test.ts` guards the downloads bridge: it takes the actual
  * object the preload hands to `contextBridge.exposeInMainWorld` and checks which channel,
  * and which argument shape, each method invokes.
@@ -23,7 +23,7 @@ vi.mock("electron", () => ({
 
 import { contextBridge, ipcRenderer } from "electron";
 // Side-effect import: evaluating the preload runs its one top-level statement,
-// `exposeInMainWorld("materialBluemap", bridge)`, against the mock above.
+// `exposeInMainWorld("worldlens", bridge)`, against the mock above.
 import "./index.js";
 
 /** Only the `worldRepo` namespace this test drives, cast off the exposed bridge object. */
@@ -49,7 +49,7 @@ let bridge: WorldRepoBridgeUnderTest;
 beforeAll(() => {
     const calls = vi.mocked(contextBridge.exposeInMainWorld).mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.[0]).toBe("materialBluemap");
+    expect(calls[0]?.[0]).toBe("worldlens");
     bridge = calls[0]?.[1] as WorldRepoBridgeUnderTest;
 });
 
@@ -60,7 +60,7 @@ beforeEach(() => {
     vi.mocked(ipcRenderer.off).mockReset();
 });
 
-describe("window.materialBluemap.worldRepo routes to worldrepo:*", () => {
+describe("window.worldlens.worldRepo routes to worldrepo:*", () => {
     it("owners() asks worldrepo:owners with no argument", async () => {
         await bridge.worldRepo.owners();
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);

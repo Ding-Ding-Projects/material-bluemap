@@ -1,5 +1,5 @@
-import { TypeToken, type NBTReader, type TypeDeserializer } from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+import { TypeToken, type NBTReader, type TypeDeserializer } from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 
 export const KEY_TOKEN: TypeToken<Key> = TypeToken.of("Key");
 

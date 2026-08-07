@@ -154,7 +154,7 @@ export async function writeShardConfig(options: ShardConfigOptions): Promise<Wri
     const shardLabel = options.shard === null ? "the whole world" : "shard " + options.shard.id;
 
     const core = [
-        "# Written by @material-bluemap/render-actions for " + shardLabel + ".",
+        "# Written by @worldlens/render-actions for " + shardLabel + ".",
         "# accept-download is on because the repository owner has already accepted Mojang's EULA",
         "# (https://www.minecraft.net/eula); BlueMap cannot texture a map without the client jar.",
         "# A fork turns it off with the BLUEMAP_ACCEPT_DOWNLOAD repository variable.",
@@ -204,7 +204,7 @@ export async function writeShardConfig(options: ShardConfigOptions): Promise<Wri
     const baseMap = options.mapConfig?.trim() || DEFAULT_MAP_CONFIG;
 
     const map = [
-        "# Written by @material-bluemap/render-actions for " + shardLabel + ".",
+        "# Written by @worldlens/render-actions for " + shardLabel + ".",
         `# Configuration source: ${mapConfigSource}. ${mapConfigReason}`,
         "# The complete project-authored body comes first. Runtime-owned paths and shard",
         "# boundaries follow it, so they override only what this runner must own.",

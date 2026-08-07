@@ -1,4 +1,4 @@
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 
 /**
  * upstream: resources/pack/ResourcePool.java

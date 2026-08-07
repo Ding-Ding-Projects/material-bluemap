@@ -1,4 +1,4 @@
-import { INT_ARRAY_ADAPTER, TypeToken, type ObjectSchema } from "@material-bluemap/nbt";
+import { INT_ARRAY_ADAPTER, TypeToken, type ObjectSchema } from "@worldlens/nbt";
 import type { Cell } from "./CellStorage.js";
 
 /**

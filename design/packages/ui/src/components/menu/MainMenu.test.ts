@@ -15,7 +15,7 @@
  * `MainMenu` needs a running app before it renders anything (`v-if="app"` guards the whole
  * side sheet), so this builds the smallest object that satisfies what the component
  * actually reads: a menu already open on the root page, and nothing else. Nothing here
- * imports `@material-bluemap/viewer`'s internal `MainMenu` class - the fake only has to
+ * imports `@worldlens/viewer`'s internal `MainMenu` class - the fake only has to
  * look like one from the outside.
  */
 
@@ -27,7 +27,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import MainMenu from "./MainMenu.vue";
 import MenuOption from "./MenuOption.vue";
 

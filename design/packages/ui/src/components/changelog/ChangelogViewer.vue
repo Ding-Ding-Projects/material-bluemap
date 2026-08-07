@@ -355,7 +355,7 @@ function renderExport(kind: "markdown" | "text"): string {
 async function copy(kind: "markdown" | "text"): Promise<void> {
     const text = renderExport(kind);
     try {
-        const bridge = window.materialBluemap;
+        const bridge = window.worldlens;
         if (bridge) await bridge.writeClipboardText(text);
         else await navigator.clipboard.writeText(text);
         notice.value = t("changelog.copied", "The changelog on screen is on the clipboard.");

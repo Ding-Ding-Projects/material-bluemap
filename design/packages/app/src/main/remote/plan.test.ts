@@ -44,7 +44,7 @@ describe("remoteDockerRunArguments", () => {
     const args = remoteDockerRunArguments({
         target: testTarget(),
         paths: PATHS,
-        containerName: "material-bluemap-remote-overworld-abc123",
+        containerName: "worldlens-remote-overworld-abc123",
         mapIds: ["overworld", "nether"],
     });
     const line = args.join(" ");
@@ -75,7 +75,7 @@ describe("remoteDockerRunArguments", () => {
 
     it("names the container and cleans it up, with a real init at PID 1", () => {
         expect(args).toContain("--name");
-        expect(args).toContain("material-bluemap-remote-overworld-abc123");
+        expect(args).toContain("worldlens-remote-overworld-abc123");
         expect(args).toContain("--rm");
         // Without `--init` the JVM is PID 1, ignores SIGTERM, and every cancellation waits
         // out the full stop timeout before the container is killed.
@@ -126,7 +126,7 @@ describe("remoteStopArguments", () => {
 describe("remoteContainerName", () => {
     it("is prefixed, so it is obvious on a host somebody else also uses", () => {
         expect(remoteContainerName("overworld-abc123")).toBe(
-            "material-bluemap-remote-overworld-abc123",
+            "worldlens-remote-overworld-abc123",
         );
     });
 

@@ -352,14 +352,14 @@ describe("live status and the injected banner", () => {
         const { webRoot } = await fixture();
         const handle = await start(webRoot);
         const html = await (await fetch(handle.url)).text();
-        expect(html).toContain("material-bluemap-preview-banner");
+        expect(html).toContain("worldlens-preview-banner");
         expect(html).toContain(PREVIEW_STATUS_PATH);
         // Still valid: the injected markup lands before the real closing tag, not after it.
-        expect(html.indexOf("material-bluemap-preview-banner")).toBeLessThan(html.lastIndexOf("</body>"));
+        expect(html.indexOf("worldlens-preview-banner")).toBeLessThan(html.lastIndexOf("</body>"));
     });
 
     it("appends the banner even to a page with no closing body tag", () => {
         const result = injectLiveBanner("<html><body><p>no closing tag here");
-        expect(result).toContain("material-bluemap-preview-banner");
+        expect(result).toContain("worldlens-preview-banner");
     });
 });

@@ -116,7 +116,7 @@ describe("reading a file into settings, or saying why it could not be", () => {
     });
 
     it("reads JSON", () => {
-        const outcome = readSettings("material-bluemap.project.json", '{"version": 1, "maps": []}');
+        const outcome = readSettings("worldlens.project.json", '{"version": 1, "maps": []}');
         expect(outcome.ok).toBe(true);
         if (!outcome.ok) return;
         expect(outcome.settings.get("version")).toBe(1);

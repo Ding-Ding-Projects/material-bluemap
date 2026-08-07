@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { Biome } from "../../biome/Biome.js";
 import type { DataPack } from "../../../resources/pack/datapack/DataPack.js";
 

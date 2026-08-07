@@ -26,7 +26,7 @@ export type PaletteSize = (typeof PALETTE_SIZES)[number];
 /** The bounded card, which is what somebody who has not chosen gets. */
 export const DEFAULT_PALETTE_SIZE: PaletteSize = "card";
 
-const STORAGE_KEY = "material-bluemap-palette";
+const STORAGE_KEY = "worldlens-palette";
 
 /** True for a value that came out of storage and is one of the sizes this build knows. */
 export function isPaletteSize(value: unknown): value is PaletteSize {

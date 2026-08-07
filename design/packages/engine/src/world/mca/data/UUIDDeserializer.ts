@@ -4,7 +4,7 @@ import {
     TypeToken,
     type NBTReader,
     type TypeDeserializer,
-} from "@material-bluemap/nbt";
+} from "@worldlens/nbt";
 
 /** upstream: java.util.UUID — ported as its canonical string representation */
 export const UUID_TOKEN: TypeToken<string> = TypeToken.of("UUID");

@@ -160,7 +160,7 @@ function fakeContainerOffersBridge(
 function containerOffer(renderId: string): ContainerOffer {
     return {
         renderId,
-        containerName: `material-bluemap-${renderId}`,
+        containerName: `worldlens-${renderId}`,
         mode: "docker",
         where: "this computer",
         mapIds: ["overworld"],

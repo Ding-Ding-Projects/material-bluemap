@@ -1,4 +1,4 @@
-import { Color, Key, type Keyed } from "@material-bluemap/shared";
+import { Color, Key, type Keyed } from "@worldlens/shared";
 import { PNG } from "pngjs";
 import type { JsonAdapter } from "../../../adapter/AbstractTypeAdapterFactory.js";
 import {

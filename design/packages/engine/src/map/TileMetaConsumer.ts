@@ -1,4 +1,4 @@
-import type { Color } from "@material-bluemap/shared";
+import type { Color } from "@worldlens/shared";
 
 /**
  * upstream: map/TileMetaConsumer.java

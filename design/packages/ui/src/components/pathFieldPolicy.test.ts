@@ -303,7 +303,7 @@ const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
     "components/cirender/CiRenderScreen.vue::cirender.field.world": {
         reason: "own-browse",
         note:
-            "browseWorldFolder() in this same file reads window.materialBluemap.dialog." +
+            "browseWorldFolder() in this same file reads window.worldlens.dialog." +
             "pickFolder directly - one of the three routes this screen's own comment says " +
             "it offers for the same choice WorldFolderStep.vue offers, predating PathField.vue.",
     },
@@ -409,7 +409,7 @@ describe("every path-shaped text field either carries the affordance or names wh
         // Two bridges exist in this package: `pathFieldHost.ts`'s `pickFolder`/`pickFile`
         // (what `PathField.vue` itself calls) and the older `configHost.ts`'s
         // `pickDirectory`, which every one of these four files predates that bridge with.
-        // CiRenderScreen.vue reads `window.materialBluemap.dialog.pickFolder` by hand rather
+        // CiRenderScreen.vue reads `window.worldlens.dialog.pickFolder` by hand rather
         // than through either host, so a property reference counts as much as a call does.
         const OWN_BROWSE_CALL = /\bpickFolder\b|\bpickFile\b|\bpickDirectory\b/;
         for (const [exemptKey, { reason }] of Object.entries(PATH_FIELD_EXEMPTIONS)) {

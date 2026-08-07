@@ -31,7 +31,7 @@
  * ipc.ts         the channel to the interface. The only file here that knows Electron
  * ```
  *
- * The split is `@material-bluemap/parts`, unchanged. The rejoin is too - `restore.ts`
+ * The split is `@worldlens/parts`, unchanged. The rejoin is too - `restore.ts`
  * translates the Cheap LFS pointer into that package's own manifest shape rather than
  * reimplementing per-part and whole-file verification a second time.
  *

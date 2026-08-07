@@ -14,7 +14,7 @@
 
 import { readonly, ref, type Ref } from "vue";
 
-/** The window half of the preload bridge. Mirrors `MaterialBlueMapBridge`. */
+/** The window half of the preload bridge. Mirrors `WorldlensBridge`. */
 export interface WindowBridge {
     minimizeWindow(): Promise<void>;
     toggleMaximizeWindow(): Promise<boolean>;
@@ -36,7 +36,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * like it is.
  */
 export function resolveWindowBridge(): WindowBridge | null {
-    const host = (globalThis as { materialBluemap?: Partial<WindowBridge> }).materialBluemap;
+    const host = (globalThis as { worldlens?: Partial<WindowBridge> }).worldlens;
     if (host === undefined) return null;
 
     const required = [

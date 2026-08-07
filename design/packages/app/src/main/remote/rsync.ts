@@ -48,7 +48,7 @@
  *
  * rsync takes the remote shell as **one string** and splits it itself. This app's known
  * hosts file lives under the application data directory, which on Windows is
- * `...\Material BlueMap\known_hosts` - a path with a space in it. Whether a given rsync
+ * `...\Worldlens\known_hosts` - a path with a space in it. Whether a given rsync
  * build honours the quotes around that is a property of that build, not something that can
  * be decided here, so it is not decided here: the words are quoted, and a failure is caught
  * and answered with `scp` and an explanation rather than with a refusal.

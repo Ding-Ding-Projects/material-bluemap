@@ -93,8 +93,9 @@ server's save folder — and a repository to keep it in:
    still carries this application's marker, checked again independently of whatever the
    preflight said minutes earlier.
 
-The marker (`.material-bluemap-world.json`) is written into the world folder itself, right
-beside `level.dat`, because it has to be part of the pushed tree for the guard to read it
+The current marker (`.worldlens-world.json`) is written into the world folder itself; the legacy
+`.material-bluemap-world.json` marker remains readable during migration. It sits beside
+`level.dat`, because it has to be part of the pushed tree for the guard to read it
 back through GitHub's contents API — the same reason the Pages publisher's marker lives
 inside the rendered map rather than beside it.
 

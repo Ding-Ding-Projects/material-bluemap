@@ -40,7 +40,7 @@ import {
 /** A storage that is just a map, so a test never depends on a real localStorage. */
 function memoryStorage(seed?: string): TabStorage & { readonly cells: Map<string, string> } {
     const cells = new Map<string, string>();
-    if (seed !== undefined) cells.set("material-bluemap-tabs", seed);
+    if (seed !== undefined) cells.set("worldlens-tabs", seed);
     return {
         cells,
         getItem: (key) => cells.get(key) ?? null,
@@ -54,7 +54,7 @@ const EMPTY: TabStripState = {
     id: "strip-main",
     label: "Main",
     windowId: "window-1",
-    windowLabel: "Material BlueMap",
+    windowLabel: "Worldlens",
     placement: "left",
     tabs: [],
     groups: [],
@@ -168,7 +168,7 @@ describe("what deliberately does not survive", () => {
     it("writes no search query or pattern at all", () => {
         const storage = memoryStorage();
         writeTabWorkspace(saved(), storage);
-        const raw = storage.cells.get("material-bluemap-tabs") ?? "";
+        const raw = storage.cells.get("worldlens-tabs") ?? "";
         expect(raw).not.toContain("query");
         expect(raw).not.toContain("pattern");
         expect(raw).not.toContain("flags");
@@ -306,10 +306,10 @@ describe("mirroring into the application-settings history", () => {
 
     it("namespaces a second tab strip under its own key, so the two cannot collide", () => {
         const workspace = saved();
-        writeTabWorkspace(workspace, memoryStorage(), "material-bluemap-settings-tabs");
+        writeTabWorkspace(workspace, memoryStorage(), "worldlens-settings-tabs");
         expect(recordAppSetting).toHaveBeenCalledTimes(1);
         expect(recordAppSetting).toHaveBeenCalledWith(
-            "tabs.material-bluemap-settings-tabs",
+            "tabs.worldlens-settings-tabs",
             workspace,
         );
     });

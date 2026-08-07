@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { Pack, type Loader } from "./Pack.js";
 import { PackVersion } from "./PackVersion.js";
 import { DirFileSystem } from "./vfs/DirFileSystem.js";

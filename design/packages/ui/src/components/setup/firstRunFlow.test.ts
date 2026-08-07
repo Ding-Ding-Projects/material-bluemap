@@ -317,7 +317,7 @@ describe("the map folder default", () => {
     });
 
     it("starts at a previously stored answer instead", () => {
-        setSetupStorage(memoryStorage({ "material-bluemap.maps.directory": "/srv/maps" }));
+        setSetupStorage(memoryStorage({ "worldlens.maps.directory": "/srv/maps" }));
         const flow = controller(fakeBridge());
         expect(flow.storageDir.value).toBe("/srv/maps");
         expect(flow.storageIsToken.value).toBe(false);
@@ -333,7 +333,7 @@ describe("the map folder default", () => {
     // There used to be a folder-picker test trio here, exercising `flow.canBrowse` and
     // `flow.browse()` against a `chooseMapStorageDirectory` bridge method that no build
     // ever implemented. The storage step's browse button is `PathField.vue` now, which
-    // reaches the real `window.materialBluemap.dialog` bridge directly and is exercised
+    // reaches the real `window.worldlens.dialog` bridge directly and is exercised
     // by `PathField.test.ts` and `SetupStorageStep.test.ts`; there is nothing left in
     // this flow for a picker to gate.
 
@@ -371,7 +371,7 @@ describe("the map folder default", () => {
     });
 
     it("does not overwrite an answer somebody already gave", async () => {
-        setSetupStorage(memoryStorage({ "material-bluemap.maps.directory": "/srv/maps" }));
+        setSetupStorage(memoryStorage({ "worldlens.maps.directory": "/srv/maps" }));
         const flow = createFirstRunController({
             bridge: fakeBridge(),
             storageBridge: {

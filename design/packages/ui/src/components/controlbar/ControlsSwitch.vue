@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiAirplane, mdiCubeOutline, mdiSquareOutline } from "@mdi/js";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import IconButton from "./IconButton.vue";
 import { useControlBarApp } from "./useControlBarApp.js";
 

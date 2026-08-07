@@ -4,7 +4,7 @@ import type { NBTWriter } from "../NBTWriter.js";
 import type { TypeAdapter } from "../TypeAdapter.js";
 
 /**
- * Structural stand-ins for @material-bluemap/shared's Key/Keyed/Registry, keeping this
+ * Structural stand-ins for @worldlens/shared's Key/Keyed/Registry, keeping this
  * package dependency-free; the shared classes satisfy these shapes as-is.
  */
 export interface KeyLike {

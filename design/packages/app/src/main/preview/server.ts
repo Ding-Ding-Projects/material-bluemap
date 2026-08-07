@@ -59,7 +59,7 @@ import { createHash } from "node:crypto";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import { normalize, resolve, sep } from "node:path";
-import { HttpServer, type HttpHandler } from "@material-bluemap/server";
+import { HttpServer, type HttpHandler } from "@worldlens/server";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -94,7 +94,7 @@ const DEFAULT_CONTENT_TYPE = "application/octet-stream";
  * namespaced segment: nothing a render ever writes could collide with it, because
  * `pathFromCoords` never emits an underscore and no map id may contain a slash.
  */
-export const PREVIEW_STATUS_PATH = "/__material-bluemap-preview/status";
+export const PREVIEW_STATUS_PATH = "/__worldlens-preview/status";
 
 export interface RenderPreviewHandlerOptions {
     readonly renderId: string;
@@ -365,13 +365,13 @@ export function injectLiveBanner(html: string): string {
 }
 
 const LIVE_BANNER_SNIPPET = `
-<div id="material-bluemap-preview-banner" role="status" aria-live="polite" style="
+<div id="worldlens-preview-banner" role="status" aria-live="polite" style="
     position:fixed;right:12px;bottom:12px;z-index:2147483647;
     font:13px/1.4 system-ui,sans-serif;color:#fff;background:rgba(20,20,24,0.88);
     border-radius:8px;padding:8px 12px;max-width:280px;
     box-shadow:0 2px 10px rgba(0,0,0,0.35);display:flex;align-items:center;gap:8px;">
-  <span id="material-bluemap-preview-banner-text">Checking render status…</span>
-  <button id="material-bluemap-preview-banner-reload" type="button" style="
+  <span id="worldlens-preview-banner-text">Checking render status…</span>
+  <button id="worldlens-preview-banner-reload" type="button" style="
       background:#4f86ff;color:#fff;border:none;border-radius:4px;
       padding:4px 8px;font:inherit;cursor:pointer;">Reload</button>
 </div>
@@ -383,9 +383,9 @@ const LIVE_BANNER_SNIPPET = `
   var TEXT_FINISHED = "This render has finished. Showing the finished map.";
   var TEXT_UNKNOWN = "Could not reach the hosting server to check render status.";
   var POLL_MS = 20000;
-  var el = document.getElementById("material-bluemap-preview-banner");
-  var text = document.getElementById("material-bluemap-preview-banner-text");
-  var reload = document.getElementById("material-bluemap-preview-banner-reload");
+  var el = document.getElementById("worldlens-preview-banner");
+  var text = document.getElementById("worldlens-preview-banner-text");
+  var reload = document.getElementById("worldlens-preview-banner-reload");
   var lastActive = null;
   if (reload) {
     reload.addEventListener("click", function () { window.location.reload(); });

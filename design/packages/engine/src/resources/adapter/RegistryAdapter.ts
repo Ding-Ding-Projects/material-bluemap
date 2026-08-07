@@ -1,4 +1,4 @@
-import { Key, type Keyed, type Registry } from "@material-bluemap/shared";
+import { Key, type Keyed, type Registry } from "@worldlens/shared";
 import { noFloodWarning } from "../../world/mca/MCAUtil.js";
 import type { JsonAdapter } from "./AbstractTypeAdapterFactory.js";
 import { nextString, type JsonValue } from "./JsonMapper.js";

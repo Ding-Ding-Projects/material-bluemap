@@ -20,8 +20,11 @@
 
 import { createHmac } from "node:crypto";
 
-/** Distinguishes these digests from any other use of the same key. */
-const PROJECT_ID_CONTEXT = "material-bluemap/private-transport/project-id/1";
+/** Distinguishes current digests from every other use of the same key. */
+const PROJECT_ID_CONTEXT = "worldlens/private-transport/project-id/1";
+
+/** Read-only compatibility context for payloads sealed before the Worldlens rename. */
+const LEGACY_PROJECT_ID_CONTEXT = "material-bluemap/private-transport/project-id/1";
 
 /**
  * How much of the digest is used.
@@ -40,11 +43,20 @@ const PROJECT_ID_BYTES = 16;
  * later job can recompute the name of an asset it needs to fetch without anybody having
  * written that name down anywhere public.
  */
-export function deriveProjectId(key: Buffer, label: string): string {
+function deriveProjectIdWithContext(key: Buffer, label: string, context: string): string {
     return createHmac("sha256", key)
-        .update(`${PROJECT_ID_CONTEXT}|${label}`, "utf8")
+        .update(`${context}|${label}`, "utf8")
         .digest("hex")
         .slice(0, PROJECT_ID_BYTES * 2);
+}
+
+export function deriveProjectId(key: Buffer, label: string): string {
+    return deriveProjectIdWithContext(key, label, PROJECT_ID_CONTEXT);
+}
+
+/** Recomputes an old asset id only so an existing sealed payload can still be opened. */
+export function deriveLegacyProjectId(key: Buffer, label: string): string {
+    return deriveProjectIdWithContext(key, label, LEGACY_PROJECT_ID_CONTEXT);
 }
 
 /** The manifest's file name for a payload. */

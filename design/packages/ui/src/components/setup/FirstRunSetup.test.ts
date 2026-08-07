@@ -119,13 +119,13 @@ async function settle(): Promise<void> {
 beforeEach(() => {
     setSetupStorage(memoryStorage());
     reloadSetupLanguage();
-    (globalThis as { materialBluemap?: unknown }).materialBluemap = fakeBridge();
+    (globalThis as { worldlens?: unknown }).worldlens = fakeBridge();
 });
 
 afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
     document.body.innerHTML = "";
 });
 
@@ -246,7 +246,7 @@ describe("the consent question", () => {
         await reachConsent();
 
         let accepted = false;
-        (globalThis as { materialBluemap?: Record<string, unknown> }).materialBluemap = {
+        (globalThis as { worldlens?: Record<string, unknown> }).worldlens = {
             ...fakeBridge(),
             acceptDownload: () => {
                 accepted = true;
@@ -329,7 +329,7 @@ describe("finishing setup", () => {
         // Set before the mount, not after: `createFirstRunController()` resolves the
         // bridge once, at mount time, so reassigning the global afterwards would leave
         // the already-running controller holding the old, succeeding one.
-        (globalThis as { materialBluemap?: Record<string, unknown> }).materialBluemap = {
+        (globalThis as { worldlens?: Record<string, unknown> }).worldlens = {
             ...fakeBridge(),
             completeFirstRun: () => Promise.reject(new Error("disk is full")),
         };

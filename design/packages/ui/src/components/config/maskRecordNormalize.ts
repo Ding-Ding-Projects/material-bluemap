@@ -15,7 +15,7 @@
  * notice, and a cost estimate has nothing honest to say about a shape it cannot identify.
  */
 
-import { MASK_SHAPES, type MaskConfig, type PlainValue } from "@material-bluemap/config";
+import { MASK_SHAPES, type MaskConfig, type PlainValue } from "@worldlens/config";
 
 function formatKey(value: string): string {
     return value.includes(":") ? value : `bluemap:${value}`;

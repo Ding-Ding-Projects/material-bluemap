@@ -1,4 +1,4 @@
-import type { Vector2d } from "@material-bluemap/shared";
+import type { Vector2d } from "@worldlens/shared";
 import { Tristate } from "../../util/Tristate.js";
 import { Mask } from "./Mask.js";
 

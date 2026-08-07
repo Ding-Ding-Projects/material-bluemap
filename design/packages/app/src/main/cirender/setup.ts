@@ -256,7 +256,7 @@ export async function checkCiRepositoryNameAvailability(
     const headers: Record<string, string> = {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
-        "user-agent": "material-bluemap",
+        "user-agent": "worldlens",
     };
     if (typeof token === "string" && token.length > 0) {
         headers["authorization"] = `Bearer ${token}`;
@@ -308,7 +308,7 @@ function authHeaders(token: string): Record<string, string> {
     return {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
-        "user-agent": "material-bluemap",
+        "user-agent": "worldlens",
         authorization: `Bearer ${token}`,
     };
 }

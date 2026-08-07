@@ -104,7 +104,7 @@ function headers(token: string): Record<string, string> {
     return {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
-        "user-agent": "material-bluemap",
+        "user-agent": "worldlens",
         authorization: `Bearer ${token}`,
     };
 }

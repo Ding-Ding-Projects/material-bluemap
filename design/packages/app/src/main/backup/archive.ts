@@ -48,7 +48,7 @@ import type { FileHandle } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join, relative, resolve, sep } from "node:path";
 
-/** How much is read at a time. One mebibyte, matching `@material-bluemap/parts`. */
+/** How much is read at a time. One mebibyte, matching `@worldlens/parts`. */
 export const READ_CHUNK_BYTES = 1024 * 1024;
 
 /**

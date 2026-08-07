@@ -1,4 +1,4 @@
-import { Grid } from "@material-bluemap/shared";
+import { Grid } from "@worldlens/shared";
 import type { GridStorage } from "../../storage/GridStorage.js";
 import { CellStorage } from "./CellStorage.js";
 import { SHIFT, TILE_INFO_REGION_TOKEN, TileInfo, TileInfoRegion } from "./TileInfoRegion.js";

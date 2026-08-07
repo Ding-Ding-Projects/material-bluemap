@@ -129,7 +129,7 @@ something else would teach a pattern that matches the sample and nothing on scre
 | Setting | Where it lives | Default |
 |---|---|---|
 | Shortcut | `isPaletteShortcut()` in `palettePrefs.ts`. Control or Command with Shift and `f`, and not Alt. | Not user-configurable |
-| Size | `localStorage`, key `material-bluemap-palette`, as `{"size":"card"}` or `{"size":"full"}` | `card` |
+| Size | `localStorage`, key `worldlens-palette`, as `{"size":"card"}` or `{"size":"full"}`; the old key migrates when current state is absent | `card` |
 
 This was Ctrl+K until the documentation site next door was found to be answering Ctrl+Shift+F,
 which meant the product shipped two shortcuts for one feature and whichever one a person had

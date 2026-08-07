@@ -16,7 +16,7 @@ import {
     VTextarea,
     VTooltip,
 } from "vuetify/components";
-import { MARKER_SET_FIELDS, type FieldMeta, type PlainValue } from "@material-bluemap/config";
+import { MARKER_SET_FIELDS, type FieldMeta, type PlainValue } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
 import { GlossaryTerm } from "../glossary/index.js";
@@ -26,7 +26,7 @@ import { GlossaryTerm } from "../glossary/index.js";
  *
  * A marker set's own container fields — `label`, `sorting`, `toggleable` and
  * `default-hidden` — are rendered from `MARKER_SET_FIELDS` in
- * `@material-bluemap/config`, the same way `ConfigMaskField.vue` renders a mask
+ * `@worldlens/config`, the same way `ConfigMaskField.vue` renders a mask
  * shape's fields from `MASK_SHAPES`: one `ConfigControl` per entry, plus that
  * entry's own doc-disclosure and default-provenance line. A fifth container
  * property added to that array reaches this editor with no change here. The

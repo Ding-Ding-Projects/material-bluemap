@@ -113,7 +113,7 @@ function labelFor(summary: RawRenderSummary): string {
  * rule `pagesBridge.ts` applies to its own four.
  */
 export function resolvePreviewBridge(): PreviewBridge | null {
-    const host = (globalThis as { materialBluemap?: Host }).materialBluemap;
+    const host = (globalThis as { worldlens?: Host }).worldlens;
     if (host === undefined) return null;
 
     const { previewAvailability, startPreview, stopPreview, previewStatus, onPreviewEvent } = host;

@@ -5,3 +5,7 @@
 # normalizes legacy CRLF checkouts so this policy can repair them without a false stale result.
 CHANGELOG.md text eol=lf
 design/packages/ui/src/components/changelog/changelogData.generated.ts text eol=lf
+
+# Vitest imports this executable ESM module directly during the atomic rename tests.
+# Keep it LF on Windows as well so the transform never receives a CRLF shebang/module.
+scripts/finalize-worldlens-repository.mjs text eol=lf

@@ -7,7 +7,7 @@ import {
     mdiChevronDoubleDown,
     mdiChevronDoubleUp,
 } from "@mdi/js";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import { blueMapApp } from "../../stores/bluemap.js";
 
 /**

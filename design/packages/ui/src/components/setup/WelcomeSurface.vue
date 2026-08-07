@@ -4,6 +4,7 @@ import { VBtn } from "vuetify/components";
 import DockedSurface from "../settings/DockedSurface.vue";
 import WelcomeIntro from "./WelcomeIntro.vue";
 import { useSetupI18n } from "./setupI18n.js";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * "What is this?", as a panel the user places, standalone from first-run setup.
@@ -44,7 +45,7 @@ function onStart(): void {
     <DockedSurface
         class="mb-welcome-surface"
         surface-id="welcome-viewer"
-        :title="i18n.t('welcome.viewerTitle')"
+        :title="`${productDisplayName} · ${i18n.t('welcome.viewerTitle')}`"
         :open="open"
         default-placement="bottom"
         :preferred-thickness="480"

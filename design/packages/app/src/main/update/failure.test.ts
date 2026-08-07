@@ -23,30 +23,20 @@ describe("classifyUpdateFailure", () => {
         expect(failure.message).toContain("at the server rather than on this machine");
     });
 
-    it("reads an unverifiable signature as not retryable, and says nothing was installed", () => {
-        const failure = classifyUpdateFailure(
-            new Error("Authenticode signature of the downloaded package could not be verified"),
-        );
-        expect(failure.code).toBe("invalid-signature");
-        // The one rule with a security consequence: retrying a tampered installer forever
-        // is worse than stopping, so this must never be marked retryable.
-        expect(failure.retryable).toBe(false);
-        expect(failure.message).toContain("Nothing has changed on this machine");
-    });
-
-    it("prefers the signature rule over the corrupt rule when a message mentions both", () => {
-        const failure = classifyUpdateFailure(
-            new Error("hash of downloaded file does not match; authenticode signature is not valid"),
-        );
-        expect(failure.code).toBe("invalid-signature");
-    });
-
     it("reads a hash mismatch as a corrupt download that normally fixes itself", () => {
         const failure = classifyUpdateFailure(
-            new Error("SHA1 of MaterialBlueMap-0.2.0-full.nupkg does not match the RELEASES entry"),
+            new Error("SHA1 of Worldlens-0.2.0-full.nupkg does not match the RELEASES entry"),
         );
         expect(failure.code).toBe("corrupt-asset");
         expect(failure.retryable).toBe(true);
+    });
+
+    it("does not invent an Authenticode requirement for intentionally unsigned packages", () => {
+        const failure = classifyUpdateFailure(
+            new Error("Authenticode signature of the downloaded package could not be verified"),
+        );
+        expect(failure.code).toBe("unknown");
+        expect(failure.detail).toContain("Authenticode signature");
     });
 
     it("reads a missing Update.exe as a copy that was never installed", () => {

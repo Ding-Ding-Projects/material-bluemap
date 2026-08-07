@@ -17,10 +17,10 @@
  * rather than silently producing an empty mask.
  */
 
-import { combinedMaskSchema, type MaskConfig } from "@material-bluemap/config";
+import { combinedMaskSchema, type MaskConfig } from "@worldlens/config";
 
 /** The format's own name, so a file recognises itself before anything else is parsed. */
-export const MASK_FILE_FORMAT = "material-bluemap.render-mask";
+export const MASK_FILE_FORMAT = "worldlens.render-mask";
 /** Bumped only if the wrapper shape below changes; the nested masks stay the schema's own. */
 export const MASK_FILE_VERSION = 1;
 

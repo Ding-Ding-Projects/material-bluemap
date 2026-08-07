@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateConfigSet, renderPluginTemplate, type FieldMeta } from "@material-bluemap/config";
+import { generateConfigSet, renderPluginTemplate, type FieldMeta } from "@worldlens/config";
 import { fieldValue, setFieldValue } from "./configModel.js";
 import {
     addMap,

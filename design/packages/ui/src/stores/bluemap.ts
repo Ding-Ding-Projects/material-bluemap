@@ -1,9 +1,9 @@
 import { computed, shallowRef } from "vue";
 import type { ComputedRef, ShallowRef } from "vue";
-import type { BlueMapApp } from "@material-bluemap/viewer";
-import type { BlueMapAppState } from "@material-bluemap/viewer";
-import type { MapViewerData } from "@material-bluemap/viewer";
-import type { MarkerSetData } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
+import type { BlueMapAppState } from "@worldlens/viewer";
+import type { MapViewerData } from "@worldlens/viewer";
+import type { MarkerSetData } from "@worldlens/viewer";
 
 /**
  * Single shared handle on the live viewer.

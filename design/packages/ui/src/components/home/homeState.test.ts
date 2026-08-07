@@ -21,7 +21,7 @@ describe("whether Home's own introduction is collapsed", () => {
     });
 
     it("treats a junk stored value as expanded rather than as collapsed", () => {
-        const storage = memoryStorage({ "material-bluemap.home.introCollapsed": "yes please" });
+        const storage = memoryStorage({ "worldlens.home.introCollapsed": "yes please" });
         expect(homeIntroCollapsed(storage)).toBe(false);
     });
 
@@ -29,6 +29,6 @@ describe("whether Home's own introduction is collapsed", () => {
         const storage = memoryStorage();
         setHomeIntroCollapsed(true, storage);
         setHomeIntroCollapsed(false, storage);
-        expect(storage.read("material-bluemap.home.introCollapsed")).toBeNull();
+        expect(storage.read("worldlens.home.introCollapsed")).toBeNull();
     });
 });

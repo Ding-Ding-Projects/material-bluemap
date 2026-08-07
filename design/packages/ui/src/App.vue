@@ -19,7 +19,7 @@ import {
     mdiSourceRepository,
     mdiWeb,
 } from "@mdi/js";
-import type { MenuPage } from "@material-bluemap/viewer";
+import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
 import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
@@ -67,6 +67,7 @@ import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
 import { notices, raiseNotice } from "./stores/notices.js";
 import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
+import { productDisplayName } from "./stores/productName.js";
 
 const { t } = useI18n();
 const setupI18n = useSetupI18n();
@@ -713,7 +714,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             :label="t('appearance.target.app.titleBar', 'The window title bar')"
             as="div"
         >
-            <AppTitleBar />
+            <AppTitleBar :title="productDisplayName" />
         </AppearanceTarget>
 
         <!--

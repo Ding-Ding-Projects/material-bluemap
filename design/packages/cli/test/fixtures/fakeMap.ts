@@ -23,9 +23,9 @@ import {
     ResourcePack,
     Tristate,
     WatchService,
-} from "@material-bluemap/engine";
-import { Grid, Vector2i } from "@material-bluemap/shared";
-import type { World } from "@material-bluemap/engine";
+} from "@worldlens/engine";
+import { Grid, Vector2i } from "@worldlens/shared";
+import type { World } from "@worldlens/engine";
 
 const ALWAYS: Mask = {
     test: (...args: number[]) => (args.length === 3 ? true : Tristate.TRUE),

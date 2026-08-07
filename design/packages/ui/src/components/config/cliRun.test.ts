@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLI_FLAGS, EMPTY_INVOCATION, buildCliArgs, parseCliArgs, resolveCliActions } from "@material-bluemap/config";
+import { CLI_FLAGS, EMPTY_INVOCATION, buildCliArgs, parseCliArgs, resolveCliActions } from "@worldlens/config";
 import { FLAG_BINDINGS, FLAG_GROUPS, flagSearchText, flagValue, flagsInGroup, withFlagValue } from "./cliRun.js";
 
 describe("coverage", () => {

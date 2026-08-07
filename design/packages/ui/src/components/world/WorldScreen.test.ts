@@ -40,7 +40,7 @@ import type { MapWizard } from "./wizardModel.js";
 import type { RenderRequest, RenderResult, WorldBridge } from "./worldBridge.js";
 import type { ProjectHost, ProjectListing, ProjectReadAnswer, ProjectWriteAnswer } from "../project/projectHost.js";
 import { RunLocationCard } from "../remote/index.js";
-import type { ProjectFile } from "@material-bluemap/config";
+import type { ProjectFile } from "@worldlens/config";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields, expansion panels and overlays all
@@ -129,11 +129,11 @@ function fakeProjectHost(written: { world: string; project: ProjectFile }[], exi
             Promise.resolve(
                 existing === null
                     ? ({ ok: false, failure: { kind: "absent" } } satisfies ProjectReadAnswer)
-                    : ({ ok: true, project: existing, file: `${world}/material-bluemap.project.json` } satisfies ProjectReadAnswer),
+                    : ({ ok: true, project: existing, file: `${world}/worldlens.project.json` } satisfies ProjectReadAnswer),
             ),
         writeProject: (world, project) => {
             written.push({ world, project });
-            return Promise.resolve({ ok: true, file: `${world}/material-bluemap.project.json` } satisfies ProjectWriteAnswer);
+            return Promise.resolve({ ok: true, file: `${world}/worldlens.project.json` } satisfies ProjectWriteAnswer);
         },
         deleteProject: () => Promise.resolve({ ok: true, file: "" } satisfies ProjectWriteAnswer),
     };
@@ -411,7 +411,7 @@ describe("containers left running from an earlier session", () => {
             offers: [
                 {
                     renderId: "r9",
-                    containerName: "material-bluemap-r9",
+                    containerName: "worldlens-r9",
                     mode: "docker",
                     where: "this computer",
                     mapIds: ["overworld"],
@@ -441,7 +441,7 @@ describe("containers left running from an earlier session", () => {
 
         const panel = screen.findComponent(ContainerOffers);
         expect(panel.exists()).toBe(true);
-        expect(screen.text()).toContain("material-bluemap-r9");
+        expect(screen.text()).toContain("worldlens-r9");
         expect(screen.text()).toContain("Still running. Pick it up to watch its progress here.");
 
         const pickUp = screen.findAll("button").find((button) => button.text().includes("Pick this up"));

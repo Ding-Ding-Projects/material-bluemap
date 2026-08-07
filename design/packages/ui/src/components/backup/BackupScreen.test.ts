@@ -66,7 +66,7 @@ beforeAll(() => {
 });
 
 // `PathField.vue` (the folder's browse button, wired in below) feature-detects its dialog
-// bridge off `window.materialBluemap.dialog` exactly the way the running preload exposes
+// bridge off `window.worldlens.dialog` exactly the way the running preload exposes
 // it, so the browse tests stub that global rather than passing a bridge as a prop. This
 // undoes the stub after every test so one test's dialog never leaks into the next.
 afterEach(() => {
@@ -421,7 +421,7 @@ describe("browsing for the folder to back up", () => {
     // real picker; these assert it is actually wired in rather than merely imported.
     it("writes the picked folder through to the model, titling the dialog for the chosen kind", async () => {
         const pickFolder = vi.fn(() => Promise.resolve("C:/saves/Overworld"));
-        vi.stubGlobal("materialBluemap", { dialog: { pickFolder, pickFile: () => Promise.resolve(null) } });
+        vi.stubGlobal("worldlens", { dialog: { pickFolder, pickFile: () => Promise.resolve(null) } });
 
         const wrapper = mountScreen(fakeBridge());
         await settle(wrapper);
@@ -440,7 +440,7 @@ describe("browsing for the folder to back up", () => {
 
     it("names the render folder, not the world folder, once that kind is chosen", async () => {
         const pickFolder = vi.fn(() => Promise.resolve("C:/maps/render-1"));
-        vi.stubGlobal("materialBluemap", { dialog: { pickFolder, pickFile: () => Promise.resolve(null) } });
+        vi.stubGlobal("worldlens", { dialog: { pickFolder, pickFile: () => Promise.resolve(null) } });
 
         const wrapper = mountScreen(fakeBridge());
         await settle(wrapper);
@@ -460,7 +460,7 @@ describe("browsing for the folder to back up", () => {
     });
 
     it("changes nothing on a cancelled pick", async () => {
-        vi.stubGlobal("materialBluemap", {
+        vi.stubGlobal("worldlens", {
             dialog: { pickFolder: () => Promise.resolve(null), pickFile: () => Promise.resolve(null) },
         });
 

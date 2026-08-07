@@ -15,6 +15,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 
 | Document | What it covers |
 |---|---|
+| [Migrating from Material BlueMap to Worldlens](./worldlens-migration.md) | Verified profile copying, preference/env adapters, old-and-new project/marker reads, current-only writes, the cosmetic display name boundary, and the permanent unsigned-package policy. |
 | [Home](./home.md) | The pinned landing tab: every capability this app has, weighted so a newcomer sees the one obvious next step and a returning user sees what they were doing last - and every card an opener onto the same handler the command palette already uses, never a link that leaves you to work it out. |
 | [Glossary](./glossary.md) | Every term this application's own interface uses - map, world, storage, tile, project, config folder and the rest - defined against what the code actually does, and linked from an info button beside each term wherever it appears. |
 | [Command palette](./command-palette.md) | One shortcut over every command, setting and destination, with the live control on the row rather than a link to it. |

@@ -77,7 +77,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * "not now" button that throws the moment it is pressed.
  */
 export function resolveContainerOffersBridge(): ContainerOffersBridge | null {
-    const host = (globalThis as { materialBluemap?: Partial<ContainerOffersBridge> }).materialBluemap;
+    const host = (globalThis as { worldlens?: Partial<ContainerOffersBridge> }).worldlens;
     if (host === undefined) return null;
     if (
         !isFunction(host.containerOffers) ||

@@ -21,18 +21,18 @@ import {
  * `join("C:", "repo")` looks absolute and is not one on POSIX, so `findRepoRoot`'s
  * `resolve()` prefixed the runner's working directory, the walk never reached the
  * anchor, and every assertion here returned null on Linux while passing on Windows.
- * `resolve(sep, "repo")` gives `C:epo` on Windows and `/repo` on Linux.
+ * `resolve(sep, "repo")` gives `C:
+epo` on Windows and `/repo` on Linux.
  */
 const REPO = resolve(sep, "repo");
 
 /** A filesystem described as directory -> [file, ...], with modification times. */
-function fakeFs(
-    tree: Record<string, string[]>,
-    mtimes: Record<string, number> = {},
-): JarFs {
+function fakeFs(tree: Record<string, string[]>, mtimes: Record<string, number> = {}): JarFs {
     const directories = new Set(Object.keys(tree));
     return {
-        exists: (path) => directories.has(path) || path === join(REPO, "vendor", "BlueMap", "settings.gradle.kts"),
+        exists: (path) =>
+            directories.has(path) ||
+            path === join(REPO, "vendor", "BlueMap", "settings.gradle.kts"),
         readdir: (path) => tree[path] ?? [],
         mtimeMs: (path) => mtimes[path] ?? 0,
     };
@@ -105,13 +105,16 @@ describe("findRepoRoot", () => {
         // src/main/java and dist/main are different depths, which is exactly why this
         // is anchored on a marker file rather than on a count of `..` segments.
         const anchor = join(REPO, "vendor", "BlueMap", "settings.gradle.kts");
-        expect(findRepoRoot(join(REPO, "design", "packages", "app", "dist", "main"), (path) => path === anchor)).toBe(
-            REPO,
-        );
+        expect(
+            findRepoRoot(
+                join(REPO, "design", "packages", "app", "dist", "main"),
+                (path) => path === anchor,
+            ),
+        ).toBe(REPO);
     });
 
     it("returns null outside a checkout instead of walking forever", () => {
-        expect(findRepoRoot(join("C:", "Program Files", "Material BlueMap"), () => false)).toBeNull();
+        expect(findRepoRoot(join("C:", "Program Files", "Worldlens"), () => false)).toBeNull();
     });
 });
 
@@ -149,7 +152,7 @@ describe("listBlueMapJars", () => {
     });
 
     it("prefers the packaged app's bundled jars over a checkout on the same machine", () => {
-        const resources = join("C:", "Program Files", "Material BlueMap", "resources");
+        const resources = join("C:", "Program Files", "Worldlens", "resources");
         const fs = fakeFs(
             {
                 [bundledJarDirectory(resources)]: ["cli-5.22-30-shadow.jar"],

@@ -24,13 +24,13 @@ the current edits only through the host's existing audited project path.
 
 ## Configuration
 
-| Item | Value |
-|---|---|
-| Tab layout key | `material-bluemap-project-editor-tabs` |
-| Sections | Maps, Storages, How it renders, History, Core, Web app, Web server, Plugin |
-| Pointer policy | The application shell alone opts into pass-through; nested tab panels default to `pointer-events: auto` |
-| New-map defaults | BlueMap's own schema and project templates, never invented sample data |
-| Responsive targets | At least 44 CSS pixels for primary project, tab, search and live-speed controls |
+| Item               | Value                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| Tab layout key     | `worldlens-project-editor-tabs`; the former key is imported only when current state is absent           |
+| Sections           | Maps, Storages, How it renders, History, Core, Web app, Web server, Plugin                              |
+| Pointer policy     | The application shell alone opts into pass-through; nested tab panels default to `pointer-events: auto` |
+| New-map defaults   | BlueMap's own schema and project templates, never invented sample data                                  |
+| Responsive targets | At least 44 CSS pixels for primary project, tab, search and live-speed controls                         |
 
 The editor's project value remains owned by its host. A map, storage or setting edit emits an
 updated project; Save, Revert, Close and Render remain separate actions. Tab placement, ordering,
@@ -72,7 +72,7 @@ tiles remain on disk. The interaction fix does not bypass that gate or any unsav
   and clicks the Core, Maps and Add-map paths.
 - `components/project/projectSurfaceSizing.test.ts` inventories the 44px targets, responsive
   stacking, text wrapping and viewport-bounded overlay rules for the project and related controls.
-- `pnpm --filter @material-bluemap/ui run typecheck` verifies the typed pass-through boundary and
+- `pnpm --filter @worldlens/ui run typecheck` verifies the typed pass-through boundary and
   the editor/component contracts.
 
 The focused mounted tests and UI typecheck pass on this change. A packaged, hidden-desktop capture

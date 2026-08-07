@@ -1,4 +1,4 @@
-import { Key, Registry, type Keyed } from "@material-bluemap/shared";
+import { Key, Registry, type Keyed } from "@worldlens/shared";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { TextureGallery } from "../../TextureGallery.js";
 import type { RenderSettings } from "../RenderSettings.js";

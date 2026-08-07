@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { JsonAdapter } from "./AbstractTypeAdapterFactory.js";
 import { nextString, type JsonValue } from "./JsonMapper.js";
 

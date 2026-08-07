@@ -27,7 +27,7 @@
  *    resumed transfer already falls back to when everything but the part in flight is
  *    still on disk. Nothing below it is meaningful - zero workers download nothing.
  *  - **Sixteen** is the ceiling. A rendered world is rarely more than a handful of parts
- *    even at the small end of the part-size range (`@material-bluemap/parts`' own
+ *    even at the small end of the part-size range (`@worldlens/parts`' own
  *    `MIN_PART_SIZE` is 100 MB, so even a modest multi-gigabyte world is a few dozen parts
  *    at most), so a number far past that buys nothing: the workers past the part count are
  *    already unused by `Math.min(concurrency, queue.length)` in `fetchParts`. What a very

@@ -79,7 +79,7 @@ function archPart(arch: string): string | null {
 export function downloadAccessibleName(release: ReleaseInfo): string {
     const { installer } = release;
     const parts = [
-        `Download material-bluemap ${release.version} for ${installer.platform}`,
+        `Download worldlens ${release.version} for ${installer.platform}`,
         archPart(installer.arch),
         `${installer.format} installer`,
         formatBytes(installer.sizeBytes),

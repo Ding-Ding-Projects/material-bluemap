@@ -153,7 +153,7 @@ describe("the container channels", () => {
             offers: [
                 {
                     renderId: "world-abc123",
-                    containerName: "material-bluemap-world-abc123",
+                    containerName: "worldlens-world-abc123",
                     mode: "docker",
                     where: "this computer",
                     mapIds: ["overworld"],

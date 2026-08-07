@@ -1,4 +1,4 @@
-import { MatrixM3f, MatrixM4f } from "@material-bluemap/shared";
+import { MatrixM3f, MatrixM4f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { ArrayTileModel } from "./ArrayTileModel.js";
 import { MaxCapacityReachedException } from "./MaxCapacityReachedException.js";

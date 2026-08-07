@@ -2,7 +2,7 @@
  * The seam between the create-a-map flow and the main process.
  *
  * Every type here is a structural mirror of the one the Electron preload exposes
- * on `window.materialBluemap`, restated rather than imported for the same reason
+ * on `window.worldlens`, restated rather than imported for the same reason
  * `firstRunFlow.ts` restates its own: this package compiles and runs in three
  * places, and only one of them has a preload. In a browser tab there is no local
  * rendering, and in vitest the whole flow is driven by a fake.
@@ -308,7 +308,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * is worse than a wizard that says the desktop app is needed.
  */
 export function resolveWorldBridge(): WorldBridge | null {
-    const host = (globalThis as { materialBluemap?: Partial<WorldBridge> }).materialBluemap;
+    const host = (globalThis as { worldlens?: Partial<WorldBridge> }).worldlens;
     if (host === undefined) return null;
 
     const required = [
@@ -348,7 +348,7 @@ export function resolveWorldBridge(): WorldBridge | null {
 
 /** The optional halves, probed one method at a time. */
 export function resolveOptionalWorldBridge(): OptionalWorldBridge | null {
-    const host = (globalThis as { materialBluemap?: OptionalWorldBridge }).materialBluemap;
+    const host = (globalThis as { worldlens?: OptionalWorldBridge }).worldlens;
     return host ?? null;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CLI_FLAGS, formatHelp, formatVersion, parseCliArgs, resolveCliActions } from "../src/args.js";
 
-describe("args: parseCliArgs (re-exported from @material-bluemap/config, exercised through this package's own entry)", () => {
+describe("args: parseCliArgs (re-exported from @worldlens/config, exercised through this package's own entry)", () => {
     it("parses grouped short flags the way Commons CLI would", () => {
         const { invocation, issues } = parseCliArgs(["-ru", "-c", "myconfig"]);
         expect(issues).toEqual([]);

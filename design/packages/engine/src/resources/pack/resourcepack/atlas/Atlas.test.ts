@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JsonParseError, parse } from "../../../adapter/JsonMapper.js";
 import { ResourcePool } from "../../ResourcePool.js";

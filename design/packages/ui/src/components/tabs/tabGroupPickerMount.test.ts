@@ -162,7 +162,7 @@ const STRIP: TabStripState = {
     id: "s1",
     label: "Main",
     windowId: "w1",
-    windowLabel: "Material BlueMap",
+    windowLabel: "Worldlens",
     placement: "left",
     tabs: [],
     pinnedOrder: [],

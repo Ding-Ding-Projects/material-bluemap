@@ -28,7 +28,7 @@ import {
     type FieldMeta,
     type MapPreset,
     type PlainValue,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 import {
     changedFields,
     clearFieldValue,

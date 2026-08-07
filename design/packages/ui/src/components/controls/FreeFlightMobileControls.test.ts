@@ -18,7 +18,7 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
 import { h } from "vue";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import FreeFlightMobileControls from "./FreeFlightMobileControls.vue";
 import { setBlueMapApp } from "../../stores/bluemap.js";
 

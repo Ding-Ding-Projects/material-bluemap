@@ -2,7 +2,7 @@
  * The seam between "where does this render run" and the main process.
  *
  * Every type here is a structural mirror of one the Electron preload exposes on
- * `window.materialBluemap`, restated rather than imported for the same reason
+ * `window.worldlens`, restated rather than imported for the same reason
  * `backupBridge.ts` restates its own: this package compiles and runs in three places and
  * only one of them has a preload. Importing across that boundary would drag `node:child_process`,
  * an SSH client and a known_hosts writer into the renderer's bundle, which is exactly what
@@ -314,7 +314,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 }
 
 function host(): Host | undefined {
-    return (globalThis as { materialBluemap?: Host }).materialBluemap;
+    return (globalThis as { worldlens?: Host }).worldlens;
 }
 
 /**

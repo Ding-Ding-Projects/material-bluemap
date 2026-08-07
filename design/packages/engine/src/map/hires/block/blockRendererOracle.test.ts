@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { TrigMath, VectorM2f } from "@material-bluemap/shared";
+import { TrigMath, VectorM2f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { hashToFloat } from "./ResourceModelRenderer.js";
 

@@ -72,7 +72,7 @@ import { createProject, withMapAdded } from "./components/project/projectModel.j
  *     forks. A `TabGroupPicker.typecheck.test.ts` in the same run spent 53941ms shelling
  *     out to `vue-tsc` in that same two-fork pool. Profiling `App.vue`'s own mount path
  *     found nothing eager to blame either: `renderIndicator.reconcile()`, wired in
- *     `onMounted`, resolves near-instantly the moment `window.materialBluemap` is
+ *     `onMounted`, resolves near-instantly the moment `window.worldlens` is
  *     undefined (true for every test in this file), and `HomeScreen` - the page the shell
  *     opens on by default - has no eager work of its own. Measured here: 952ms and 563ms
  *     mounting alone, 972ms and 606ms mounting early inside a full, two-fork-pinned run of
@@ -176,7 +176,7 @@ beforeAll(() => {
 });
 
 let wrapper: VueWrapper | null = null;
-const originalBridge = (globalThis as { materialBluemap?: unknown }).materialBluemap;
+const originalBridge = (globalThis as { worldlens?: unknown }).worldlens;
 
 /**
  * With no profile active and no stored tab layout, the shell seeds one tab per page and opens
@@ -253,7 +253,7 @@ afterEach(() => {
     document.body.innerHTML = "";
     for (const profile of [...profilesStore.profiles]) removeProfile(profile.id);
     profilesStore.activeId = null;
-    (globalThis as { materialBluemap?: unknown }).materialBluemap = originalBridge;
+    (globalThis as { worldlens?: unknown }).worldlens = originalBridge;
 });
 
 describe("the tab strip", () => {
@@ -349,7 +349,7 @@ describe("the tab strip", () => {
         // it plays no part in an ordinary returning-user mount - this proves the mount path
         // itself stays exactly as untouched as the task asked.
         cells.set(
-            "material-bluemap-tabs",
+            "worldlens-tabs",
             JSON.stringify({
                 version: 1,
                 strips: [
@@ -357,7 +357,7 @@ describe("the tab strip", () => {
                         id: "strip-main",
                         label: "Main",
                         windowId: "window-main",
-                        windowLabel: "Material BlueMap",
+                        windowLabel: "Worldlens",
                         tabs: [
                             { id: "t-home", pageId: "home", label: "Home" },
                             { id: "t-map", pageId: "map", label: "Map" },
@@ -434,12 +434,12 @@ describe("the tab strip", () => {
             createProject("Survival", { now: "2026-08-06T12:00:00Z", id: "project-1", appVersion: null }),
             { id: "overworld", name: "Overworld", dimension: "minecraft:overworld", world },
         );
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             project: {
                 listProjects: async () => ({
                     projects: [{
                         world,
-                        file: `${world}/material-bluemap.project.json`,
+                        file: `${world}/worldlens.project.json`,
                         id: project.id,
                         name: project.name,
                         maps: project.maps.length,
@@ -452,8 +452,8 @@ describe("the tab strip", () => {
                     scanned: 1,
                     problems: [],
                 }),
-                readProject: async () => ({ ok: true, project, file: `${world}/material-bluemap.project.json` }),
-                writeProject: async () => ({ ok: true, file: `${world}/material-bluemap.project.json` }),
+                readProject: async () => ({ ok: true, project, file: `${world}/worldlens.project.json` }),
+                writeProject: async () => ({ ok: true, file: `${world}/worldlens.project.json` }),
             },
         };
 

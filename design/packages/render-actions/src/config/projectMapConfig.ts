@@ -2,7 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /** The project file is deliberately bundled inside every world archive the app uploads. */
-export const PROJECT_FILE_NAME = "material-bluemap.project.json";
+export const PROJECT_FILE_NAME = "worldlens.project.json";
+export const LEGACY_PROJECT_FILE_NAME = "material-bluemap.project.json";
 
 export interface ProjectMapConfigResult {
     readonly source: "project" | "defaults";
@@ -21,21 +22,32 @@ export async function readProjectMapConfig(
     worldDirectory: string,
     mapId: string,
 ): Promise<ProjectMapConfigResult> {
-    const path = join(worldDirectory, PROJECT_FILE_NAME);
+    let path = join(worldDirectory, PROJECT_FILE_NAME);
     let text: string;
     try {
         text = await readFile(path, "utf8");
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-            return {
-                source: "defaults",
-                config: null,
-                reason: `${PROJECT_FILE_NAME} is absent; this is a manual workflow render using the documented defaults.`,
-            };
+            path = join(worldDirectory, LEGACY_PROJECT_FILE_NAME);
+            try {
+                text = await readFile(path, "utf8");
+            } catch (legacyError) {
+                if ((legacyError as NodeJS.ErrnoException).code === "ENOENT") {
+                    return {
+                        source: "defaults",
+                        config: null,
+                        reason:
+                            `${PROJECT_FILE_NAME} and ${LEGACY_PROJECT_FILE_NAME} are absent; ` +
+                            "this is a manual workflow render using the documented defaults.",
+                    };
+                }
+                throw legacyError;
+            }
+        } else {
+            throw new Error(
+                `Could not read ${path}: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
-        throw new Error(
-            `Could not read ${path}: ${error instanceof Error ? error.message : String(error)}`,
-        );
     }
 
     let raw: unknown;
@@ -51,7 +63,7 @@ export async function readProjectMapConfig(
         throw new Error(`${path} is not a project object.`);
     }
     const version = (raw as { version?: unknown }).version;
-    if (typeof version === "number" && version > 1) {
+    if (typeof version === "number" && version > 2) {
         throw new Error(
             `${path} uses project format ${String(version)}, which this workflow cannot read.`,
         );
@@ -74,6 +86,6 @@ export async function readProjectMapConfig(
     return {
         source: "project",
         config: selected.config,
-        reason: `Loaded the complete maps/${mapId}.conf body from ${PROJECT_FILE_NAME}.`,
+        reason: `Loaded the complete maps/${mapId}.conf body from ${path.split(/[\\/]/).at(-1) ?? PROJECT_FILE_NAME}.`,
     };
 }

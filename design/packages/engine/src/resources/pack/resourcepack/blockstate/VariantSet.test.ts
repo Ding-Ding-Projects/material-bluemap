@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "../../../adapter/JsonMapper.js";
 import { BlockState } from "../../../../world/BlockState.js";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { BlockStateCondition } from "./BlockStateCondition.js";
 import { MISSING_BLOCK_MODEL, Variant } from "./Variant.js";
 import { hashToFloat, VariantSet } from "./VariantSet.js";

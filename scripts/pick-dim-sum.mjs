@@ -268,7 +268,7 @@ function parseArgs(argv) {
 
 /** GitHub asks for a User-Agent; a token is optional since the repo is public. */
 function headers(accept = "application/json", authenticated = true) {
-  const h = { accept, "user-agent": "material-bluemap-release" };
+  const h = { accept, "user-agent": "worldlens-release" };
   const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
   if (authenticated && token) h.authorization = `Bearer ${token}`;
   return h;

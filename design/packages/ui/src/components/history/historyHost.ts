@@ -231,7 +231,7 @@ export interface HistoryHost {
      * Puts back individual settings, by handing the main process files this editor merged.
      *
      * The merge happens here because the HOCON reader and writer that round-trip comments and
-     * formatting live in `@material-bluemap/config`, which is the editor's, not the main
+     * formatting live in `@worldlens/config`, which is the editor's, not the main
      * process's. The main process still checks that the revision exists, that every path is
      * one it would write anyway, and that the file is one that revision or the folder holds -
      * and it still snapshots first and records the result as a new revision.
@@ -352,5 +352,5 @@ export function provideHistoryHost(host: HistoryHost | null): void {
 export function useHistoryHost(): HistoryHost | null {
     const provided = inject(HISTORY_HOST, undefined);
     if (provided !== undefined) return provided;
-    return historyHostFromBridge(typeof window === "undefined" ? null : window.materialBluemap);
+    return historyHostFromBridge(typeof window === "undefined" ? null : window.worldlens);
 }

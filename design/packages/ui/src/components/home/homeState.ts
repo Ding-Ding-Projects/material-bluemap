@@ -16,7 +16,7 @@
 
 import { setupStorage, type SetupStorage } from "../setup/setupPrefs.js";
 
-const INTRO_COLLAPSED_KEY = "material-bluemap.home.introCollapsed";
+const INTRO_COLLAPSED_KEY = "worldlens.home.introCollapsed";
 
 /** True once the user has folded the explanation away. False - expanded - by default. */
 export function homeIntroCollapsed(storage: SetupStorage = setupStorage()): boolean {

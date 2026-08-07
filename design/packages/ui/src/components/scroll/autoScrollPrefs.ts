@@ -20,7 +20,7 @@
 import { ref, watch, type Ref } from "vue";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
-const STORAGE_KEY = "material-bluemap-autoscroll";
+const STORAGE_KEY = "worldlens-autoscroll";
 
 /**
  * The two methods used, so a test can pass a plain object and nothing else leaks.

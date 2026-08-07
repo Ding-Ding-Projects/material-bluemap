@@ -50,7 +50,7 @@ import { checkRepositoryAccess, verifyToken } from "./token.js";
 
 const LIVE = process.env["MBM_TEST_GITHUB_LIVE"] === "1";
 const TOKEN = process.env["MBM_TEST_GITHUB_TOKEN"];
-const REPO = process.env["MBM_TEST_GITHUB_REPO"] ?? "Ding-Ding-Projects/material-bluemap";
+const REPO = process.env["MBM_TEST_GITHUB_REPO"] ?? "Ding-Ding-Projects/worldlens";
 
 /* -------------------------------------------------------------------------- */
 /* The device flow's two live endpoints, unauthenticated                      */

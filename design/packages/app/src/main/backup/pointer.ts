@@ -17,7 +17,7 @@
  * several gigabytes, so one backup exhausts the free tier and every restore is billed
  * again. Release assets are free on a public repository, capped at 2 GB each rather than
  * in total, and this application already ships both halves of the machinery for them:
- * `@material-bluemap/parts` splits and rejoins, and `main/download/` fetches, verifies
+ * `@worldlens/parts` splits and rejoins, and `main/download/` fetches, verifies
  * and unpacks. Git LFS was not forgotten here; it was **rejected on cost**, by name.
  *
  * ## Keep it canonical forever
@@ -67,7 +67,7 @@ export const CHEAP_LFS_POINTER_VERSION = "desktop-material/cheap-lfs/v1";
  * slow link is far more likely to break before a large part finishes than a small one.
  * 500 MiB keeps a retry cheap and progress fine-grained.
  *
- * This is deliberately *not* `DEFAULT_PART_SIZE` from `@material-bluemap/parts`, which is
+ * This is deliberately *not* `DEFAULT_PART_SIZE` from `@worldlens/parts`, which is
  * 1.7 GB and sized for a one-shot publish from a fast runner rather than for a laptop
  * uploading over a home connection.
  */

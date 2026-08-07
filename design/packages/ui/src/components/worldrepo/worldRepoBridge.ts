@@ -2,7 +2,7 @@
  * The seam between the "world kept in a git repository" surface and the main process.
  *
  * Every type here is a structural mirror of the one the Electron preload exposes on
- * `window.materialBluemap.worldRepo`, **restated rather than imported**, for the same reason
+ * `window.worldlens.worldRepo`, **restated rather than imported**, for the same reason
  * `pagesBridge.ts` and `backupBridge.ts` restate theirs: this package compiles and runs in
  * three places (inside the Electron shell, inside a plain browser tab, inside vitest) and
  * only the first of those has a preload. Importing across that boundary would also drag a
@@ -271,7 +271,7 @@ export interface WorldRepoAdoptionAlreadyLocal {
  * screen never inspects the project itself, only `restoring` (the honest summary above) and
  * `needsAttention`. The raw value is handed straight to `ProjectHost.writeProject` when
  * somebody presses "Adopt this repository", which is the one place its real shape matters,
- * and that call already goes through `@material-bluemap/config`'s own `ProjectFile` type.
+ * and that call already goes through `@worldlens/config`'s own `ProjectFile` type.
  */
 export type WorldRepoAdoptedProject = Record<string, unknown>;
 
@@ -319,7 +319,7 @@ export type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok
  * Keeping a Minecraft world in a git repository, and recognising a repository this
  * application already prepared on a computer that has never touched it before.
  *
- * A namespace on `window.materialBluemap`, mirroring the preload's own `WorldRepoBridge`
+ * A namespace on `window.worldlens`, mirroring the preload's own `WorldRepoBridge`
  * exactly - see that interface's doc comment in `packages/app/src/preload/index.ts` for why
  * a namespace rather than flat methods: this screen feature-detects the whole capability at
  * once, because a screen offering Sync on a bridge that has no `sync` is a button that
@@ -376,7 +376,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * yet rather than that one feature within it was deliberately left off.
  */
 export function resolveWorldRepoBridge(): WorldRepoBridge | null {
-    const host = (globalThis as { materialBluemap?: { worldRepo?: unknown } }).materialBluemap;
+    const host = (globalThis as { worldlens?: { worldRepo?: unknown } }).worldlens;
     if (host === undefined) return null;
     const api = host.worldRepo;
     if (typeof api !== "object" || api === null) return null;

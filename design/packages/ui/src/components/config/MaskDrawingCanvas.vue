@@ -39,7 +39,7 @@ import {
     VTextField,
     VTooltip,
 } from "vuetify/components";
-import type { PlainValue } from "@material-bluemap/config";
+import type { PlainValue } from "@worldlens/config";
 import {
     UNKNOWN_WORLD,
     addPolygonPoint,

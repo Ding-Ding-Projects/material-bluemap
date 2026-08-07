@@ -39,9 +39,9 @@ describe("defaults", () => {
     it("restores a stored choice", () => {
         setSetupStorage(
             memoryStorage({
-                "material-bluemap.language.mode": "bilingual",
-                "material-bluemap.language.funny.en": "1",
-                "material-bluemap.language.funny.yue": "5",
+                "worldlens.language.mode": "bilingual",
+                "worldlens.language.funny.en": "1",
+                "worldlens.language.funny.yue": "5",
             }),
         );
         reloadSetupLanguage();
@@ -51,7 +51,7 @@ describe("defaults", () => {
     });
 
     it("ignores a stored value that is not a mode", () => {
-        setSetupStorage(memoryStorage({ "material-bluemap.language.mode": "klingon" }));
+        setSetupStorage(memoryStorage({ "worldlens.language.mode": "klingon" }));
         reloadSetupLanguage();
         expect(languageMode()).toBe("en");
     });
@@ -59,8 +59,8 @@ describe("defaults", () => {
     it("clamps a stored level that is out of range", () => {
         setSetupStorage(
             memoryStorage({
-                "material-bluemap.language.funny.en": "99",
-                "material-bluemap.language.funny.yue": "-4",
+                "worldlens.language.funny.en": "99",
+                "worldlens.language.funny.yue": "-4",
             }),
         );
         reloadSetupLanguage();
@@ -75,9 +75,9 @@ describe("persistence", () => {
         setFunnyLevel("en", 2);
         setFunnyLevel("yue", 4);
         const storage = setupStorage();
-        expect(storage.read("material-bluemap.language.mode")).toBe("yue");
-        expect(storage.read("material-bluemap.language.funny.en")).toBe("2");
-        expect(storage.read("material-bluemap.language.funny.yue")).toBe("4");
+        expect(storage.read("worldlens.language.mode")).toBe("yue");
+        expect(storage.read("worldlens.language.funny.en")).toBe("2");
+        expect(storage.read("worldlens.language.funny.yue")).toBe("4");
     });
 
     it("resets to English at level 3", () => {
@@ -87,7 +87,7 @@ describe("persistence", () => {
         expect(languageMode()).toBe("en");
         expect(funnyLevel("en")).toBe(3);
         expect(funnyLevel("yue")).toBe(3);
-        expect(setupStorage().read("material-bluemap.language.mode")).toBeNull();
+        expect(setupStorage().read("worldlens.language.mode")).toBeNull();
     });
 });
 

@@ -3,7 +3,7 @@
  * assert-base-path.mjs — prove the built site is actually addressed at its subpath.
  *
  * The failure this exists to catch is quiet and total. The site is served from
- * `/material-bluemap/`, not from a domain root. A build configured with a root base
+ * `/worldlens/`, not from a domain root. A build configured with a root base
  * emits absolute URLs like `/assets/index.js`, the upload succeeds, the deployment goes
  * green, and every page 404s in the browser. Nothing in the pipeline notices, because
  * nothing in the pipeline ever asks for the page.
@@ -14,7 +14,7 @@
  *
  * Usage:
  *   node scripts/assert-base-path.mjs
- *   node scripts/assert-base-path.mjs --dist dist --base /material-bluemap/
+ *   node scripts/assert-base-path.mjs --dist dist --base /worldlens/
  *
  * Exits non-zero on any violation. This one is a gate, unlike the fetch scripts.
  */
@@ -27,7 +27,7 @@ import { SITE_ROOT, log, parseArgs } from "./shared.mjs";
 
 const SCRIPT = "assert-base-path";
 
-const DEFAULT_BASE = "/material-bluemap/";
+const DEFAULT_BASE = "/worldlens/";
 
 /** Files worth scanning for a stray root-absolute asset URL. */
 const SCANNED_EXTENSIONS = [".html", ".css", ".js", ".mjs", ".webmanifest", ".json"];

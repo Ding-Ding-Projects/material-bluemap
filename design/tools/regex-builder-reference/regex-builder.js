@@ -5,14 +5,15 @@
   const DEFAULT_PATTERN = "(?<word>[\\p{L}\\p{N}_]+)";
   const DEFAULT_SAMPLE = "Build 42 patterns\n砌 42 個規則";
   const FLAG_ORDER = ["d", "g", "i", "m", "s", "u", "v", "y"];
-  const LANGUAGE_STORAGE_KEY = "material-bluemap-regex-language";
+  const LANGUAGE_STORAGE_KEY = "worldlens-regex-language";
+  const LEGACY_LANGUAGE_STORAGE_KEY = "material-bluemap-regex-language";
   const SUPPORTED_LANGUAGES = new Set(["en", "yue", "bilingual"]);
 
   const translations = {
     en: {
-      documentTitle: "Regex Builder · material-bluemap",
+      documentTitle: "Regex Builder · Worldlens",
       skipLink: "Skip to builder",
-      homeLabel: "material-bluemap home",
+      homeLabel: "Worldlens home",
       primaryNav: "Primary navigation",
       home: "Home",
       contract: "Feature contract",
@@ -97,9 +98,9 @@
       zeroWidthTitle: "Zero-width match at index {index}",
     },
     yue: {
-      documentTitle: "Regex 砌式器 · material-bluemap",
+      documentTitle: "Regex 砌式器 · Worldlens",
       skipLink: "跳去砌式器",
-      homeLabel: "返 material-bluemap 主頁",
+      homeLabel: "返 Worldlens 主頁",
       primaryNav: "主導覽",
       home: "主頁",
       contract: "功能規格",
@@ -224,8 +225,14 @@
 
   function readLanguagePreference() {
     try {
-      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      return SUPPORTED_LANGUAGES.has(stored) ? stored : "en";
+      const current = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (SUPPORTED_LANGUAGES.has(current)) return current;
+      const legacy = window.localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY);
+      if (SUPPORTED_LANGUAGES.has(legacy)) {
+        window.localStorage.setItem(LANGUAGE_STORAGE_KEY, legacy);
+        return legacy;
+      }
+      return "en";
     } catch {
       return "en";
     }

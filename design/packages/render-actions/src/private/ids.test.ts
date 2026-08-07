@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import { generateKey } from "./crypto.js";
 import {
     assetPattern,
+    deriveLegacyProjectId,
     deriveProjectId,
     manifestAssetName,
     partAssetName,
@@ -47,6 +48,11 @@ describe("deriveProjectId", () => {
     it("separates labels that differ at all", () => {
         expect(deriveProjectId(KEY, "shard-1")).not.toBe(deriveProjectId(KEY, "shard-2"));
         expect(deriveProjectId(KEY, "world")).not.toBe(deriveProjectId(KEY, "world "));
+    });
+
+    it("writes the Worldlens generation while retaining a distinct legacy lookup", () => {
+        expect(deriveProjectId(KEY, LABEL)).not.toBe(deriveLegacyProjectId(KEY, LABEL));
+        expect(deriveLegacyProjectId(KEY, LABEL)).toBe(deriveLegacyProjectId(KEY, LABEL));
     });
 });
 

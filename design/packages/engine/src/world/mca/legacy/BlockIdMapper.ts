@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { BlockState } from "../../BlockState.js";
 import { readLegacyJsonAsset } from "./assets.js";
 

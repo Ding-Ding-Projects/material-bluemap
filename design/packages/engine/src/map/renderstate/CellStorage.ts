@@ -3,8 +3,8 @@ import {
     PalettedArrayAdapter,
     RegistryAdapter,
     type TypeToken,
-} from "@material-bluemap/nbt";
-import { Key, Vector2i } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Key, Vector2i } from "@worldlens/shared";
 import type { GridStorage } from "../../storage/GridStorage.js";
 import { CHUNK_INFO_REGION_TOKEN, ChunkInfoRegion } from "./ChunkInfoRegion.js";
 import { REGION_INFO_REGION_TOKEN, RegionInfoRegion } from "./RegionInfoRegion.js";

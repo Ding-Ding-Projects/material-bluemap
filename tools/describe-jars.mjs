@@ -380,7 +380,7 @@ function composeMarkdown(jars, upstream, requiredJava) {
             `\`${upstream.submodulePath}\` submodule` +
             (upstream.commit === null ? "" : ` at commit \`${upstream.commit}\``) +
             `. The code is the [BlueMap project's](${upstream.repository}) own, not a reimplementation by this project. ` +
-            "material-bluemap drives the renderer rather than replacing it; the TypeScript mesher in `packages/engine` " +
+            "Worldlens drives the renderer rather than replacing it; the TypeScript mesher in `packages/engine` " +
             "takes over only once it produces byte-identical output.",
     );
     lines.push("");

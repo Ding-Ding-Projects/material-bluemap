@@ -8,11 +8,11 @@
  * played, the version it was last opened with, whether it is hardcore - all of that lives
  * in `level.dat` and nowhere else.
  *
- * ## Why this is not `@material-bluemap/nbt`
+ * ## Why this is not `@worldlens/nbt`
  *
  * It should have been, and it deliberately is not. `packages/app` does not depend on the
  * nbt package: its `package.json` names `parts`, `server` and `shared`, and pnpm's strict
- * layout means `@material-bluemap/nbt` does not resolve from here at all. Adding the
+ * layout means `@worldlens/nbt` does not resolve from here at all. Adding the
  * dependency needs an install, and CI installs with `--frozen-lockfile`, so a manifest
  * edit without a matching lockfile update turns every workflow red. What is here instead
  * is deliberately not a general NBT library: it is a one-pass skim that recognises about

@@ -117,7 +117,7 @@ const Host = defineComponent({
                 default: () => [
                     h(
                         TabbedNavigation,
-                        { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main" },
+                        { pages: PAGES, windowLabel: "Worldlens", stripLabel: "Main" },
                         {
                             map: () => h("p", { class: "page-map" }, "the map"),
                             world: () => h("p", { class: "page-world" }, "the wizard"),
@@ -302,7 +302,7 @@ describe("the keyboard commands the context menu advertises", () => {
 
 describe("the tab and group appearance editors", () => {
     it("registers every open tab as an appearance target the editor can be pointed at", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         open();
         await nextTick();
 
@@ -343,7 +343,7 @@ describe("the tab and group appearance editors", () => {
     });
 
     it("opens the group's own editor from a Shift+right-click on its header", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = open();
         await nextTick();
 
@@ -475,7 +475,7 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
                                         TabbedNavigation,
                                         {
                                             pages: PAGES,
-                                            windowLabel: "Material BlueMap",
+                                            windowLabel: "Worldlens",
                                             stripLabel: "Main",
                                         },
                                         {
@@ -518,7 +518,7 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
     }
 
     it("registers both the tab and the wrapper as separate appearance targets", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         openWrapped();
         await nextTick();
 
@@ -692,7 +692,7 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
     });
 
     it("group header: opens exactly one menu on right-click, with the working shortcut shown", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = openWrapped();
         await nextTick();
 
@@ -712,7 +712,7 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
     });
 
     it("group header: opens the group's own editor directly on Shift+right-click, never the wrapper's too", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = openWrapped();
         await nextTick();
 
@@ -736,7 +736,7 @@ const SAVED_LAYOUT = JSON.stringify({
             id: "strip-main",
             label: "Main",
             windowId: "window-main",
-            windowLabel: "Material BlueMap",
+            windowLabel: "Worldlens",
             tabs: [
                 { id: "t-map", pageId: "map", label: "Map" },
                 { id: "t-world", pageId: "world", label: "Make a map" },
@@ -760,7 +760,7 @@ const SAVED_LAYOUT = JSON.stringify({
 
 describe("pinned tabs and collapsed groups, as drawn", () => {
     it("keeps a compact pinned tab's full name for assistive technology", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = open();
         await nextTick();
 
@@ -771,7 +771,7 @@ describe("pinned tabs and collapsed groups, as drawn", () => {
     });
 
     it("draws a collapsed group as a header with its name, count and state", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = open();
         await nextTick();
 
@@ -781,7 +781,7 @@ describe("pinned tabs and collapsed groups, as drawn", () => {
     });
 
     it("keeps a collapsed group's members out of the focus order but not out of the strip", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = open();
         await nextTick();
 
@@ -795,7 +795,7 @@ describe("pinned tabs and collapsed groups, as drawn", () => {
     });
 
     it("expands the group on its header, and writes that preference", async () => {
-        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        cells.set("worldlens-tabs", SAVED_LAYOUT);
         const view = open();
         await nextTick();
 
@@ -807,7 +807,7 @@ describe("pinned tabs and collapsed groups, as drawn", () => {
             "Make a map",
             "Servers",
         ]);
-        expect(cells.get("material-bluemap-tabs")).toContain('"collapsed":false');
+        expect(cells.get("worldlens-tabs")).toContain('"collapsed":false');
     });
 });
 
@@ -821,7 +821,7 @@ describe("persistence", () => {
         await tabs(first)[0]?.trigger("keydown", { key: "Delete" });
         await nextTick();
 
-        expect(cells.get("material-bluemap-tabs")).toBeDefined();
+        expect(cells.get("worldlens-tabs")).toBeDefined();
 
         first.unmount();
         wrapper = null;
@@ -838,7 +838,7 @@ describe("persistence", () => {
     });
 
     it("seeds the defaults rather than half-restoring a file it cannot read", async () => {
-        cells.set("material-bluemap-tabs", '{"version":1,"strips":[{');
+        cells.set("worldlens-tabs", '{"version":1,"strips":[{');
 
         const view = open();
         await nextTick();
@@ -860,7 +860,7 @@ function openDirect(): VueWrapper<InstanceType<typeof TabbedNavigation>> {
     const direct = mount(TabbedNavigation, {
         props: {
             pages: PAGES,
-            windowLabel: "Material BlueMap",
+            windowLabel: "Worldlens",
             stripLabel: "Main",
             storageKey: "test-direct-tabs",
         },
@@ -963,7 +963,7 @@ function openDirectPinned(
     const direct = mount(TabbedNavigation, {
         props: {
             pages: PAGES,
-            windowLabel: "Material BlueMap",
+            windowLabel: "Worldlens",
             stripLabel: "Main",
             storageKey,
             pinnedPageIds,
@@ -996,7 +996,7 @@ function mountDirect(
     return mount(TabbedNavigation, {
         props: {
             pages,
-            windowLabel: "Material BlueMap",
+            windowLabel: "Worldlens",
             stripLabel: "Main",
             storageKey,
             pinnedPageIds,

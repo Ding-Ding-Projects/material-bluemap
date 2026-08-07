@@ -84,7 +84,7 @@ function fakeHost(listing: ProjectListing = emptyListing()): ProjectHost & { wri
         readProject: async () => ({ ok: false, failure: { kind: "absent" } }),
         writeProject: async (world, project): Promise<ProjectWriteAnswer> => {
             written.push([world, project]);
-            return { ok: true, file: `${world}/material-bluemap.project.json` };
+            return { ok: true, file: `${world}/worldlens.project.json` };
         },
         written,
     };
@@ -166,7 +166,7 @@ describe("the discovered-worlds panel, wired into the tab", () => {
             projects: [
                 {
                     world: "/home/ada/.minecraft/saves/Bastion",
-                    file: "/home/ada/.minecraft/saves/Bastion/material-bluemap.project.json",
+                    file: "/home/ada/.minecraft/saves/Bastion/worldlens.project.json",
                     id: "p1",
                     name: "Bastion",
                     maps: 1,

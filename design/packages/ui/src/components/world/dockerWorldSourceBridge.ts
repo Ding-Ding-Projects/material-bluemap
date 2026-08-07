@@ -155,7 +155,7 @@ export interface DockerWorldSourceBridge {
 }
 
 type Host = Partial<{
-    materialBluemap: Partial<{ dockerWorld: Partial<DockerWorldSourceBridge> }>;
+    worldlens: Partial<{ dockerWorld: Partial<DockerWorldSourceBridge> }>;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -164,7 +164,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** Resolves only a complete capability; a picker with no cancel/event path is not complete. */
 export function resolveDockerWorldSourceBridge(): DockerWorldSourceBridge | null {
-    const candidate = (globalThis as Host).materialBluemap?.dockerWorld;
+    const candidate = (globalThis as Host).worldlens?.dockerWorld;
     if (candidate === undefined) return null;
     const required: readonly (keyof DockerWorldSourceBridge)[] = [
         "list",

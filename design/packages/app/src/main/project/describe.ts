@@ -3,7 +3,7 @@
  *
  * `history/describe.ts` already does this for a config folder, and does it by looking at
  * which *files* changed. That reading is useless for a project, because a project is one
- * file: every save would produce the row "Changed material-bluemap.project.json", forty
+ * file: every save would produce the row "Changed worldlens.project.json", forty
  * times over, which is the word "Updated" wearing a longer name. A history panel full of
  * those is an archive nobody opens.
  *
@@ -18,7 +18,7 @@
  * a diff somebody can read rather than a behaviour somebody has to run the app to observe.
  */
 
-import type { ProjectFile, ProjectMap, ProjectReadFailure, ProjectStorage } from "@material-bluemap/config";
+import type { ProjectFile, ProjectMap, ProjectReadFailure, ProjectStorage } from "@worldlens/config";
 
 import { MAX_NAMED_FILES, joinNames, type HistoryAction } from "../history/index.js";
 
@@ -257,7 +257,7 @@ export function describeReadFailure(failure: ProjectReadFailure, path: string): 
             );
         case "too-new":
             return (
-                `${path} was made by a newer version of Material BlueMap (format ` +
+                `${path} was made by a newer version of Worldlens (format ` +
                 `${String(failure.version)}). This build would have to throw away the settings it ` +
                 `does not understand, so it left the file alone. Update the app to open it.`
             );

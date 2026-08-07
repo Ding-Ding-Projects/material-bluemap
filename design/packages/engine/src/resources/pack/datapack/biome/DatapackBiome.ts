@@ -7,7 +7,7 @@
  * ignores unknown ones and leaves absent ones at their field-initializer default.
  */
 
-import type { Color, Key } from "@material-bluemap/shared";
+import type { Color, Key } from "@worldlens/shared";
 import { postDeserialize } from "../../../adapter/PostDeserializeAdapterFactory.js";
 import { ResourcesGson } from "../../../adapter/ResourcesGson.js";
 import { asObject, nextDouble, type JsonValue } from "../../../adapter/JsonMapper.js";

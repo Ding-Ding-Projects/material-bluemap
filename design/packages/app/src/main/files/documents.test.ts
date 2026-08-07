@@ -141,7 +141,7 @@ describe("defaultMapStorageDirectory", () => {
             directoryExists: always,
         });
         expect(defaultMapStorageDirectory(resolution)).toBe(
-            "C:\\Users\\ada\\Documents\\Material BlueMap\\maps",
+            "C:\\Users\\ada\\Documents\\Worldlens\\maps",
         );
     });
 });
@@ -154,7 +154,7 @@ describe("windowsMapStorageDefault", () => {
             platform: "win32",
             directoryExists: always,
         });
-        expect(answer?.directory).toBe("C:\\Users\\ada\\Documents\\Material BlueMap\\maps");
+        expect(answer?.directory).toBe("C:\\Users\\ada\\Documents\\Worldlens\\maps");
         expect(answer?.resolution.redirected).toBe(true);
     });
 

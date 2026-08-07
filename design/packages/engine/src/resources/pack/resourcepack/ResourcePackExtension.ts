@@ -1,4 +1,4 @@
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import type { BlockPropertiesBuilder } from "../../../world/BlockProperties.js";
 import type { BlockState } from "../../../world/BlockState.js";
 import type { PackExtension } from "../PackExtension.js";

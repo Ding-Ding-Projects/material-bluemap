@@ -194,7 +194,7 @@ describe("device sign-in", () => {
         if (result.ok) return;
         expect(result.failure.code).toBe("no-client-configured");
         expect(result.failure.message).toContain("personal access token");
-        expect(result.failure.message).toContain("MATERIAL_BLUEMAP_GITHUB_CLIENT_ID");
+        expect(result.failure.message).toContain("WORLDLENS_GITHUB_CLIENT_ID");
     });
 });
 

@@ -29,7 +29,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { locateWorld, WorldValidationError } from "@material-bluemap/render-actions";
+import { locateWorld, WorldValidationError } from "@worldlens/render-actions";
 import { execFileCommandRunner, type CommandRunner } from "../runtime/command.js";
 import type { FileTransfer } from "../remote/transfer.js";
 import * as failures from "./failure.js";

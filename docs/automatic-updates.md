@@ -18,13 +18,13 @@ open.
 
 ### What happens, and when
 
-| Moment | What the app does |
-|---|---|
-| 30 seconds after launch | Checks the feed. Delayed on purpose: an update check is the least urgent thing happening while the window, the embedded server and the render restore are all starting. |
-| Every 6 hours after that | Checks again, unless an update is already staged. |
-| After a failed check | Backs off — doubling from six hours, capped at a day. A machine offline for a week does not spend it making one DNS query every six hours. |
-| Once an update is staged | Stops checking entirely. There is nothing left to discover; the installer is on disk and only the user's choice changes the situation. |
-| **Check for updates** in settings | Checks now, whatever the schedule says. |
+| Moment                            | What the app does                                                                                                                                                       |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 30 seconds after launch           | Checks the feed. Delayed on purpose: an update check is the least urgent thing happening while the window, the embedded server and the render restore are all starting. |
+| Every 6 hours after that          | Checks again, unless an update is already staged.                                                                                                                       |
+| After a failed check              | Backs off — doubling from six hours, capped at a day. A machine offline for a week does not spend it making one DNS query every six hours.                              |
+| Once an update is staged          | Stops checking entirely. There is nothing left to discover; the installer is on disk and only the user's choice changes the situation.                                  |
+| **Check for updates** in settings | Checks now, whatever the schedule says.                                                                                                                                 |
 
 The download runs in the background and **the app never restarts itself**. Electron's
 `autoUpdater` fetches and stages; installation happens only when the user presses **Restart
@@ -32,7 +32,7 @@ to install**.
 
 ### The banner
 
-When an installer is downloaded, verified and staged, a persistent, non-blocking banner
+When an installer is downloaded, checked against the feed hash and staged, a persistent, non-blocking banner
 appears (`design/packages/ui/src/components/update/UpdateBanner.vue`). It is modelled on
 GitHub Desktop's: it sits in the layout rather than over it, never takes focus, never gates
 anything, and stays until the user acts on it.
@@ -41,14 +41,14 @@ It names the exact version, links the release notes when the feed carried a link
 **Restart to install** and **Later**.
 
 That persistence is deliberate and is why this one message is a banner rather than a toast.
-The project's rules put anything that merely *informs* in the notification corner, where it
+The project's rules put anything that merely _informs_ in the notification corner, where it
 auto-dismisses — and an offer that has to survive an hour of rendering so it can be taken at
 a moment of the user's choosing cannot auto-dismiss. "Nothing new" and "the check failed"
 still go to the notification corner and the settings row; only "ready to install" persists.
 
 **Later is per version, and never permanent.** Dismissing writes that one version to
-`material-bluemap.update.dismissed`, so the banner does not come back for it after a restart
-— and the *next* release announces itself normally. The settings row carries **Show the
+`worldlens.update.dismissed`, so the banner does not come back for it after a restart
+— and the _next_ release announces itself normally. The settings row carries **Show the
 update banner again** so a dismissal is never a one-way door.
 
 ### A render in progress protects itself
@@ -71,14 +71,14 @@ message: … }`. The staged update is untouched, so nothing is lost by trying.
 ### The visible states
 
 The settings row (`UpdateStatusRow.vue`) always shows where things stand, and there is a
-distinct state for each of: *nothing checked yet*, *checking*, *up to date*, *available*,
-*downloading*, *ready*, *failed*, and *this build cannot update itself*.
+distinct state for each of: _nothing checked yet_, _checking_, _up to date_, _available_,
+_downloading_, _ready_, _failed_, and _this build cannot update itself_.
 
 `checking` is not a status — it is a flag laid over whatever is already known. The honest
 thing to show while a check runs is "you are on 0.1.0, and I am looking", not a blank screen
 that has forgotten what it knew a second ago. It also makes the next rule expressible:
 
-**A staged update survives a later failure.** Once an installer is downloaded and verified,
+**A staged update survives a later failure.** Once an installer is downloaded and its feed hash matches,
 it installs whether or not the next scheduled check reaches the server. Letting a network
 blip roll `ready` back to `failed` would take a working update away from somebody who was
 about to restart into it. The failure is still recorded and still shown — hiding it would be
@@ -102,15 +102,38 @@ nothing changed. A test walks all five levels in both languages and asserts both
 
 ## Configuration
 
-| Variable | Effect |
-|---|---|
-| `MATERIAL_BLUEMAP_UPDATE_FEED` | Points the updater at a different feed. Must be `https`, or `http` on loopback for a test server. Checked before the packaging and platform gates, so the seam is testable on the machine it is written on. |
-| `MATERIAL_BLUEMAP_UPDATE_TOKEN` | Sent as `Authorization: Bearer …` to a private feed. See the security section. |
-| `MATERIAL_BLUEMAP_DISABLE_UPDATES` | Switches checking off entirely on a machine that manages its own installs. |
+| Variable                    | Effect                                                                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WORLDLENS_UPDATE_FEED`     | Points the updater at a different feed. Must be `https`, or `http` on loopback for a test server. An explicit override disables repository fallback. |
+| `WORLDLENS_UPDATE_TOKEN`    | Sent as `Authorization: Bearer …` to a private feed. See the security section.                                                                       |
+| `WORLDLENS_DISABLE_UPDATES` | Switches checking off entirely on a machine that manages its own installs.                                                                           |
+
+The former `MATERIAL_BLUEMAP_UPDATE_FEED`, `MATERIAL_BLUEMAP_UPDATE_TOKEN`, and
+`MATERIAL_BLUEMAP_DISABLE_UPDATES` names remain readable aliases during migration. When both
+generations are set, the `WORLDLENS_` value wins. New configuration and diagnostics use only
+the current names.
 
 With no override, a packaged Windows build resolves
 `https://update.electronjs.org/<owner>/<repo>/win32-<arch>/<version>`, which speaks
 Squirrel.Windows natively and needs no API token and no rate limit.
+
+### Repository-feed handoff
+
+A packaged bridge build carries two explicit repositories: the Worldlens release repository and
+the former repository as a bounded fallback. It checks Worldlens first. Until that profile has
+actually downloaded an update from the Worldlens feed, a current-feed error or no-update answer
+may cause one check against the legacy feed. After a current-feed download, the exact current and
+legacy **repository-and-channel identity** pair is written atomically to
+`%APPDATA%\Worldlens\.worldlens-update-feed-handoff.json`; later launches stop consulting the
+legacy source. The versioned suffix of the feed URL is deliberately excluded, so installing a new
+build does not forget an earlier confirmation. Changing repository, architecture, or channel
+invalidates the confirmation and safely re-enters the bridge.
+
+This is the installed-client route: an old installed build receives a bridge release from the
+old feed, that bridge knows both repositories, and the following Worldlens release can arrive
+directly from the Worldlens feed. A future repository redirect may help a request, but correctness
+does not depend on that redirect existing or remaining assigned forever. An explicit
+`WORLDLENS_UPDATE_FEED` is one operator-chosen feed and therefore has no automatic fallback.
 
 Three states are **refusals with a reason**, not silence: not packaged, not Windows, and no
 release repository configured. Each produces a sentence the settings row shows in place of a
@@ -124,20 +147,23 @@ Every error the updater raises is classified once
 person. `getaddrinfo ENOTFOUND` is accurate and useless; "the update server could not be
 reached, the app will try again by itself" is not.
 
-| Code | What it means | Retried automatically |
-|---|---|---|
-| `offline` | No route to the update server. | Yes |
-| `feed-unavailable` | The server answered with something that is not a release list. | Yes |
-| `invalid-signature` | The installer is not signed by the expected publisher. **Nothing was installed.** | **No** |
-| `corrupt-asset` | The bytes that arrived are not the bytes the feed described. | Yes |
-| `not-installed` | This copy was not installed by its installer, so there is no updater beside it. | No |
-| `staging-failed` | The disk is full, or the app's folder is not writable. | Yes |
-| `unknown` | Recognised as nothing in particular. The updater's own words travel as detail. | Yes |
+| Code               | What it means                                                                   | Retried automatically |
+| ------------------ | ------------------------------------------------------------------------------- | --------------------- |
+| `offline`          | No route to the update server.                                                  | Yes                   |
+| `feed-unavailable` | The server answered with something that is not a release list.                  | Yes                   |
+| `corrupt-asset`    | The bytes that arrived are not the bytes the feed described.                    | Yes                   |
+| `not-installed`    | This copy was not installed by its installer, so there is no updater beside it. | No                    |
+| `staging-failed`   | The disk is full, or the app's folder is not writable.                          | Yes                   |
+| `unknown`          | Recognised as nothing in particular. The updater's own words travel as detail.  | Yes                   |
 
-The signature rule is ordered first, ahead of the corrupt-asset rule, because Squirrel's
-messages overlap and misreporting a tampered installer as a flaky network is the one mistake
-here with a security consequence. It is also the one failure marked *not* retryable:
-downloading a bad file on a schedule forever is not resilience.
+Worldlens packages are intentionally unsigned. The updater therefore makes no Authenticode
+claim and does not classify the absence of a publisher signature as a defect. Integrity relies
+on transport provenance, Squirrel feed metadata, and the package hash recorded in the feed. HTTPS
+can authenticate the server named by the URL and protect bytes in transit; matching feed hashes
+can prove the downloaded package is the package that server described. **Neither proves who
+published or authored an intentionally unsigned package.** A compromised release account or feed
+origin can publish a different unsigned package and matching hashes. A hash mismatch is a
+`corrupt-asset` failure and nothing is installed from those bytes.
 
 An `unknown` failure says so rather than guessing. A confident wrong diagnosis is worse than
 an admission.
@@ -149,18 +175,22 @@ the same step that records the failure, and a test asserts exactly that.
 
 - **The credential never leaves the main process.** The feed token is read from the
   environment, attached as a request header, and never placed in any value that crosses IPC.
-  `describeFeed` exists for that reason: the interface is told the *address* updates come
+  `describeFeed` exists for that reason: the interface is told the _address_ updates come
   from and whether one is authenticated, never the token. A test serialises the whole state
   object and asserts the token does not appear in it, because a header that leaks into a
   state object is invisible until somebody pastes a screenshot into an issue.
 - **The feed must be `https`.** A plain-`http` override is refused with the reason, because
   an update fetched over plaintext can be replaced in transit. Loopback is the one exception,
-  so a local test feed needs no certificate.
+  so a local test feed needs no certificate. HTTPS establishes transport protection and the
+  identity of the contacted host under the certificate system; it does not authenticate the
+  publisher of this unsigned application.
 - **A release-notes link is only used when it is `https`.** Anything else is dropped rather
   than handed to the shell.
-- **Squirrel verifies the package.** A signature that does not verify is a hard stop, not a
-  retry, and the copy says plainly that nothing was installed and nothing on the machine
-  changed.
+- **The artifacts are unsigned by permanent policy.** Packaging fixes
+  `forceCodeSigning`, `signExecutable`, and `signAndEditExecutable` to `false` and clears
+  signing environment inputs. There is no publisher-authenticity claim: HTTPS identifies the
+  contacted host and protects transport, while Squirrel metadata and package hashes detect bytes
+  that differ from what that host advertised. A hash mismatch is never installed.
 
 ## Opening a folder the app wrote
 
@@ -173,7 +203,7 @@ was a path in a settings row somebody had to copy and paste.
 `C:\Windows\System32\cmd.exe`, which contains no traversal at all. The rule is the other way
 round: the path must resolve to somewhere inside a directory this application owns — its map
 storage folder, its config folder, its own data directory — and everything else is refused by
-name, with the reason naming what *can* be opened.
+name, with the reason naming what _can_ be opened.
 
 Three properties are worth stating because each one is a real escape that does not look like
 one:
@@ -212,7 +242,7 @@ Two guards:
 
 - **A user actually named `OneDrive`.** `C:\Users\OneDrive\Documents` is that person's real,
   local Documents folder; a naive "does the path contain OneDrive" check sends them out of it,
-  into itself, forever. Only the path segments *below* the home directory are considered, so
+  into itself, forever. Only the path segments _below_ the home directory are considered, so
   the profile's own name is never one of them.
 - **A local `Documents` that is not there.** The redirect is only made when the target
   directory exists. Otherwise the reported path is kept and the explanation says the app is
@@ -239,7 +269,7 @@ responding while a background render finishes.
 `RenderMemoryStore` (`design/packages/app/src/main/files/renderMemory.ts`) is the setting.
 
 - **`-Xmx`, not `-XX:MaxRAM`.** They are not the same control. `-XX:MaxRAM` tells the JVM how
-  much memory to *pretend* the machine has when it derives its own defaults; the heap is then
+  much memory to _pretend_ the machine has when it derives its own defaults; the heap is then
   a fraction of that and may still grow past it. `-Xmx` is the hard ceiling, and a render that
   needs more fails with an `OutOfMemoryError` rather than taking the machine down with it. A
   failed render somebody can retry with a bigger number is a far better outcome than a frozen
@@ -265,27 +295,29 @@ no OneDrive and no particular amount of RAM**. Electron's `autoUpdater`, the she
 system, the clock, the timers, the machine's memory and the render-activity probe are all
 injected seams.
 
-| Area | Where |
-|---|---|
-| Failure classification, every rule and the ordering between them | `main/update/failure.test.ts` |
-| Feed resolution, the three refusals, the https rule, the token redaction | `main/update/feed.test.ts` |
-| The state machine, including "ready survives a failure" and "unsupported is terminal" | `main/update/state.test.ts` |
-| The schedule: interval, back-off, cap, floor, and stopping once staged | `main/update/schedule.test.ts` |
-| No update, available, downloading, ready, restart declined, offline, invalid signature, corrupt asset, cancellation, and a render in progress | `main/update/controller.test.ts` |
-| The channels, the push, and that no credential crosses them | `main/update/ipc.test.ts` |
-| The OneDrive redirect and the user-called-OneDrive guard | `main/files/documents.test.ts` |
-| The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders | `main/files/reveal.test.ts` |
-| The memory ceiling: recommendation, bounds, persistence, corruption, and the arguments produced | `main/files/renderMemory.test.ts` |
-| The banner and the settings row as pure models | `ui/components/update/updateModel.test.ts` |
-| Three language modes, five levels each, and that no level touches a version or a button | `ui/components/update/updateCopy.test.ts` |
-| The live controller and the bridge probe | `ui/components/update/useUpdates.test.ts` |
-| The banner mounted: held Restart, dismissal, bilingual `lang`, exact version at level 5 | `ui/components/update/UpdateBanner.test.ts` |
+| Area                                                                                                                                         | Where                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Failure classification, every rule and the ordering between them                                                                             | `main/update/failure.test.ts`                                                                                     |
+| Feed resolution, the three refusals, the https rule, the token redaction                                                                     | `main/update/feed.test.ts`                                                                                        |
+| Current-first repository fallback, version-independent identity-pair confirmation, corruption handling                                       | `main/update/feedHandoff.test.ts`, `main/update/controller.test.ts`, `test/updateFeedRepositoryInjection.test.ts` |
+| The state machine, including "ready survives a failure" and "unsupported is terminal"                                                        | `main/update/state.test.ts`                                                                                       |
+| The schedule: interval, back-off, cap, floor, and stopping once staged                                                                       | `main/update/schedule.test.ts`                                                                                    |
+| No update, available, downloading, ready, restart declined, offline, corrupt asset, cancellation, render activity, and cross-version handoff | `main/update/controller.test.ts`                                                                                  |
+| The channels, the push, and that no credential crosses them                                                                                  | `main/update/ipc.test.ts`                                                                                         |
+| The OneDrive redirect and the user-called-OneDrive guard                                                                                     | `main/files/documents.test.ts`                                                                                    |
+| The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders                                            | `main/files/reveal.test.ts`                                                                                       |
+| The memory ceiling: recommendation, bounds, persistence, corruption, and the arguments produced                                              | `main/files/renderMemory.test.ts`                                                                                 |
+| The banner and the settings row as pure models                                                                                               | `ui/components/update/updateModel.test.ts`                                                                        |
+| Three language modes, five levels each, and that no level touches a version or a button                                                      | `ui/components/update/updateCopy.test.ts`                                                                         |
+| The live controller and the bridge probe                                                                                                     | `ui/components/update/useUpdates.test.ts`                                                                         |
+| The banner mounted: held Restart, dismissal, bilingual `lang`, exact version at level 5                                                      | `ui/components/update/UpdateBanner.test.ts`                                                                       |
 
-**Not verified by running it.** No packaged build has been installed and updated end to end
-by this work, so the claim that a released `Setup.exe` will find and install its successor
-rests on the feed being correct and Squirrel behaving as documented, not on somebody having
-watched it happen. That check needs two consecutive signed releases and is the first thing to
-do once there are two.
+**Not verified by running it.** No packaged three-version chain has been installed and updated
+end to end by this work. The required runtime proof is: install the last old-identity release,
+receive and install the dual-feed bridge from the former repository, then receive and install the
+next Worldlens release directly from the current repository with the former repository unavailable.
+Until that exact chain is observed, the handoff is unit/integration/build verified rather than an
+installed-client claim.
 
 ## Related
 

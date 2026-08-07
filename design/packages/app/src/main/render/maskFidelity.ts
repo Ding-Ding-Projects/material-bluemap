@@ -16,7 +16,7 @@
  * regression cannot quietly resurrect the old whole-world substitution warning.
  */
 
-import type { MaskConfig } from "@material-bluemap/config";
+import type { MaskConfig } from "@worldlens/config";
 
 export type CloudMaskEffect =
     /** No shapes at all — every path renders the whole world, and that is correct. */

@@ -20,6 +20,7 @@ const require = createRequire(import.meta.url);
 const thisDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(thisDir, "../../../../../..");
 const appDir = resolve(repoRoot, "design", "packages", "app");
+const packagingConfigPath = resolve(appDir, "electron-builder.config.cjs");
 
 describe("electron-builder bundles the CLI jar into resources/jars", () => {
     // Sanity check on the fixture itself: findRepoRoot has to actually reach this
@@ -30,7 +31,7 @@ describe("electron-builder bundles the CLI jar into resources/jars", () => {
     });
 
     it("has an extraResources entry whose destination is \"jars\"", () => {
-        const config = require(resolve(appDir, "electron-builder.config.cjs"));
+        const config = require(packagingConfigPath);
         const entries: { from: string; to: string }[] = config.extraResources ?? [];
         const jarsEntry = entries.find((entry) => entry.to === "jars");
 
@@ -48,6 +49,33 @@ describe("electron-builder bundles the CLI jar into resources/jars", () => {
         // `tools/build-jars.mjs` run bundles the same way.
         const resolvedFrom = resolve(appDir, jarsEntry!.from);
         expect(resolvedFrom).toBe(stagingJarDirectory(repoRoot));
+    });
+
+    it("keeps every Windows signing route disabled and clears inherited signing inputs", () => {
+        const signingKeys = [
+            "CSC_LINK",
+            "CSC_KEY_PASSWORD",
+            "WIN_CSC_LINK",
+            "WIN_CSC_KEY_PASSWORD",
+            "CSC_IDENTITY_AUTO_DISCOVERY",
+        ] as const;
+        const previous = new Map(signingKeys.map((key) => [key, process.env[key]]));
+        try {
+            for (const key of signingKeys) process.env[key] = "must-not-reach-the-packager";
+            delete require.cache[require.resolve(packagingConfigPath)];
+            const config = require(packagingConfigPath);
+
+            expect(config.forceCodeSigning).toBe(false);
+            expect(config.win?.signExecutable).toBe(false);
+            expect(config.win?.signAndEditExecutable).toBe(false);
+            for (const key of signingKeys) expect(process.env[key], key).toBeUndefined();
+        } finally {
+            for (const [key, value] of previous) {
+                if (value === undefined) delete process.env[key];
+                else process.env[key] = value;
+            }
+            delete require.cache[require.resolve(packagingConfigPath)];
+        }
     });
 });
 

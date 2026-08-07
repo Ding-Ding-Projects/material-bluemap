@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import type { ComputedRef } from "vue";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import { blueMapApp } from "../../stores/bluemap.js";
 
 /**

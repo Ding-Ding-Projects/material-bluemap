@@ -1,5 +1,5 @@
-import { Vector2i } from "@material-bluemap/shared";
-import type { Grid } from "@material-bluemap/shared";
+import { Vector2i } from "@worldlens/shared";
+import type { Grid } from "@worldlens/shared";
 import type { BmMap } from "../BmMap.js";
 import { RenderSettings } from "../hires/RenderSettings.js";
 import type { MapRenderTask } from "./MapRenderTask.js";

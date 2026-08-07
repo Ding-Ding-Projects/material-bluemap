@@ -36,7 +36,7 @@ const LOCAL = planLocalLaunch({
 
 const DOCKER = planDockerLaunch({
     role: "web-server",
-    containerName: "material-bluemap-web-test",
+    containerName: "worldlens-web-test",
     jarPath: "/opt/app/cli.jar",
     hostConfigDir: "/srv/render/config-container",
     hostDataDir: "/srv/render/data",
@@ -178,6 +178,6 @@ describe("starting the map web server", () => {
         await server.start();
         server.stop();
         await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(stopped).toEqual(["material-bluemap-web-test"]);
+        expect(stopped).toEqual(["worldlens-web-test"]);
     });
 });

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { resolveRepairBridge } from "./repairBridge.js";
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 function stub(overrides: Record<string, unknown> = {}) {
@@ -21,19 +21,19 @@ describe("resolving the repair bridge", () => {
     });
 
     it("is null when the shell has no repair namespace", () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {};
+        (globalThis as { worldlens?: unknown }).worldlens = {};
         expect(resolveRepairBridge()).toBeNull();
     });
 
     it("is null when the namespace is missing even one of the four methods", () => {
         const partial: Record<string, unknown> = stub();
         delete partial["run"];
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { repair: partial };
+        (globalThis as { worldlens?: unknown }).worldlens = { repair: partial };
         expect(resolveRepairBridge()).toBeNull();
     });
 
     it("resolves every method when all four are present", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { repair: stub() };
+        (globalThis as { worldlens?: unknown }).worldlens = { repair: stub() };
         const bridge = resolveRepairBridge();
         expect(bridge).not.toBeNull();
         await expect(bridge?.failures()).resolves.toEqual([]);

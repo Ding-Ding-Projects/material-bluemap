@@ -1,5 +1,5 @@
 /**
- * `@material-bluemap/parts` - shipping a file that is bigger than the transport allows.
+ * `@worldlens/parts` - shipping a file that is bigger than the transport allows.
  *
  * A GitHub release asset is capped at 2 GB. A rendered 20 GB world is tens of gigabytes
  * of tiles, and even a modest world archive goes past the cap, so oversized assets are

@@ -1,4 +1,4 @@
-import { NBTWriter } from "@material-bluemap/nbt";
+import { NBTWriter } from "@worldlens/nbt";
 import type { LevelDatOptions } from "./levelDat.js";
 import { LEGACY_DATA_VERSION, LEGACY_VERSION_NAME } from "./legacyVersion.js";
 

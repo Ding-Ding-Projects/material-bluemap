@@ -18,7 +18,7 @@ import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp, VBtn, VExpansionPanelTitle } from "vuetify/components";
-import { MARKER_SET_FIELDS, type PlainValue } from "@material-bluemap/config";
+import { MARKER_SET_FIELDS, type PlainValue } from "@worldlens/config";
 import ConfigMarkerSetsField from "./ConfigMarkerSetsField.vue";
 
 beforeAll(() => {

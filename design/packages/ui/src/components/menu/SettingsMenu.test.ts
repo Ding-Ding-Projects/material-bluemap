@@ -35,7 +35,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import SettingsMenu from "./SettingsMenu.vue";
 
 const storageCells = new Map<string, string>();

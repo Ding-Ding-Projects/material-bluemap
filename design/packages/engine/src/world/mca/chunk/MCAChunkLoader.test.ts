@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NBTWriter } from "@material-bluemap/nbt";
+import { NBTWriter } from "@worldlens/nbt";
 import { gzipSync } from "node:zlib";
 import { Compression } from "../../../storage/compression/Compression.js";
 import { Chunk } from "../../Chunk.js";

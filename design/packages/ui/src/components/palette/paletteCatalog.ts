@@ -53,8 +53,8 @@
  * wires none gets exactly the rows it can honour.
  */
 
-import type { BlueMapApp } from "@material-bluemap/viewer";
-import type { MarkerSetData } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
+import type { MarkerSetData } from "@worldlens/viewer";
 import { BUILT_IN_PRESETS, withGlobalReset } from "../appearance/appearanceStore.js";
 import { appearanceState, commitAppearance } from "../appearance/useAppearance.js";
 import { SCREENS, type ScreenId } from "../config/configSearch.js";

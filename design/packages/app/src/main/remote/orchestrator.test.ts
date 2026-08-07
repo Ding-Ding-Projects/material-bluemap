@@ -478,7 +478,7 @@ describe("the container's name, written down", () => {
 
         expect(writtenBeforeSpawn).toBe(1);
         const record = handoff.started[0];
-        expect(record?.containerName).toBe("material-bluemap-remote-overworld-abc123");
+        expect(record?.containerName).toBe("worldlens-remote-overworld-abc123");
         expect(record?.mode).toBe("remote");
         expect(record?.remote?.host).toBe("render.example");
         expect(record?.remote?.storageRoot).toBe(

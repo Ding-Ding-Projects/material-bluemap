@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { BlockRendererType } from "../../map/hires/block/BlockRendererType.js";
 import { EntityRendererType } from "../../map/hires/entity/EntityRendererType.js";
 import { GrassColorModifier } from "../../world/biome/GrassColorModifier.js";

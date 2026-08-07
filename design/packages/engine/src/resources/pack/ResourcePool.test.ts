@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { ResourcePool, type Loader } from "./ResourcePool.js";
 
 const FOO = Key.parse("minecraft:foo");

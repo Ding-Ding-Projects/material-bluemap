@@ -52,19 +52,19 @@ const BUILT: readonly Built[] = [
         what: "the user interface (everything the screenshots actually show)",
         sources: join(packages, "ui", "src"),
         output: join(packages, "ui", "dist"),
-        command: "pnpm --filter @material-bluemap/ui run build",
+        command: "pnpm --filter @worldlens/ui run build",
     },
     {
         what: "the main process",
         sources: join(packages, "app", "src", "main"),
         output: join(packages, "app", "dist", "main"),
-        command: "pnpm --filter @material-bluemap/app run build",
+        command: "pnpm --filter @worldlens/app run build",
     },
     {
         what: "the preload bridge",
         sources: join(packages, "app", "src", "preload"),
         output: join(packages, "app", "dist", "preload"),
-        command: "pnpm --filter @material-bluemap/app run build",
+        command: "pnpm --filter @worldlens/app run build",
     },
 ];
 

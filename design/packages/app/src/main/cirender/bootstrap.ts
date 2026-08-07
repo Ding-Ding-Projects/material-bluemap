@@ -68,10 +68,12 @@ import { resolveTransport } from "./transport.js";
 import type { CiRoute, CiTransport } from "./transport.js";
 
 /** The file that says a path belongs to this application, and which paths those are. */
-export const CI_BOOTSTRAP_MARKER_FILE = ".material-bluemap-ci.json";
+export const CI_BOOTSTRAP_MARKER_FILE = ".worldlens-ci.json";
+export const LEGACY_CI_BOOTSTRAP_MARKER_FILE = ".material-bluemap-ci.json";
 
 /** The value of the marker's `tool` field. Nothing else is accepted as ours. */
-export const CI_BOOTSTRAP_MARKER_TOOL = "material-bluemap";
+export const CI_BOOTSTRAP_MARKER_TOOL = "worldlens";
+export const LEGACY_CI_BOOTSTRAP_MARKER_TOOL = "material-bluemap";
 
 /** Bumped only if the marker's shape changes. An unknown version is still *ours*. */
 export const CI_BOOTSTRAP_MARKER_VERSION = 1;
@@ -365,7 +367,7 @@ export async function bootstrapCiRepository(
                 plan.template.path,
                 base64Of(plan.template.content),
                 `${plan.kind === "create" ? "Add" : "Update"} ${plan.template.path} for CI rendering ` +
-                    `(material-bluemap ${options.templateVersion})`,
+                    `(Worldlens ${options.templateVersion})`,
                 plan.kind === "update" && plan.existingSha !== null ? plan.existingSha : undefined,
             );
         }
@@ -527,7 +529,10 @@ async function planTemplate(
 function isOurMarker(contentBase64: string): boolean {
     try {
         const parsed = JSON.parse(textOf(contentBase64)) as Partial<CiBootstrapMarker>;
-        return parsed.tool === CI_BOOTSTRAP_MARKER_TOOL;
+        return (
+            parsed.tool === CI_BOOTSTRAP_MARKER_TOOL ||
+            parsed.tool === LEGACY_CI_BOOTSTRAP_MARKER_TOOL
+        );
     } catch {
         return false;
     }
@@ -540,11 +545,18 @@ async function isAppOwnedFile(
     repo: string,
     path: string,
 ): Promise<boolean> {
-    const marker = await transport.readFile(owner, repo, CI_BOOTSTRAP_MARKER_FILE);
+    const marker =
+        (await transport.readFile(owner, repo, CI_BOOTSTRAP_MARKER_FILE)) ??
+        (await transport.readFile(owner, repo, LEGACY_CI_BOOTSTRAP_MARKER_FILE));
     if (marker === null) return false;
     try {
         const parsed = JSON.parse(textOf(marker.contentBase64)) as Partial<CiBootstrapMarker>;
-        if (parsed.tool !== CI_BOOTSTRAP_MARKER_TOOL) return false;
+        if (
+            parsed.tool !== CI_BOOTSTRAP_MARKER_TOOL &&
+            parsed.tool !== LEGACY_CI_BOOTSTRAP_MARKER_TOOL
+        ) {
+            return false;
+        }
         return Array.isArray(parsed.files) && parsed.files.includes(path);
     } catch {
         return false;
@@ -586,7 +598,7 @@ async function writeMarker(
         repo,
         CI_BOOTSTRAP_MARKER_FILE,
         base64Of(`${JSON.stringify(marker, null, 2)}\n`),
-        "Record what material-bluemap prepared for CI rendering",
+        "Record what Worldlens prepared for CI rendering",
         existing === null ? undefined : existing.sha,
     );
     return true;

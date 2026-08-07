@@ -25,7 +25,7 @@ import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { RemoteTarget } from "./remoteBridge.js";
 import type { TargetStorage } from "./remoteTargets.js";
 
-const STORAGE_KEY = "material-bluemap-remote-target-recency";
+const STORAGE_KEY = "worldlens-remote-target-recency";
 
 function defaultStorage(): TargetStorage | null {
     try {

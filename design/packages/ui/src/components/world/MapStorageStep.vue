@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiContentSaveCheckOutline, mdiFolderSearchOutline, mdiRestore } from "@mdi/js";
 import { VAlert, VBtn, VIcon, VProgressCircular, VTextField } from "vuetify/components";
-import { findField, type FieldMeta, type PlainValue } from "@material-bluemap/config";
+import { findField, type FieldMeta, type PlainValue } from "@worldlens/config";
 import ConfigField from "../config/ConfigField.vue";
 import { useConfigHost } from "../config/configHost.js";
 import type { EditableConfigFile } from "../config/configModel.js";

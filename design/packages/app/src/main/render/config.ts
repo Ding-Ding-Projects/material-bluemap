@@ -27,7 +27,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
-import { HoconParseError, parseHocon } from "@material-bluemap/shared";
+import { HoconParseError, parseHocon } from "@worldlens/shared";
 
 /**
  * A map to render.
@@ -133,7 +133,7 @@ function coreConf(options: RenderConfigOptions): string {
     const threads = options.renderThreads ?? defaultRenderThreads();
     const priority = options.renderThreadPriority ?? 5;
     return [
-        "# Written by Material BlueMap for a single render. Edits here are overwritten.",
+        "# Written by Worldlens for a single render. Edits here are overwritten.",
         `accept-download: ${options.acceptDownload ? "true" : "false"}`,
         `data: ${hoconString(options.dataDir)}`,
         `render-thread-count: ${String(threads)}`,
@@ -158,7 +158,7 @@ function coreConf(options: RenderConfigOptions): string {
  */
 function webappConf(options: RenderConfigOptions): string {
     return [
-        "# Written by Material BlueMap for a single render. Edits here are overwritten.",
+        "# Written by Worldlens for a single render. Edits here are overwritten.",
         "enabled: true",
         `webroot: ${hoconString(options.webRoot)}`,
         "update-settings-file: true",
@@ -176,7 +176,7 @@ function webappConf(options: RenderConfigOptions): string {
  */
 function webserverConf(): string {
     return [
-        "# Written by Material BlueMap. The app serves rendered maps itself.",
+        "# Written by Worldlens. The app serves rendered maps itself.",
         "enabled: false",
         "",
     ].join("\n");
@@ -184,7 +184,7 @@ function webserverConf(): string {
 
 function storageConf(storageRoot: string): string {
     return [
-        "# Written by Material BlueMap for a single render. Edits here are overwritten.",
+        "# Written by Worldlens for a single render. Edits here are overwritten.",
         "storage-type: file",
         `root: ${hoconString(storageRoot)}`,
         // gzip is upstream's default and is what the file layout on disk assumes:
@@ -282,7 +282,7 @@ function mapConf(map: RenderMapRequest, index: number): string {
 /** The six-key file, for a request that supplied no body of its own. */
 function generatedMapConf(map: RenderMapRequest, index: number): string {
     const lines = [
-        "# Written by Material BlueMap for a single render. Edits here are overwritten.",
+        "# Written by Worldlens for a single render. Edits here are overwritten.",
         `world: ${hoconString(map.world)}`,
         `dimension: ${hoconString(map.dimension ?? "minecraft:overworld")}`,
         `name: ${hoconString(map.name ?? map.id)}`,
@@ -332,7 +332,7 @@ function overriddenMapConf(map: RenderMapRequest): string {
     const text = [
         trimmed,
         "",
-        "# Written by Material BlueMap. HOCON's later key wins, so these three replace",
+        "# Written by Worldlens. HOCON's later key wins, so these three replace",
         "# whatever the body above says: the render has to read the world this app was",
         "# pointed at and write where this app serves from.",
         `world: ${hoconString(map.world)}`,

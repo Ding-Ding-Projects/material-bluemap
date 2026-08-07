@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Color, Grid, Vector2i } from "@material-bluemap/shared";
+import { Color, Grid, Vector2i } from "@worldlens/shared";
 import { GridStorageCell, type Cell, type GridStorage } from "../../storage/GridStorage.js";
 import type { ItemStorage } from "../../storage/ItemStorage.js";
 import type { MapStorage } from "../../storage/MapStorage.js";

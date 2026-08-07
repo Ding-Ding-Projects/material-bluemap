@@ -1,4 +1,4 @@
-import type { Color } from "@material-bluemap/shared";
+import type { Color } from "@worldlens/shared";
 import { LRUCache } from "lru-cache";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";

@@ -30,7 +30,7 @@
  * keeps finding. The palette says so in a line of its own instead.
  */
 
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import { i18nModule, languages, setLanguage } from "../../i18n.js";
 import type { PaletteChoice, PaletteItem, PaletteSetting, Translate } from "./paletteItems.js";
 

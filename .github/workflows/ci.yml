@@ -151,7 +151,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm build
-      # After `build`, never before: a package resolves a sibling `@material-bluemap/*`
+      # After `build`, never before: a package resolves a sibling `@worldlens/*`
       # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
       # cross-package import is a "cannot find module" until the build has run.
       #
@@ -305,7 +305,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $output | Out-Null
           $found = @()
           # Only the Squirrel output directory. A plain `*.exe` sweep also picks up
-          # `win-unpacked/Material BlueMap.exe`, which is the unpacked binary: 204 MB,
+          # `win-unpacked/Worldlens.exe`, which is the unpacked binary: 204 MB,
           # useless on its own, and the largest thing in the release.
           foreach ($directory in @('release/squirrel-windows', 'dist/squirrel-windows', '../../release/squirrel-windows')) {
             if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
@@ -651,10 +651,10 @@ jobs:
       - name: Capture
         working-directory: design/packages/app
         env:
-          MATERIAL_BLUEMAP_CAPTURE_MODE: local
-          MATERIAL_BLUEMAP_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
-          MATERIAL_BLUEMAP_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
-          MATERIAL_BLUEMAP_CAPTURE_WORLD: ${{ env.CAPTURE_WORLD }}
+          WORLDLENS_CAPTURE_MODE: local
+          WORLDLENS_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
+          WORLDLENS_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
+          WORLDLENS_CAPTURE_WORLD: ${{ env.CAPTURE_WORLD }}
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
 
       # Upload even when the capture failed: a diagnostic image of a broken
@@ -802,7 +802,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter @material-bluemap/parts run build
+          pnpm --filter @worldlens/parts run build
 
       # Nothing happens here on an ordinary build: every asset this release carries today
       # is far under the cap, `split` stays 0, and the notes below say nothing about
@@ -998,7 +998,7 @@ jobs:
           zip -qr "$jars.zip" "$jars"
 
           # Everything else that is not the installer and not the plugins.
-          extras="material-bluemap-${RELEASE_TAG}-extras"
+          extras="worldlens-${RELEASE_TAG}-extras"
           mkdir -p "$extras"/{test-world,update}
           cp world-out/*.zip "$extras/test-world/"
           # The .nupkg and RELEASES are the update set and must exist - an unmatched
@@ -1012,7 +1012,7 @@ jobs:
             cp installer-out/Squirrel.exe "$extras/update/"
           fi
           {
-            printf 'material-bluemap %s - extras\n\n' "$RELEASE_TAG"
+            printf 'Worldlens %s - extras\n\n' "$RELEASE_TAG"
             cat <<'TXT'
 
             test-world/  A Minecraft save this project generated in anvil format, with
@@ -1054,7 +1054,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "material-bluemap $RELEASE_TAG" \
+            --title "Worldlens $RELEASE_TAG" \
             --notes-file release-notes.md \
             "${assets[@]}"
 

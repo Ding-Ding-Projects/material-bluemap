@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { BlueNBT, NBTWriter } from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+import { BlueNBT, NBTWriter } from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import { DimensionType } from "../../DimensionType.js";
 import type { DataPack } from "../../../resources/pack/datapack/DataPack.js";
 import { addCommonNbtSettings } from "../MCAUtil.js";

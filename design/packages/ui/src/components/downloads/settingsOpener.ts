@@ -20,7 +20,7 @@ import type { SettingsTarget } from "./downloadBridge.js";
 
 export type SettingsOpener = (target: SettingsTarget) => void;
 
-const SETTINGS_OPENER: InjectionKey<SettingsOpener> = Symbol("material-bluemap.settings-opener");
+const SETTINGS_OPENER: InjectionKey<SettingsOpener> = Symbol("worldlens.settings-opener");
 
 /** Offers every surface below this one a way to reveal a settings row. */
 export function provideSettingsOpener(open: SettingsOpener): void {

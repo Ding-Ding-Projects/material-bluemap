@@ -2,12 +2,13 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCompassOutline, mdiFileDocumentOutline } from "@mdi/js";
-import { sanitizeHtml } from "@material-bluemap/viewer";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import { sanitizeHtml } from "@worldlens/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import { useBlueMap } from "./useBlueMap";
 import ChangelogViewer from "../changelog/ChangelogViewer.vue";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import { tutorialCompleted } from "../tutorial/tutorialController.js";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * "Browse the documentation" - this page's own reachability path into the docs browser,
@@ -115,7 +116,7 @@ interface VersionBridge {
 }
 
 function versionReader(): (() => Promise<string>) | null {
-    const bridge = (globalThis as { materialBluemap?: VersionBridge }).materialBluemap;
+    const bridge = (globalThis as { worldlens?: VersionBridge }).worldlens;
     const read = bridge?.getVersion;
     if (typeof read !== "function" || bridge === undefined) return null;
     return () => read.call(bridge);
@@ -173,7 +174,7 @@ onMounted(() => {
     void read()
         .then((value) => {
             // A shell that answers with a blank string has told us nothing, and printing
-            // "Material BlueMap" with a gap after it would be worse than staying quiet.
+            // "Worldlens" with a gap after it would be worse than staying quiet.
             const trimmed = value.trim();
             if (trimmed.length > 0) appVersion.value = trimmed;
         })
@@ -198,7 +199,7 @@ onMounted(() => {
       announcing it would interrupt that reading for a line the reader is about to reach.
     -->
     <p v-if="appVersion !== null" class="mb-info-page__version">
-        {{ t("info.appVersion", { version: appVersion }, "Material BlueMap {version}") }}
+        {{ t("info.appVersion", { name: productDisplayName, version: appVersion }, "{name} {version}") }}
     </p>
     <p v-else-if="versionFailure !== null" class="mb-info-page__version">
         {{

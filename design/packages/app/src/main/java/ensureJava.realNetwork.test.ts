@@ -70,7 +70,7 @@ describe.skipIf(!shouldRun)("ensureJava against a real, deliberately blinded mac
         "provisions a real Temurin JDK when discovery genuinely finds nothing, and the result runs",
         { timeout: 10 * 60 * 1000 },
         async () => {
-            const dataDir = mkdtempSync(join(tmpdir(), "material-bluemap-real-ensure-"));
+            const dataDir = mkdtempSync(join(tmpdir(), "worldlens-real-ensure-"));
             try {
                 const env = blindedEnv();
                 expect(env["JAVA_HOME"]).toBeUndefined();

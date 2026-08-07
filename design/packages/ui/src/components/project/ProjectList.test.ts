@@ -65,7 +65,7 @@ function i18n() {
 function row(overrides: Partial<ProjectRow> = {}): ProjectRow {
     return {
         world: "C:/saves/Survival",
-        file: "C:/saves/Survival/material-bluemap.project.json",
+        file: "C:/saves/Survival/worldlens.project.json",
         id: "p1",
         name: "Survival",
         maps: 3,
@@ -222,7 +222,7 @@ describe("choosing several", () => {
 
         const gate = wrapper.findAllComponents(ConfigSuperConfirm)[1];
         const affected = (gate?.props("affected") ?? []) as string[];
-        expect(affected.join(" ")).toContain("material-bluemap.project.json");
+        expect(affected.join(" ")).toContain("worldlens.project.json");
         expect(affected.join(" ")).toContain("Minecraft world itself is not touched");
         expect(affected.join(" ")).toContain("Tiles that were already rendered stay on the disk");
         wrapper.unmount();

@@ -2,7 +2,7 @@
  * The seam between the backup surface and the main process.
  *
  * Every type here is a structural mirror of the one the Electron preload exposes on
- * `window.materialBluemap`, restated rather than imported for the same reason
+ * `window.worldlens`, restated rather than imported for the same reason
  * `downloadBridge.ts` restates its own: this package compiles and runs in three places and
  * only one of them has a preload. Importing across that boundary would also drag the zip
  * writer, the splitter and `node:fs` into the renderer's bundle, which is exactly what the
@@ -291,7 +291,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * worth shipping either.
  */
 export function resolveBackupBridge(): BackupBridge | null {
-    const host = (globalThis as { materialBluemap?: Host }).materialBluemap;
+    const host = (globalThis as { worldlens?: Host }).worldlens;
     if (host === undefined) return null;
 
     const { startBackup, onBackupEvent, inspectBackupRepository } = host;

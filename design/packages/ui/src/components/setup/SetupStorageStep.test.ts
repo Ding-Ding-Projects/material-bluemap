@@ -74,7 +74,7 @@ beforeEach(() => {
 afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 function mountStep(
@@ -118,7 +118,7 @@ function buttonByText(target: VueWrapper, text: string) {
 describe("the browse button", () => {
     it("is the shared PathField affordance: a pick reaches the real dialog bridge and writes through v-model", async () => {
         const calls: Array<{ title: string; startIn?: string }> = [];
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             dialog: {
                 pickFolder: async (options: { title: string; startIn?: string }) => {
                     calls.push(options);
@@ -139,7 +139,7 @@ describe("the browse button", () => {
     });
 
     it("changes nothing on a cancelled pick, matching every other picker in the app", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             dialog: { pickFolder: async () => null, pickFile: async () => null },
         };
 
@@ -151,7 +151,7 @@ describe("the browse button", () => {
     });
 
     it("disables itself and names the desktop-app boundary when there is no dialog bridge", () => {
-        delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+        delete (globalThis as { worldlens?: unknown }).worldlens;
 
         const view = mountStep();
         const button = browseButton(view);

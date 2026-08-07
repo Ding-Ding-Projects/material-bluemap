@@ -3,12 +3,12 @@
  * binds to, and what a person reads.
  *
  * Nothing here decides *which* controls exist. That comes from
- * `@material-bluemap/config`, whose `FieldMeta.control` already names the right
+ * `@worldlens/config`, whose `FieldMeta.control` already names the right
  * one for every setting BlueMap has. This module is only the translation layer,
  * and it is kept separate from the components so it can be tested without a DOM.
  */
 
-import type { Control, FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { Control, FieldMeta, PlainValue } from "@worldlens/config";
 
 /** Java `Integer.MIN_VALUE`, which every mask uses to mean "no limit below". */
 export const JAVA_INT_MIN = -2147483648;

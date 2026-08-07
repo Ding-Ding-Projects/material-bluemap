@@ -1,7 +1,7 @@
 /**
  * The whole path, end to end, against a release that exists only in this test.
  *
- * A real archive is built, really split by `@material-bluemap/parts`, served by a stub
+ * A real archive is built, really split by `@worldlens/parts`, served by a stub
  * that behaves like GitHub's asset storage, downloaded, rejoined and unpacked. Nothing
  * is mocked between the split and the extracted files, because the failures worth
  * catching here - a part that arrives wrong, an interrupted transfer, a cancelled run
@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { splitFile } from "@material-bluemap/parts";
+import { splitFile } from "@worldlens/parts";
 import { ReleaseDownloader, estimateEta, formatEta } from "./downloader.js";
 import type { DownloadEvent } from "./downloader.js";
 import type { FetchLike } from "./release.js";

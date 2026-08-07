@@ -114,7 +114,7 @@ describe.skipIf(!shouldRun)("RenderOrchestrator against a real JVM and a real ja
         "renders a real generated world through ensureJava -> config writer -> runner -> provenance, not by invoking the jar directly",
         { timeout: 5 * 60 * 1000 },
         async () => {
-            const workspace = mkdtempSync(join(tmpdir(), "material-bluemap-real-jvm-"));
+            const workspace = mkdtempSync(join(tmpdir(), "worldlens-real-jvm-"));
             const worldOut = join(workspace, "world-out");
             const storageDir = join(workspace, "renders");
             const javaDataDir = join(workspace, "app-data");

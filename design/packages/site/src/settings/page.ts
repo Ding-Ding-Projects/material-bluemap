@@ -792,7 +792,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         exportButton.addEventListener("click", () => {
             const stamp = new Date().toISOString().slice(0, 10);
             downloadFile(
-                `material-bluemap-settings-${stamp}.json`,
+                `worldlens-settings-${stamp}.json`,
                 `${JSON.stringify({ version: 1, values: store.snapshot() }, null, 4)}\n`,
                 "application/json",
             );

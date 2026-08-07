@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Color, Key, Vector2d, Vector3d, Vector3f } from "@material-bluemap/shared";
+import { Color, Key, Vector2d, Vector3d, Vector3f } from "@worldlens/shared";
 import { ResourcePath } from "../../../resources/ResourcePath.js";
 import type { JsonValue } from "../../../resources/adapter/JsonMapper.js";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";

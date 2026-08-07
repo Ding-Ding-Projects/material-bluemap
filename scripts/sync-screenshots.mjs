@@ -118,7 +118,7 @@ async function main() {
     }
     log(`using ${run.note}`);
 
-    const staging = await mkdtemp(join(tmpdir(), "material-bluemap-shots-"));
+    const staging = await mkdtemp(join(tmpdir(), "worldlens-shots-"));
     try {
         gh(["run", "download", run.id, "--name", ARTIFACT, "--dir", staging]);
 

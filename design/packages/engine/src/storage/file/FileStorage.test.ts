@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { Compression } from "../compression/Compression.js";
 import { GridStorageCell } from "../GridStorage.js";
 import { KeyedMapStorage } from "../KeyedMapStorage.js";

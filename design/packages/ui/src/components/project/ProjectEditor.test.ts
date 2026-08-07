@@ -17,7 +17,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
-import type { ProjectFile } from "@material-bluemap/config";
+import type { ProjectFile } from "@worldlens/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
@@ -60,7 +60,7 @@ beforeAll(() => {
 
 /*
  * `ProjectEditor` now carries its own `TabbedNavigation`, which persists which tab is
- * active under `material-bluemap-project-editor-tabs`. Node's own experimental
+ * active under `worldlens-project-editor-tabs`. Node's own experimental
  * `localStorage` (the thing that warns about `--localstorage-file` above every run in
  * this workspace) is a real, working store rather than jsdom's usual absent one, and it
  * is not reset between test cases in this file. Left alone, the "Core" tab a test three
@@ -72,7 +72,7 @@ beforeAll(() => {
  */
 beforeEach(() => {
     try {
-        globalThis.localStorage?.removeItem("material-bluemap-project-editor-tabs");
+        globalThis.localStorage?.removeItem("worldlens-project-editor-tabs");
     } catch {
         // No real store in this run - nothing to clear, and nothing that would have leaked.
     }
@@ -537,10 +537,10 @@ describe("the render tab", () => {
  * a `SimpleHistoryList` stub or a tab with an empty body would still fail.
  */
 describe("the history tab", () => {
-    const originalBridge = (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    const originalBridge = (globalThis as { worldlens?: unknown }).worldlens;
 
     afterEach(() => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = originalBridge;
+        (globalThis as { worldlens?: unknown }).worldlens = originalBridge;
     });
 
     it("calls project:history for this project's own world the moment it is opened", async () => {
@@ -553,7 +553,7 @@ describe("the history tab", () => {
             remotes: [],
         });
         const restore = vi.fn();
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             project: { history, restore },
         };
 
@@ -570,7 +570,7 @@ describe("the history tab", () => {
     });
 
     it("names the missing shell rather than offering a Restore button that would throw", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = undefined;
+        (globalThis as { worldlens?: unknown }).worldlens = undefined;
 
         const wrapper = await editor();
 

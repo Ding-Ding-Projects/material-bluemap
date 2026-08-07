@@ -52,7 +52,7 @@
  */
 
 import type * as http from "node:http";
-import { Compression, type CompressedInputStream, type MapStorage } from "@material-bluemap/engine";
+import { Compression, type CompressedInputStream, type MapStorage } from "@worldlens/engine";
 import type { HttpHandler } from "./HttpServer.js";
 import { LiveDataBroadcaster } from "../live/LiveDataBroadcaster.js";
 import { noLiveMarkers, noLivePlayers } from "../live/liveDataStubs.js";

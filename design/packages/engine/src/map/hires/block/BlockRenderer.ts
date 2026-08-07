@@ -1,4 +1,4 @@
-import type { Color } from "@material-bluemap/shared";
+import type { Color } from "@worldlens/shared";
 import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";
 import type { BlockNeighborhood } from "../../../world/block/BlockNeighborhood.js";
 import type { TileModelView } from "../TileModelView.js";

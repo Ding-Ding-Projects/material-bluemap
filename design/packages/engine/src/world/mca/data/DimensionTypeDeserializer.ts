@@ -10,8 +10,8 @@ import {
     type NBTReader,
     type ObjectSchema,
     type TypeDeserializer,
-} from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import { DimensionType } from "../../DimensionType.js";
 import type { DataPack } from "../../../resources/pack/datapack/DataPack.js";
 import { logWarning } from "../MCAUtil.js";

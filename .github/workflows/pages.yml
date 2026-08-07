@@ -72,7 +72,7 @@ jobs:
       # The site and whatever workspace packages it depends on, in dependency order.
       - name: Build the site
         working-directory: design
-        run: pnpm --filter "@material-bluemap/site..." run build
+        run: pnpm --filter "@worldlens/site..." run build
 
       # The failure this catches is silent: a build configured with a root base emits
       # absolute URLs, the deployment goes green, and every page 404s because the site is

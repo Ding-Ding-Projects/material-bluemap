@@ -96,7 +96,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The installed application",
         configuration: "installed from the Windows installer, 1920 by 1200",
-        alt: "The material-bluemap desktop application running after a Windows install, showing a three-dimensional rendered Minecraft-style terrain (forest, snow and open water) with the ported interface over it: the menu button and a position marker at the top left, the view-mode, day-night, flight and fullscreen controls with live x and z position inputs and a compass at the top right, and the settings, maps-and-servers and configuration buttons at the bottom left.",
+        alt: "The worldlens desktop application running after a Windows install, showing a three-dimensional rendered Minecraft-style terrain (forest, snow and open water) with the ported interface over it: the menu button and a position marker at the top left, the view-mode, day-night, flight and fullscreen controls with live x and z position inputs and a compass at the top right, and the settings, maps-and-servers and configuration buttons at the bottom left.",
         featured: true,
     },
     {
@@ -104,7 +104,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "480 / 11",
         title: "The Material title bar, full width",
         configuration: "cropped from a 1920 by 1080 capture of the packaged application on Windows",
-        alt: "The material-bluemap application's own title bar, cropped to the full width of a 1920 pixel window: the circular application logo and the title Material BlueMap on the left, and minimize, maximize and close buttons drawn by the application on the right. No operating system caption bar is present, because the window is frameless.",
+        alt: "The worldlens application's own title bar, cropped to the full width of a 1920 pixel window: the circular application logo and the title Worldlens on the left, and minimize, maximize and close buttons drawn by the application on the right. No operating system caption bar is present, because the window is frameless.",
         featured: false,
     },
     {
@@ -112,7 +112,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "16 / 9",
         title: "The frameless window, whole",
         configuration: "1920 by 1080, the packaged application on Windows, at first run",
-        alt: "The material-bluemap application window at 1920 by 1080 pixels with its own Material title bar across the top edge and no operating system chrome. In front is the first-run setup dialog, offering English, Cantonese and bilingual language modes and two separate funny-level sliders; behind it is the map wizard. Three round buttons for settings, servers and server configuration sit in the bottom left corner, and the notification history button, reading zero, sits in the bottom right.",
+        alt: "The worldlens application window at 1920 by 1080 pixels with its own Material title bar across the top edge and no operating system chrome. In front is the first-run setup dialog, offering English, Cantonese and bilingual language modes and two separate funny-level sliders; behind it is the map wizard. Three round buttons for settings, servers and server configuration sit in the bottom left corner, and the notification history button, reading zero, sits in the bottom right.",
         featured: false,
     },
     {
@@ -120,7 +120,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "Dark colour scheme",
         configuration: "1280 by 800, dark colour scheme",
-        alt: "The material-bluemap application window rendered with the dark colour scheme, at 1280 by 800 pixels.",
+        alt: "The worldlens application window rendered with the dark colour scheme, at 1280 by 800 pixels.",
         featured: false,
     },
     {
@@ -128,7 +128,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "Light colour scheme",
         configuration: "1280 by 800, light colour scheme",
-        alt: "The material-bluemap application window rendered with the light colour scheme, at 1280 by 800 pixels.",
+        alt: "The worldlens application window rendered with the light colour scheme, at 1280 by 800 pixels.",
         featured: false,
     },
     {
@@ -136,7 +136,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "4 / 3",
         title: "The narrowest supported window",
         configuration: "800 by 600, 100% display scale",
-        alt: "The material-bluemap application window at 800 by 600 pixels, the narrowest window size the interface is checked against.",
+        alt: "The worldlens application window at 800 by 600 pixels, the narrowest window size the interface is checked against.",
         featured: true,
     },
     {
@@ -144,7 +144,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "200 percent display scale",
         configuration: "1280 by 800, 200% display scale",
-        alt: "The material-bluemap application window at 200 percent display scale, where element sizing defects appear first.",
+        alt: "The worldlens application window at 200 percent display scale, where element sizing defects appear first.",
         featured: true,
     },
     {
@@ -152,7 +152,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "16 / 9",
         title: "A full-size window",
         configuration: "1920 by 1080, 100% display scale",
-        alt: "The material-bluemap application window at 1920 by 1080 pixels.",
+        alt: "The worldlens application window at 1920 by 1080 pixels.",
         featured: true,
     },
     {
@@ -160,7 +160,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The harness default window",
         configuration: "1280 by 800, 100% display scale",
-        alt: "The material-bluemap application window at 1280 by 800 pixels, the size the capture harness resets to.",
+        alt: "The worldlens application window at 1280 by 800 pixels, the size the capture harness resets to.",
         featured: false,
     },
     {
@@ -168,7 +168,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "4 / 3",
         title: "A small window",
         configuration: "1024 by 768, 100% display scale",
-        alt: "The material-bluemap application window at 1024 by 768 pixels.",
+        alt: "The worldlens application window at 1024 by 768 pixels.",
         featured: false,
     },
     {
@@ -176,7 +176,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "100 percent display scale",
         configuration: "1280 by 800, 100% display scale",
-        alt: "The material-bluemap application window at 100 percent display scale.",
+        alt: "The worldlens application window at 100 percent display scale.",
         featured: false,
     },
     {
@@ -184,7 +184,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "125 percent display scale",
         configuration: "1280 by 800, 125% display scale",
-        alt: "The material-bluemap application window at 125 percent display scale.",
+        alt: "The worldlens application window at 125 percent display scale.",
         featured: false,
     },
     {
@@ -192,7 +192,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "150 percent display scale",
         configuration: "1280 by 800, 150% display scale",
-        alt: "The material-bluemap application window at 150 percent display scale.",
+        alt: "The worldlens application window at 150 percent display scale.",
         featured: false,
     },
 
@@ -203,7 +203,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "32 / 1",
         title: "The Material title bar",
         configuration: "cropped to the title bar of a 1280 pixel wide window",
-        alt: "The application's own Material title bar across the full width of the window: a circular logo and the words Material BlueMap on the left, and minimize, maximize and close buttons on the right. There is no operating system caption bar above it, because the window is frameless.",
+        alt: "The application's own Material title bar across the full width of the window: a circular logo and the words Worldlens on the left, and minimize, maximize and close buttons on the right. There is no operating system caption bar above it, because the window is frameless.",
         featured: false,
     },
     {

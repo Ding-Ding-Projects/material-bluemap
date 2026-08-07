@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxMask, MaskConfig, PolygonMask } from "@material-bluemap/config";
+import type { BoxMask, MaskConfig, PolygonMask } from "@worldlens/config";
 import { MASK_FILE_FORMAT, MASK_FILE_VERSION, exportMaskFile, parseMaskFile, serializeMaskFile } from "./maskFile.js";
 
 const BOX: BoxMask = {

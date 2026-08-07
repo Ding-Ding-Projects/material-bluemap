@@ -61,8 +61,8 @@ Two different things get prepared, and this module checks for both:
 
 | Marker | File | Where | What it proves |
 |---|---|---|---|
-| World-repo marker | `.material-bluemap-world.json` | Root of the `world` branch (see [A world kept in a git repository](./world-git-repository.md)) | This branch carries an incrementally-synced copy of the world - and, because the project file lives at the root of that same world folder, a project's maps, storages and render settings travelled with it. |
-| CI-bootstrap marker | `.material-bluemap-ci.json` | Root of the repository's default branch | This application committed `.github/workflows/render-world.yml` (and whatever else its template set needs) so the ordinary "Render on GitHub" archive-upload flow can dispatch against it. Nothing about a project's settings is stored here - the render flow never persists them to the repository. |
+| World-repo marker | `.worldlens-world.json` (legacy `.material-bluemap-world.json` remains readable) | Root of the `world` branch (see [A world kept in a git repository](./world-git-repository.md)) | This branch carries an incrementally-synced copy of the world - and, because the project file lives at the root of that same world folder, a project's maps, storages and render settings travelled with it. |
+| CI-bootstrap marker | `.worldlens-ci.json` (legacy `.material-bluemap-ci.json` remains readable) | Root of the repository's default branch | This application committed `.github/workflows/render-world.yml` (and whatever else its template set needs) so the ordinary "Render on GitHub" archive-upload flow can dispatch against it. Nothing about a project's settings is stored here - the render flow never persists them to the repository. |
 
 A repository can carry either marker, both, or neither. `probeAdoptionCandidates` and
 `buildAdoptionPlan` check both, and the difference between them decides what adoption can

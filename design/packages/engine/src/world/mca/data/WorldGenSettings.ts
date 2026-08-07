@@ -1,4 +1,4 @@
-import { TypeToken, mapOf, type BlueNBT, type ObjectSchema } from "@material-bluemap/nbt";
+import { TypeToken, mapOf, type BlueNBT, type ObjectSchema } from "@worldlens/nbt";
 import { DimensionSettings, DIMENSION_SETTINGS_TOKEN } from "./DimensionSettings.js";
 
 export const WORLD_GEN_SETTINGS_TOKEN: TypeToken<WorldGenSettings> =

@@ -786,7 +786,7 @@ function comparisonText(format: ExportFormat): string {
 /** Writes text to the shell's clipboard when there is one, and to the browser's otherwise. */
 async function copyText(text: string): Promise<void> {
     try {
-        const bridge = typeof window === "undefined" ? undefined : window.materialBluemap;
+        const bridge = typeof window === "undefined" ? undefined : window.worldlens;
         if (bridge) await bridge.writeClipboardText(text);
         else await navigator.clipboard.writeText(text);
         raiseNotice("success", t("history.copied", "What is on screen is on the clipboard."));

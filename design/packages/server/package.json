@@ -1,5 +1,5 @@
 {
-    "name": "@material-bluemap/server",
+    "name": "@worldlens/server",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -12,11 +12,11 @@
         "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {
-        "@material-bluemap/engine": "workspace:*",
-        "@material-bluemap/shared": "workspace:*"
+        "@worldlens/engine": "workspace:*",
+        "@worldlens/shared": "workspace:*"
     },
     "devDependencies": {
-        "@material-bluemap/worldgen": "workspace:*",
+        "@worldlens/worldgen": "workspace:*",
         "@types/pngjs": "^6.0.5",
         "pngjs": "^7.0.0"
     }

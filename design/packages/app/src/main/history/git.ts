@@ -65,8 +65,8 @@ export const GIT_MAX_BUFFER = 16 * 1024 * 1024;
  * name and address into hundreds of automatic commits would put their email address in a
  * file they did not know existed.
  */
-export const HISTORY_AUTHOR_NAME = "Material BlueMap";
-export const HISTORY_AUTHOR_EMAIL = "history@material-bluemap.invalid";
+export const HISTORY_AUTHOR_NAME = "Worldlens";
+export const HISTORY_AUTHOR_EMAIL = "history@worldlens.invalid";
 
 /**
  * Configuration forced on every invocation, whatever the machine believes.

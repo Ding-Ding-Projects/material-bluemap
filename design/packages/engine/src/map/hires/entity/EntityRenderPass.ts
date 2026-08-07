@@ -1,4 +1,4 @@
-import type { Vector3i } from "@material-bluemap/shared";
+import type { Vector3i } from "@worldlens/shared";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { World } from "../../../world/World.js";
 import { Block } from "../../../world/block/Block.js";

@@ -1,4 +1,4 @@
-import { MatrixM4f, Vector3f, VectorM3f } from "@material-bluemap/shared";
+import { MatrixM4f, Vector3f, VectorM3f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { EntityRendererType } from "../../../../map/hires/entity/EntityRendererType.js";
 import { parse } from "../../../adapter/JsonMapper.js";

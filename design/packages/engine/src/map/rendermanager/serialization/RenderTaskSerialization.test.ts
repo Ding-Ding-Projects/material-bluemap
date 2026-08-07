@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BlueNBT, IOException, NBTWriter, TagType, TypeToken } from "@material-bluemap/nbt";
-import { Color, Grid, Key, Vector2i } from "@material-bluemap/shared";
+import { BlueNBT, IOException, NBTWriter, TagType, TypeToken } from "@worldlens/nbt";
+import { Color, Grid, Key, Vector2i } from "@worldlens/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
@@ -75,7 +75,7 @@ const {
     TasksData,
     TASKS_DATA_TOKEN,
 } = await import("./RenderTaskQueueStorage.js");
-const { RegistryAdapter } = await import("@material-bluemap/nbt");
+const { RegistryAdapter } = await import("@worldlens/nbt");
 
 type BmMapType = import("../../BmMap.js").BmMap;
 type MapSettingsType = import("../../MapSettings.js").MapSettings;

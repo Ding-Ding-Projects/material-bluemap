@@ -1,4 +1,4 @@
-import { Color, Grid, Vector2i, type Vector3i } from "@material-bluemap/shared";
+import { Color, Grid, Vector2i, type Vector3i } from "@worldlens/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GridStorage } from "../../storage/GridStorage.js";
 import { Chunk } from "../../world/Chunk.js";

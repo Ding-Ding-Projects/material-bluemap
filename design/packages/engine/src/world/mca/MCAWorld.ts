@@ -1,8 +1,8 @@
 import { statSync, existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { BlueNBT, type TypeToken } from "@material-bluemap/nbt";
-import { Key, type Grid, type Vector2i } from "@material-bluemap/shared";
+import { BlueNBT, type TypeToken } from "@worldlens/nbt";
+import { Key, type Grid, type Vector2i } from "@worldlens/shared";
 import { DataPack } from "../../resources/pack/datapack/DataPack.js";
 import { Compression } from "../../storage/compression/Compression.js";
 import type { WatchService } from "../../util/WatchService.js";

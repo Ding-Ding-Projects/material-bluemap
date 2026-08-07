@@ -83,9 +83,9 @@ describe("the three settings survive a restart", () => {
     it("falls back to English at level 3 when the store holds nonsense", () => {
         setSetupStorage(
             memoryStorage({
-                "material-bluemap.language.mode": "klingon",
-                "material-bluemap.language.funny.en": "eleven",
-                "material-bluemap.language.funny.yue": "-4",
+                "worldlens.language.mode": "klingon",
+                "worldlens.language.funny.en": "eleven",
+                "worldlens.language.funny.yue": "-4",
             }),
         );
         reloadSetupLanguage();

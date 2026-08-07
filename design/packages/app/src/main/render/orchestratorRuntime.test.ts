@@ -257,7 +257,7 @@ describe("a container render", () => {
         // `--init` is what makes `docker stop`'s SIGTERM reach the JVM at all.
         expect(command).toContain("--init");
         // Named, because a name is what `docker stop` and a person reading `docker ps` use.
-        expect(command[command.indexOf("--name") + 1]).toContain("material-bluemap");
+        expect(command[command.indexOf("--name") + 1]).toContain("worldlens");
 
         const specs = mountSpecs(command);
         // The world, read-only. A render reads chunks and writes tiles; nothing about it
@@ -477,7 +477,7 @@ describe("the container handoff record", () => {
         // beside it keeps rendering into a folder nobody is watching.
         expect(presentAtSpawn).toBe(true);
         expect((written as { containerName?: string } | null)?.containerName).toContain(
-            "material-bluemap",
+            "worldlens",
         );
         expect((written as { status?: string } | null)?.status).toBe("running");
         // Enough to find the container, read it, stop it, and know where its output goes.
@@ -581,7 +581,7 @@ describe("cancelling a container render", () => {
         expect(result.failure.code).toBe("cancelled");
         // The daemon, by name - not the `docker run` client. Killing the client stops the
         // watching and leaves the container rendering with nothing holding a handle to it.
-        expect(stopped).toEqual([expect.stringContaining("material-bluemap")]);
+        expect(stopped).toEqual([expect.stringContaining("worldlens")]);
 
         // Cancellation is its own event, never a red failure banner.
         expect(events.some((event) => event.type === "cancelled")).toBe(true);

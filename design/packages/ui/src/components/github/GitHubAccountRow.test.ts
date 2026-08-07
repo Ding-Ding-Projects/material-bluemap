@@ -586,7 +586,7 @@ describe("the signed-in account", () => {
 
 describe('closing "Add account" mid-flight', () => {
     afterEach(() => {
-        delete (globalThis as { materialBluemap?: GitHubBridge }).materialBluemap;
+        delete (globalThis as { worldlens?: GitHubBridge }).worldlens;
     });
 
     it("cancels the in-flight device sign-in instead of only hiding its Cancel button", async () => {
@@ -603,7 +603,7 @@ describe('closing "Add account" mid-flight', () => {
                     activeId: "u1",
                 }),
         };
-        (globalThis as { materialBluemap?: GitHubBridge }).materialBluemap = bridge;
+        (globalThis as { worldlens?: GitHubBridge }).worldlens = bridge;
 
         const state = createGitHubAccount({ bridge });
         mountRow(state);

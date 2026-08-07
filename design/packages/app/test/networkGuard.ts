@@ -52,7 +52,7 @@ interface GuardState {
 }
 
 interface GuardGlobal {
-    __materialBluemapCaptureGuard?: GuardState;
+    __worldlensCaptureGuard?: GuardState;
 }
 
 /**
@@ -68,10 +68,10 @@ export async function installNetworkGuard(
 ): Promise<void> {
     await app.evaluate(({ session }, allowed: string[]) => {
         const scope = globalThis as unknown as GuardGlobal;
-        if (scope.__materialBluemapCaptureGuard !== undefined) return;
+        if (scope.__worldlensCaptureGuard !== undefined) return;
 
         const state: GuardState = { violations: [], allowed, installedAt: Date.now() };
-        scope.__materialBluemapCaptureGuard = state;
+        scope.__worldlensCaptureGuard = state;
 
         // Schemes that never leave the machine. `devtools:` and `chrome-extension:` are
         // Chromium's own; refusing them would break the tooling rather than protect
@@ -141,7 +141,7 @@ export async function installNetworkGuard(
 export async function networkViolations(app: ElectronApplication): Promise<NetworkViolation[]> {
     return await app.evaluate(() => {
         const scope = globalThis as unknown as GuardGlobal;
-        return scope.__materialBluemapCaptureGuard?.violations ?? [];
+        return scope.__worldlensCaptureGuard?.violations ?? [];
     });
 }
 
@@ -149,7 +149,7 @@ export async function networkViolations(app: ElectronApplication): Promise<Netwo
 export async function networkGuardInstalled(app: ElectronApplication): Promise<boolean> {
     return await app.evaluate(() => {
         const scope = globalThis as unknown as GuardGlobal;
-        return scope.__materialBluemapCaptureGuard !== undefined;
+        return scope.__worldlensCaptureGuard !== undefined;
     });
 }
 

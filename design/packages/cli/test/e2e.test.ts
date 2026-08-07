@@ -12,7 +12,7 @@
  *      real routes, the render-trigger route, graceful server shutdown.
  *   2. One subprocess spawn of the actual built `dist/index.js` — the literal executable a
  *      user or the Dockerfile runs, shebang included. This needs `pnpm --filter
- *      @material-bluemap/cli run build` to have already produced `dist/`, the same
+ *      @worldlens/cli run build` to have already produced `dist/`, the same
  *      constraint `tools/oracle`'s harness documents for the engine's own `dist/`
  *      ("a run measures whatever was last compiled, NOT what is in src/"); it is not
  *      rebuilt here because doing so on every test run would make this one test dominate
@@ -24,8 +24,8 @@ import { existsSync, readdirSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MCAWorldRegionWatchService } from "@material-bluemap/engine";
-import { generateWorld } from "@material-bluemap/worldgen";
+import { MCAWorldRegionWatchService } from "@worldlens/engine";
+import { generateWorld } from "@worldlens/worldgen";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli, type CliResult } from "../src/cli.js";
 import { writeFixtureResourcePack } from "./fixtures/resourcePack.js";
@@ -124,7 +124,7 @@ const webappBundleBuilt = existsSync(join(import.meta.dirname, "..", "dist", "we
 if (!webappBundleBuilt) {
     console.warn(
         "[e2e.test.ts] packages/cli/dist/webapp is missing (vendor/BlueMap not checked out, or " +
-            "the package was never built) — run \"pnpm --filter @material-bluemap/cli build\" from a " +
+            "the package was never built) — run \"pnpm --filter @worldlens/cli build\" from a " +
             "checkout with the vendor/BlueMap submodule present. The render+webserver scenario is " +
             "skipped, not passed.",
     );
@@ -309,6 +309,6 @@ describe("e2e: the actual built executable (dist/index.js), spawned as a real su
     });
 
     if (!built) {
-        console.warn(`[e2e.test.ts] ${cliEntry} does not exist — run "pnpm --filter @material-bluemap/cli run build" first. Subprocess tests skipped, not passed.`);
+        console.warn(`[e2e.test.ts] ${cliEntry} does not exist — run "pnpm --filter @worldlens/cli run build" first. Subprocess tests skipped, not passed.`);
     }
 });

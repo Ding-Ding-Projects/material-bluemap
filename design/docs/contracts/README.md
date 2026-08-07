@@ -1,6 +1,6 @@
 # Product contracts
 
-Five cross-cutting requirements apply to every user-facing surface material-bluemap ships: the
+Five cross-cutting requirements apply to every user-facing surface Worldlens ships: the
 Electron desktop app, the map webapp the standalone server serves to browsers, and any
 documentation or landing page the project publishes. They are contracts rather than features,
 because each one applies to every surface individually and none of them is satisfied by

@@ -27,7 +27,8 @@
  */
 
 import { classifyUpdateFailure } from "./failure.js";
-import { describeFeed, type FeedResolution } from "./feed.js";
+import { describeFeed, type FeedConfiguration, type FeedResolution } from "./feed.js";
+import type { UpdateFeedHandoff } from "./feedHandoff.js";
 import {
     STARTUP_DELAY_MS,
     initialSchedule,
@@ -36,7 +37,13 @@ import {
     scheduleAfterSuccess,
     type ScheduleState,
 } from "./schedule.js";
-import { initialUpdateState, isReady, reduceUpdate, type UpdateEvent, type UpdateState } from "./state.js";
+import {
+    initialUpdateState,
+    isReady,
+    reduceUpdate,
+    type UpdateEvent,
+    type UpdateState,
+} from "./state.js";
 
 /* -------------------------------------------------------------------------- */
 /* The seams                                                                  */
@@ -77,7 +84,11 @@ export interface UpdateEngine {
  */
 export function engineFromAutoUpdater(
     updater: NodeJS.EventEmitter & {
-        setFeedURL(options: { url: string; headers?: Record<string, string>; serverType?: "default" | "json" }): void;
+        setFeedURL(options: {
+            url: string;
+            headers?: Record<string, string>;
+            serverType?: "default" | "json";
+        }): void;
         checkForUpdates(): void;
         quitAndInstall(): void;
     },
@@ -130,6 +141,8 @@ export interface UpdateControllerOptions {
     readonly onChange: (state: UpdateState) => void;
     readonly timers?: UpdateTimers;
     readonly now?: () => Date;
+    /** Durable proof that this profile has received an update from the current feed. */
+    readonly feedHandoff?: UpdateFeedHandoff;
     /**
      * Optional metadata-only lookup, used when this build cannot install an update.
      *
@@ -172,6 +185,10 @@ export class UpdateController {
     private disposed = false;
     /** True between a check being asked for and the engine answering it. */
     private inFlight = false;
+    private activeFeed: "current" | "legacy" = "current";
+    private fallbackAttempted = false;
+    private currentFeedHadNoUpdate = false;
+    private currentFeedConfirmed = false;
 
     constructor(options: UpdateControllerOptions) {
         this.options = options;
@@ -210,8 +227,22 @@ export class UpdateController {
         }
 
         const feed = this.options.feed.feed;
+        const fallback = this.options.feed.legacyFallback;
+        if (fallback === null) {
+            this.currentFeedConfirmed = true;
+        } else {
+            try {
+                this.currentFeedConfirmed =
+                    this.options.feedHandoff?.isCurrentConfirmed(
+                        feed.handoffIdentity,
+                        fallback.handoffIdentity,
+                    ) ?? false;
+            } catch {
+                this.currentFeedConfirmed = false;
+            }
+        }
         try {
-            engine.setFeedURL({ url: feed.url, headers: { ...feed.headers }, serverType: feed.serverType });
+            this.setEngineFeed(engine, feed);
         } catch (error) {
             // A feed the updater refuses is the end of the road for this launch, and it
             // must not become a schedule that retries a configuration error every six hours.
@@ -343,6 +374,8 @@ export class UpdateController {
 
         handler("update-not-available", () => {
             this.inFlight = false;
+            if (this.activeFeed === "current" && this.tryLegacyFallback(engine, true)) return;
+            if (this.activeFeed === "legacy") this.restoreCurrentFeed(engine);
             this.schedule = scheduleAfterSuccess(this.schedule, isReady(this.state));
             this.apply({ type: "up-to-date", at: this.stamp() });
             this.rearm();
@@ -358,10 +391,12 @@ export class UpdateController {
 
         handler("update-downloaded", (args) => {
             this.inFlight = false;
+            if (this.activeFeed === "current") this.confirmCurrentFeed();
             // Electron's signature: (event, releaseNotes, releaseName, releaseDate, updateURL).
             const notes = typeof args[1] === "string" && args[1].trim() !== "" ? args[1] : null;
             const name = typeof args[2] === "string" && args[2].trim() !== "" ? args[2] : null;
-            const url = typeof args[4] === "string" && args[4].startsWith("https://") ? args[4] : null;
+            const url =
+                typeof args[4] === "string" && args[4].startsWith("https://") ? args[4] : null;
             this.schedule = scheduleAfterSuccess(this.schedule, true);
             this.apply({
                 type: "downloaded",
@@ -377,8 +412,91 @@ export class UpdateController {
 
         handler("error", (args) => {
             this.inFlight = false;
+            if (this.activeFeed === "current" && this.tryLegacyFallback(engine, false)) return;
+            if (this.activeFeed === "legacy" && this.currentFeedHadNoUpdate) {
+                this.restoreCurrentFeed(engine);
+                this.schedule = scheduleAfterSuccess(this.schedule, isReady(this.state));
+                this.apply({ type: "up-to-date", at: this.stamp() });
+                this.rearm();
+                return;
+            }
+            if (this.activeFeed === "legacy") this.restoreCurrentFeed(engine);
             this.fail(classifyUpdateFailure(args[0]));
         });
+    }
+
+    private setEngineFeed(engine: UpdateEngine, feed: FeedConfiguration): void {
+        engine.setFeedURL({
+            url: feed.url,
+            headers: { ...feed.headers },
+            serverType: feed.serverType,
+        });
+    }
+
+    private tryLegacyFallback(engine: UpdateEngine, currentHadNoUpdate: boolean): boolean {
+        if (
+            !this.options.feed.ok ||
+            this.currentFeedConfirmed ||
+            this.fallbackAttempted ||
+            this.activeFeed !== "current"
+        ) {
+            return false;
+        }
+        const fallback = this.options.feed.legacyFallback;
+        if (fallback === null) return false;
+
+        this.fallbackAttempted = true;
+        this.currentFeedHadNoUpdate = currentHadNoUpdate;
+        this.activeFeed = "legacy";
+        try {
+            this.setEngineFeed(engine, fallback);
+            this.apply({ type: "feed", url: describeFeed(fallback).url });
+            this.inFlight = true;
+            this.apply({ type: "check-started", manual: this.state.lastCheckWasManual });
+            engine.checkForUpdates();
+        } catch (error) {
+            this.inFlight = false;
+            this.restoreCurrentFeed(engine);
+            if (currentHadNoUpdate) {
+                // The current feed already gave an authoritative no-update result. A
+                // synchronous refusal while selecting the temporary bridge must not turn
+                // that successful check into a failure.
+                this.schedule = scheduleAfterSuccess(this.schedule, isReady(this.state));
+                this.apply({ type: "up-to-date", at: this.stamp() });
+                this.rearm();
+            } else {
+                this.fail(classifyUpdateFailure(error));
+            }
+        }
+        return true;
+    }
+
+    private restoreCurrentFeed(engine: UpdateEngine): void {
+        if (!this.options.feed.ok) return;
+        this.activeFeed = "current";
+        this.fallbackAttempted = false;
+        this.currentFeedHadNoUpdate = false;
+        try {
+            this.setEngineFeed(engine, this.options.feed.feed);
+            this.apply({ type: "feed", url: describeFeed(this.options.feed.feed).url });
+        } catch {
+            // The next scheduled/manual check will surface the current feed refusal. A
+            // fallback result that already arrived remains the honest result for this cycle.
+        }
+    }
+
+    private confirmCurrentFeed(): void {
+        if (!this.options.feed.ok || this.options.feed.legacyFallback === null) return;
+        this.currentFeedConfirmed = true;
+        try {
+            this.options.feedHandoff?.confirmCurrent(
+                this.options.feed.feed.handoffIdentity,
+                this.options.feed.legacyFallback.handoffIdentity,
+            );
+        } catch {
+            // A persistence failure must not discard an update that was already downloaded.
+            // This launch stays confirmed; a later launch safely rechecks both feeds.
+        }
     }
 
     private fail(failure: ReturnType<typeof classifyUpdateFailure>): void {
@@ -390,7 +508,10 @@ export class UpdateController {
     private apply(event: UpdateEvent): void {
         const next = reduceUpdate(this.state, event);
         const active = this.readRenderActivity();
-        this.state = active === next.renderInProgress ? next : reduceUpdate(next, { type: "render-activity", active });
+        this.state =
+            active === next.renderInProgress
+                ? next
+                : reduceUpdate(next, { type: "render-activity", active });
         this.options.onChange(this.state);
     }
 
@@ -445,7 +566,11 @@ export class UpdateController {
         void probe().then(
             (result) => {
                 if (this.disposed || !result.newer) return;
-                this.apply({ type: "available", version: result.version, notesUrl: result.notesUrl });
+                this.apply({
+                    type: "available",
+                    version: result.version,
+                    notesUrl: result.notesUrl,
+                });
             },
             () => {
                 /* A probe that fails leaves the explanation in place, which is the truth. */

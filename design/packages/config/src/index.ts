@@ -1,5 +1,5 @@
 /**
- * `@material-bluemap/config` — BlueMap's configuration, modelled.
+ * `@worldlens/config` — BlueMap's configuration, modelled.
  *
  * Three things live here:
  *
