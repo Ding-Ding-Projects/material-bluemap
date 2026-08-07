@@ -2,10 +2,25 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiChevronDown, mdiChevronUp, mdiSpeedometer } from "@mdi/js";
-import { VBtn, VBtnToggle, VCard, VCardText, VChip, VIcon, VTable, VTooltip } from "vuetify/components";
+import {
+    VBtn,
+    VBtnToggle,
+    VCard,
+    VCardText,
+    VChip,
+    VIcon,
+    VTable,
+    VTooltip,
+} from "vuetify/components";
 import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import { fieldValue, type EditableConfigFile } from "./configModel.js";
-import { DEFAULT_SPEED_LEVEL, SPEED_LEVELS, speedLevelFor, type SpeedLevel } from "./speedLevels.js";
+import {
+    DEFAULT_SPEED_LEVEL,
+    SPEED_LEVELS,
+    speedLevelFor,
+    type SpeedLevel,
+} from "./speedLevels.js";
 
 /**
  * The novice "Speed" dial: a 1-5 control that stands in for two raw `core.conf`
@@ -46,12 +61,20 @@ const threadPriorityField = computed<FieldMeta | undefined>(() =>
 );
 
 /** Both raw fields have to exist for the dial to mean anything; true for core.conf always. */
-const available = computed(() => threadCountField.value !== undefined && threadPriorityField.value !== undefined);
+const available = computed(
+    () => threadCountField.value !== undefined && threadPriorityField.value !== undefined,
+);
 
-const currentThreadCount = computed(() => (threadCountField.value ? fieldValue(props.file, threadCountField.value) : undefined));
-const currentThreadPriority = computed(() => (threadPriorityField.value ? fieldValue(props.file, threadPriorityField.value) : undefined));
+const currentThreadCount = computed(() =>
+    threadCountField.value ? fieldValue(props.file, threadCountField.value) : undefined,
+);
+const currentThreadPriority = computed(() =>
+    threadPriorityField.value ? fieldValue(props.file, threadPriorityField.value) : undefined,
+);
 
-const matchedLevel = computed<SpeedLevel | null>(() => speedLevelFor(currentThreadCount.value, currentThreadPriority.value));
+const matchedLevel = computed<SpeedLevel | null>(() =>
+    speedLevelFor(currentThreadCount.value, currentThreadPriority.value),
+);
 
 /** `VBtnToggle`'s own model: the matched level number, or `undefined` so nothing lights up in Custom. */
 const toggleValue = computed<number | undefined>(() => matchedLevel.value?.level ?? undefined);
@@ -105,6 +128,15 @@ function levelSummary(level: SpeedLevel): string {
 <template>
     <v-card v-if="available" variant="tonal" class="mb-speed">
         <v-card-text>
+            <ActionArtwork
+                artwork="localRenderSpeed"
+                :alt="
+                    t(
+                        'speed.artwork.alt',
+                        'A desktop workstation turning terrain chunks into a map at five increasing processing levels',
+                    )
+                "
+            />
             <div class="mb-speed__head">
                 <v-icon :icon="mdiSpeedometer" aria-hidden="true" />
                 <h3 class="mb-speed__title">{{ t("speed.title", "Speed") }}</h3>
@@ -138,7 +170,12 @@ function levelSummary(level: SpeedLevel): string {
                 class="mb-speed__toggle"
                 @update:model-value="(value: number | null) => onToggle(value)"
             >
-                <v-tooltip v-for="level in SPEED_LEVELS" :key="level.level" :text="levelSummary(level)" location="top">
+                <v-tooltip
+                    v-for="level in SPEED_LEVELS"
+                    :key="level.level"
+                    :text="levelSummary(level)"
+                    location="top"
+                >
                     <template #activator="{ props: levelTip }">
                         <v-btn
                             v-bind="levelTip"
@@ -146,7 +183,12 @@ function levelSummary(level: SpeedLevel): string {
                             :aria-pressed="matchedLevel?.level === level.level"
                         >
                             {{ levelLabel(level.level) }}
-                            <v-chip v-if="level.level === DEFAULT_SPEED_LEVEL" size="x-small" variant="flat" class="ml-2">
+                            <v-chip
+                                v-if="level.level === DEFAULT_SPEED_LEVEL"
+                                size="x-small"
+                                variant="flat"
+                                class="ml-2"
+                            >
                                 {{ t("speed.defaultChip", "BlueMap's default") }}
                             </v-chip>
                         </v-btn>
@@ -154,7 +196,11 @@ function levelSummary(level: SpeedLevel): string {
                 </v-tooltip>
             </v-btn-toggle>
 
-            <p v-if="matchedLevel === null" class="mb-speed__state mb-speed__state--custom" role="status">
+            <p
+                v-if="matchedLevel === null"
+                class="mb-speed__state mb-speed__state--custom"
+                role="status"
+            >
                 {{
                     t(
                         "speed.custom",
@@ -166,11 +212,19 @@ function levelSummary(level: SpeedLevel): string {
                     )
                 }}
             </p>
-            <p v-else-if="matchedLevel.level === DEFAULT_SPEED_LEVEL" class="mb-speed__state" role="status">
+            <p
+                v-else-if="matchedLevel.level === DEFAULT_SPEED_LEVEL"
+                class="mb-speed__state"
+                role="status"
+            >
                 {{
                     t(
                         "speed.appliedDefault",
-                        { level: String(matchedLevel.level), count: String(matchedLevel.threadCount), priority: String(matchedLevel.threadPriority) },
+                        {
+                            level: String(matchedLevel.level),
+                            count: String(matchedLevel.threadCount),
+                            priority: String(matchedLevel.threadPriority),
+                        },
                         "Currently set to level {level}, which is also BlueMap's own default: render-thread-count is {count} and render-thread-priority is {priority}.",
                     )
                 }}
@@ -179,7 +233,11 @@ function levelSummary(level: SpeedLevel): string {
                 {{
                     t(
                         "speed.applied",
-                        { level: String(matchedLevel.level), count: String(matchedLevel.threadCount), priority: String(matchedLevel.threadPriority) },
+                        {
+                            level: String(matchedLevel.level),
+                            count: String(matchedLevel.threadCount),
+                            priority: String(matchedLevel.threadPriority),
+                        },
                         "Currently set to level {level}: render-thread-count is {count} and render-thread-priority is {priority}.",
                     )
                 }}
@@ -194,22 +252,46 @@ function levelSummary(level: SpeedLevel): string {
                 class="mb-speed__disclosure"
                 @click="detailsOpen = !detailsOpen"
             >
-                {{ detailsOpen ? t("speed.details.hide", "Hide the details") : t("speed.details.show", "Show exactly what each level sets") }}
+                {{
+                    detailsOpen
+                        ? t("speed.details.hide", "Hide the details")
+                        : t("speed.details.show", "Show exactly what each level sets")
+                }}
             </v-btn>
 
-            <v-table v-if="detailsOpen" density="compact" class="mb-speed__table" :aria-label="t('speed.table.caption', 'Every level and the exact raw values it writes')">
+            <v-table
+                v-if="detailsOpen"
+                density="compact"
+                class="mb-speed__table"
+                :aria-label="
+                    t('speed.table.caption', 'Every level and the exact raw values it writes')
+                "
+            >
                 <thead>
                     <tr>
                         <th scope="col">{{ t("speed.table.level", "Level") }}</th>
-                        <th scope="col">{{ t("speed.table.threadCount", "render-thread-count") }}</th>
-                        <th scope="col">{{ t("speed.table.threadPriority", "render-thread-priority") }}</th>
+                        <th scope="col">
+                            {{ t("speed.table.threadCount", "render-thread-count") }}
+                        </th>
+                        <th scope="col">
+                            {{ t("speed.table.threadPriority", "render-thread-priority") }}
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="level in SPEED_LEVELS" :key="level.level" :class="{ 'mb-speed__row--current': matchedLevel?.level === level.level }">
+                    <tr
+                        v-for="level in SPEED_LEVELS"
+                        :key="level.level"
+                        :class="{ 'mb-speed__row--current': matchedLevel?.level === level.level }"
+                    >
                         <td>
                             {{ levelLabel(level.level) }}
-                            <v-chip v-if="level.level === DEFAULT_SPEED_LEVEL" size="x-small" variant="outlined" class="ml-2">
+                            <v-chip
+                                v-if="level.level === DEFAULT_SPEED_LEVEL"
+                                size="x-small"
+                                variant="outlined"
+                                class="ml-2"
+                            >
                                 {{ t("speed.defaultChip", "BlueMap's default") }}
                             </v-chip>
                         </td>

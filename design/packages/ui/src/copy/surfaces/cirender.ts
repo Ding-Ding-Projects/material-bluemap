@@ -1012,6 +1012,10 @@ export const CIRENDER_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
+    "cirender.artwork.alt": {
+        en: "A local Minecraft world travelling through a cloud render pipeline and returning as a finished map",
+        yue: "本機 Minecraft 世界經過雲端算圖流程，再以完成地圖返嚟",
+    },
     /*
      * The phase names, in the order a render walks through them. They are read as a
      * sequence in a progress line, so they stay short enough to sit beside a spinner and

@@ -17,6 +17,7 @@ import {
     VTextField,
 } from "vuetify/components";
 import PathField from "../PathField.vue";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import BackupRunCard from "./BackupRunCard.vue";
@@ -126,7 +127,10 @@ async function inspect(): Promise<void> {
     if (bridge === null || folder.value.trim() === "") return;
     inspecting.value = true;
     try {
-        const answer = await bridge.inspectBackupSource({ kind: kind.value, folder: folder.value.trim() });
+        const answer = await bridge.inspectBackupSource({
+            kind: kind.value,
+            folder: folder.value.trim(),
+        });
         if (answer.ok) source.value = answer.value;
         else sourceFailure.value = answer.message;
     } finally {
@@ -149,7 +153,11 @@ const repo = ref("");
 const acknowledged = ref(false);
 
 const canCheck = computed(
-    () => backups.available && owner.value.trim() !== "" && repo.value.trim() !== "" && !backups.checking.value,
+    () =>
+        backups.available &&
+        owner.value.trim() !== "" &&
+        repo.value.trim() !== "" &&
+        !backups.checking.value,
 );
 
 async function check(): Promise<void> {
@@ -191,14 +199,18 @@ const repoQuery = ref("");
 const repoRegex = ref(false);
 const repoFlags = ref("i");
 
-const repoMatcher = computed(() => createSettingMatcher(repoQuery.value, repoRegex.value, repoFlags.value));
+const repoMatcher = computed(() =>
+    createSettingMatcher(repoQuery.value, repoRegex.value, repoFlags.value),
+);
 
 function repositoryText(repository: RepositoryChoice): string {
     return [repository.fullName, repository.owner, repository.name].join(" ");
 }
 
 const shownRepositories = computed(() =>
-    backups.repositories.value.filter((repository) => repoMatcher.value.test(repositoryText(repository))),
+    backups.repositories.value.filter((repository) =>
+        repoMatcher.value.test(repositoryText(repository)),
+    ),
 );
 
 const repositorySample = computed(() =>
@@ -251,10 +263,16 @@ const createBlockedBecause = computed<string | null>(() => {
         );
     }
     if (owner.value.trim() === "") {
-        return t("backup.createRepo.blockedOwner", "Type an owner above before creating a repository.");
+        return t(
+            "backup.createRepo.blockedOwner",
+            "Type an owner above before creating a repository.",
+        );
     }
     if (repo.value.trim() === "") {
-        return t("backup.createRepo.blockedName", "Type a repository name above before creating it.");
+        return t(
+            "backup.createRepo.blockedName",
+            "Type a repository name above before creating it.",
+        );
     }
     if (createRepoNameProblem.value !== null) return createRepoNameProblem.value;
     if (backups.creatingRepository.value) {
@@ -310,7 +328,10 @@ const blockedBecause = computed<string | null>(() => {
         return t("backup.blocked.source", "Choose the world or folder to back up first.");
     }
     if (backups.report.value === null) {
-        return t("backup.blocked.repository", "Check the repository first, so its permissions are known.");
+        return t(
+            "backup.blocked.repository",
+            "Check the repository first, so its permissions are known.",
+        );
     }
     if (!backups.report.value.canWrite) {
         return t(
@@ -402,7 +423,10 @@ const listSummary = computed(() =>
     listMatcher.value.active
         ? t(
               "backup.listings.searchSummary",
-              { shown: String(shownListings.value.length), total: String(backups.listings.value.length) },
+              {
+                  shown: String(shownListings.value.length),
+                  total: String(backups.listings.value.length),
+              },
               "Showing {shown} of {total}",
           )
         : "",
@@ -476,7 +500,9 @@ defineExpose({
 
 <template>
     <section class="mb-backup" :aria-label="t('backup.title', 'Back up a world or a rendered map')">
-        <h4 class="mb-backup__title">{{ t("backup.title", "Back up a world or a rendered map") }}</h4>
+        <h4 class="mb-backup__title">
+            {{ t("backup.title", "Back up a world or a rendered map") }}
+        </h4>
         <p class="mb-backup__blurb">
             {{
                 t(
@@ -528,7 +554,12 @@ defineExpose({
 
                     <v-select
                         v-if="offered.length > 0"
-                        :items="offered.map((candidate) => ({ title: candidate.label, value: candidate.folder }))"
+                        :items="
+                            offered.map((candidate) => ({
+                                title: candidate.label,
+                                value: candidate.folder,
+                            }))
+                        "
                         :label="t('backup.pickKnown', 'One this application already knows about')"
                         variant="outlined"
                         density="compact"
@@ -552,7 +583,10 @@ defineExpose({
                             :placeholder="
                                 kind === 'world'
                                     ? t('backup.folderHintWorld', 'the folder holding level.dat')
-                                    : t('backup.folderHintRender', 'the render folder under your maps folder')
+                                    : t(
+                                          'backup.folderHintRender',
+                                          'the render folder under your maps folder',
+                                      )
                             "
                             @keydown.enter="inspect"
                         />
@@ -567,7 +601,12 @@ defineExpose({
                         </v-btn>
                     </div>
 
-                    <div v-if="inspecting" class="mb-backup__checking" role="status" aria-live="polite">
+                    <div
+                        v-if="inspecting"
+                        class="mb-backup__checking"
+                        role="status"
+                        aria-live="polite"
+                    >
                         <v-progress-circular indeterminate size="18" width="2" aria-hidden="true" />
                         <span>{{ t("backup.reading", "Reading the folder...") }}</span>
                     </div>
@@ -644,8 +683,16 @@ defineExpose({
                             :items="
                                 shownRepositories.map((repository) => ({
                                     title: repository.private
-                                        ? t('backup.repoPrivate', { name: repository.fullName }, '{name} (private)')
-                                        : t('backup.repoPublic', { name: repository.fullName }, '{name} (PUBLIC)'),
+                                        ? t(
+                                              'backup.repoPrivate',
+                                              { name: repository.fullName },
+                                              '{name} (private)',
+                                          )
+                                        : t(
+                                              'backup.repoPublic',
+                                              { name: repository.fullName },
+                                              '{name} (PUBLIC)',
+                                          ),
                                     value: repository.fullName,
                                 }))
                             "
@@ -656,7 +703,12 @@ defineExpose({
                             class="mt-2"
                             @update:model-value="choose"
                         />
-                        <p v-else class="mb-backup__note" role="status" data-test="repository-no-match">
+                        <p
+                            v-else
+                            class="mb-backup__note"
+                            role="status"
+                            data-test="repository-no-match"
+                        >
                             {{
                                 t(
                                     "backup.repo.noMatch",
@@ -666,7 +718,11 @@ defineExpose({
                         </p>
                     </template>
 
-                    <p v-else-if="backups.loadingRepositories.value" class="mb-backup__note" role="status">
+                    <p
+                        v-else-if="backups.loadingRepositories.value"
+                        class="mb-backup__note"
+                        role="status"
+                    >
                         {{ t("backup.loadingRepositories", "Reading your repositories...") }}
                     </p>
 
@@ -680,7 +736,12 @@ defineExpose({
                         {{ backups.repositoriesFailure.value }}
                     </v-alert>
 
-                    <p v-else-if="backups.canListRepositories" class="mb-backup__note" role="status" data-test="repository-none">
+                    <p
+                        v-else-if="backups.canListRepositories"
+                        class="mb-backup__note"
+                        role="status"
+                        data-test="repository-none"
+                    >
                         {{
                             t(
                                 "backup.repo.none",
@@ -732,7 +793,12 @@ defineExpose({
                         card's own `v-if` must not sit between that chain's `v-if` and its
                         `v-else-if` siblings, or the chain breaks.
                     -->
-                    <v-card v-if="backups.canCreateRepository" variant="tonal" class="mt-4 pa-3" data-test="create-repo">
+                    <v-card
+                        v-if="backups.canCreateRepository"
+                        variant="tonal"
+                        class="mt-4 pa-3"
+                        data-test="create-repo"
+                    >
                         <p class="text-medium-emphasis mb-2">
                             {{
                                 t(
@@ -748,9 +814,17 @@ defineExpose({
                             hide-details="auto"
                             :label="t('backup.createRepo.ownerKind', 'The owner above is')"
                         >
-                            <v-radio :label="t('backup.createRepo.ownerKind.user', 'my own account')" value="user" />
                             <v-radio
-                                :label="t('backup.createRepo.ownerKind.org', 'an organization I belong to')"
+                                :label="t('backup.createRepo.ownerKind.user', 'my own account')"
+                                value="user"
+                            />
+                            <v-radio
+                                :label="
+                                    t(
+                                        'backup.createRepo.ownerKind.org',
+                                        'an organization I belong to',
+                                    )
+                                "
                                 value="organization"
                             />
                         </v-radio-group>
@@ -762,8 +836,14 @@ defineExpose({
                             class="mt-2"
                             :label="t('backup.createRepo.visibility', 'Visibility')"
                         >
-                            <v-radio :label="t('backup.createRepo.visibility.private', 'Private')" value="private" />
-                            <v-radio :label="t('backup.createRepo.visibility.public', 'Public')" value="public" />
+                            <v-radio
+                                :label="t('backup.createRepo.visibility.private', 'Private')"
+                                value="private"
+                            />
+                            <v-radio
+                                :label="t('backup.createRepo.visibility.public', 'Public')"
+                                value="public"
+                            />
                         </v-radio-group>
                         <p class="text-medium-emphasis mt-1">
                             {{
@@ -792,7 +872,11 @@ defineExpose({
                         >
                             {{ t("backup.createRepo.button", "Create this repository") }}
                         </v-btn>
-                        <p v-if="createBlockedBecause !== null" class="text-medium-emphasis mt-2" data-test="create-repo-blocked">
+                        <p
+                            v-if="createBlockedBecause !== null"
+                            class="text-medium-emphasis mt-2"
+                            data-test="create-repo-blocked"
+                        >
                             {{ createBlockedBecause }}
                         </p>
                         <v-alert
@@ -808,7 +892,12 @@ defineExpose({
                         </v-alert>
                     </v-card>
 
-                    <div v-if="backups.checking.value" class="mb-backup__checking" role="status" aria-live="polite">
+                    <div
+                        v-if="backups.checking.value"
+                        class="mb-backup__checking"
+                        role="status"
+                        aria-live="polite"
+                    >
                         <v-progress-circular indeterminate size="18" width="2" aria-hidden="true" />
                         <span>{{ t("backup.checking", "Reading the repository...") }}</span>
                     </div>
@@ -827,11 +916,19 @@ defineExpose({
                     <template v-else-if="backups.report.value">
                         <v-alert
                             v-if="backups.report.value.warning"
-                            :type="backups.report.value.warning.level === 'warning' ? 'warning' : 'info'"
+                            :type="
+                                backups.report.value.warning.level === 'warning'
+                                    ? 'warning'
+                                    : 'info'
+                            "
                             density="compact"
                             variant="tonal"
                             class="mb-backup__alert"
-                            :role="backups.report.value.warning.level === 'warning' ? 'alert' : 'status'"
+                            :role="
+                                backups.report.value.warning.level === 'warning'
+                                    ? 'alert'
+                                    : 'status'
+                            "
                         >
                             {{ backups.report.value.warning.message }}
                         </v-alert>
@@ -870,6 +967,15 @@ defineExpose({
             </v-card>
 
             <!-- Do it ---------------------------------------------------------- -->
+            <ActionArtwork
+                artwork="repositoryPublication"
+                :alt="
+                    t(
+                        'backup.artwork.alt',
+                        'A world folder split into checked archive parts and uploaded into a repository vault',
+                    )
+                "
+            />
             <v-btn
                 :prepend-icon="mdiCloudUploadOutline"
                 :disabled="!canStart"
@@ -991,7 +1097,12 @@ defineExpose({
                     >
                         <v-card-title class="mb-backup__listingTitle">
                             <span>{{ listing.label }}</span>
-                            <v-chip v-if="!listing.complete" size="x-small" color="warning" variant="flat">
+                            <v-chip
+                                v-if="!listing.complete"
+                                size="x-small"
+                                color="warning"
+                                variant="flat"
+                            >
                                 {{ t("backup.listings.incomplete", "Did not finish") }}
                             </v-chip>
                         </v-card-title>

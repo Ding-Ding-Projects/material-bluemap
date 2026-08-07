@@ -917,6 +917,10 @@ export const BACKUP_FIXED = {
         en: "Back up a world or a rendered map",
         yue: "備份一個世界或者一張算好嘅地圖",
     },
+    "backup.artwork.alt": {
+        en: "A world folder split into checked archive parts and uploaded into a repository vault",
+        yue: "世界資料夾分拆成已核對嘅壓縮檔部分，再上載到倉庫保管庫",
+    },
     "backup.what": { en: "What to back up", yue: "備份咩" },
     "backup.kindLabel": { en: "What kind of thing is it?", yue: "係咩類型嘅嘢？" },
     "backup.kind.world": { en: "Minecraft world", yue: "Minecraft 世界" },
