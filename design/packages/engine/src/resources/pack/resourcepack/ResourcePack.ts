@@ -1,4 +1,4 @@
-import { Key, Registry, type Keyed } from "@material-bluemap/shared";
+import { Key, Registry, type Keyed } from "@worldlens/shared";
 import { LRUCache } from "lru-cache";
 import { PNG } from "pngjs";
 import type { BlockColorCalculator } from "../../../map/hires/block/color/BlockColorCalculator.js";

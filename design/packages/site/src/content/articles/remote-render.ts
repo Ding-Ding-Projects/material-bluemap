@@ -113,7 +113,7 @@ export const remoteRender: Article = {
                             description: [
                                 "Host, port (22 by default), user, an optional identity file path, a work ",
                                 "directory on the remote host (",
-                                { code: "~/.material-bluemap/renders" },
+                                { code: "~/.worldlens/renders" },
                                 " by default), the container image, and whether the staging directory ",
                                 "survives the render.",
                             ],

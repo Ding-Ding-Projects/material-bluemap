@@ -13,7 +13,7 @@ import {
     VIcon,
     VTextField,
 } from "vuetify/components";
-import type { PlainValue } from "@material-bluemap/config";
+import type { PlainValue } from "@worldlens/config";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { GlossaryTerm } from "../glossary/index.js";
 import { valueToText } from "../config/fieldValue.js";

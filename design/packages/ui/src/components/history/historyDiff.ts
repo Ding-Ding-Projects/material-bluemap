@@ -39,7 +39,7 @@
  * whatever went wrong.
  */
 
-import { HoconError, parseHocon, resolve, type PlainValue } from "@material-bluemap/config";
+import { HoconError, parseHocon, resolve, type PlainValue } from "@worldlens/config";
 
 import type { HistoryChangeStatus, HistoryComparisonFile } from "./historyHost.js";
 

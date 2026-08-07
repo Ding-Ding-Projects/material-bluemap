@@ -32,8 +32,8 @@
 
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
-import { HttpServer } from "@material-bluemap/server";
-import type { HttpHandler } from "@material-bluemap/server";
+import { HttpServer } from "@worldlens/server";
+import type { HttpHandler } from "@worldlens/server";
 import { LocalMapHandler } from "../src/main/render/index.js";
 import type * as http from "node:http";
 

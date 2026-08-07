@@ -1,4 +1,4 @@
-import { Color, Key, Registry, type Keyed } from "@material-bluemap/shared";
+import { Color, Key, Registry, type Keyed } from "@worldlens/shared";
 import type { ResourcePack } from "../../../../resources/pack/resourcepack/ResourcePack.js";
 import type { Biome } from "../../../../world/biome/Biome.js";
 import type { ColorModifier } from "../../../../world/biome/ColorModifier.js";

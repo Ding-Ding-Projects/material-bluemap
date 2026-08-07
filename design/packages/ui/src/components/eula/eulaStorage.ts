@@ -35,7 +35,7 @@ import {
 } from "../tabs/tabModel.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
-const STORAGE_KEY = "material-bluemap-eula-tabs";
+const STORAGE_KEY = "worldlens-eula-tabs";
 
 /** Bumped when the stored shape changes in a way reconciliation cannot repair. */
 export const EULA_TAB_STORAGE_VERSION = 1;

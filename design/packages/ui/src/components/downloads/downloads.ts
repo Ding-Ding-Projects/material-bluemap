@@ -55,7 +55,7 @@ import type { Translate } from "../world/worldFolder.js";
  */
 export const DEFAULT_RELEASE: Required<Pick<ReleaseCoordinates, "owner" | "repo">> & { readonly tag: string } = {
     owner: "Ding-Ding-Projects",
-    repo: "material-bluemap",
+    repo: "worldlens",
     /** Blank, which the main process reads as `latest`. */
     tag: "",
 };

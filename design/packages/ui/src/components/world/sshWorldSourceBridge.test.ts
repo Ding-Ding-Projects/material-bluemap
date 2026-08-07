@@ -6,7 +6,7 @@ import {
 } from "./sshWorldSourceBridge.js";
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 function realShape(): SshWorldSourceBridge {
@@ -24,15 +24,15 @@ function realShape(): SshWorldSourceBridge {
     } as unknown as SshWorldSourceBridge;
 }
 
-describe("the real window.materialBluemap.sshWorldSource seam", () => {
+describe("the real window.worldlens.sshWorldSource seam", () => {
     it("resolves the complete nested namespace the preload actually exposes", () => {
         const bridge = realShape();
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { sshWorldSource: bridge };
+        (globalThis as { worldlens?: unknown }).worldlens = { sshWorldSource: bridge };
         expect(resolveSshWorldSourceBridge()).toBe(bridge);
     });
 
     it("refuses a partial namespace instead of rendering controls that throw", () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             sshWorldSource: { validate: vi.fn(), detect: vi.fn() },
         };
         expect(resolveSshWorldSourceBridge()).toBeNull();

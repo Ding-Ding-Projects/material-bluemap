@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { JsonObject, JsonValue } from "../../../adapter/JsonMapper.js";
 import { Atlas } from "../atlas/Atlas.js";
 import { LEGACY_TEXTURE_DIRECTORIES } from "./LegacyResourceNames.js";

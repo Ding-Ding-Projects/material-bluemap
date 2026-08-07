@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { LRUCache } from "lru-cache";
-import { Grid, Vector2i } from "@material-bluemap/shared";
+import { Grid, Vector2i } from "@worldlens/shared";
 import type { WatchService } from "../../util/WatchService.js";
 import type { ChunkConsumer } from "../ChunkConsumer.js";
 import type { Region } from "../Region.js";

@@ -4,12 +4,12 @@
  * silent-drift failure `docsContent.test.ts` guards the bundle itself against. This reads
  * `docs/glossary.md` off disk directly, independent of the `import.meta.glob` bundling path,
  * and slugs its headings with the exact algorithm `renderMarkdown` uses
- * (`@material-bluemap/viewer`'s `slugifyHeading`, in `packages/viewer/src/util/markdown.ts`),
+ * (`@worldlens/viewer`'s `slugifyHeading`, in `packages/viewer/src/util/markdown.ts`),
  * so a term whose anchor no longer matches a real heading - a typo in either file, a renamed
  * section - fails here rather than shipping a dead link nobody notices until they click it.
  *
  * `slugifyHeading` is duplicated below rather than imported, and deliberately not run under
- * a browser-like DOM environment: importing `@material-bluemap/viewer` pulls in its whole
+ * a browser-like DOM environment: importing `@worldlens/viewer` pulls in its whole
  * three.js/hammer.js viewer surface, which needs a real browser regardless. `markdown.test.ts`
  * in `packages/viewer` is what proves the real function; this copy is checked against it by
  * the "matches a known slug from a real heading in this repository's own docs" case below, so

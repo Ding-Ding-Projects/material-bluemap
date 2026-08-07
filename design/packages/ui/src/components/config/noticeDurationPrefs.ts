@@ -18,7 +18,7 @@ import {
 } from "./noticeDurationLevels.js";
 
 /** Where the chosen level is remembered. */
-export const NOTICE_DURATION_KEY = "material-bluemap.notifications.durationLevel";
+export const NOTICE_DURATION_KEY = "worldlens.notifications.durationLevel";
 
 /** The stored level, or the shipped default when nothing has been chosen or it does not parse. */
 export function readNoticeDurationLevel(): NoticeDurationLevel["level"] {

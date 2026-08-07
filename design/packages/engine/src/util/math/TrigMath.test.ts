@@ -1,11 +1,11 @@
-import { TrigMath } from "@material-bluemap/shared";
+import { TrigMath } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { floatToIntBits, toRadians } from "./JavaMath.js";
 
 /**
  * The mesher's side of `com.flowpowered.math.TrigMath` (flow-math 1.0.3).
  *
- * The port itself lives in `@material-bluemap/shared` (it is what `MatrixM3f`/`MatrixM4f`
+ * The port itself lives in `@worldlens/shared` (it is what `MatrixM3f`/`MatrixM4f`
  * rotate with too, and there must only be one). What is pinned here is the pairing the
  * engine depends on: the exact half-angles `ArrayTileModel.rotate`/`rotateXYZ`/
  * `rotateZYX`/`rotateYXZ` compute — `toRadians(deg) * 0.5` — and the sine/cosine

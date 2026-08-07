@@ -1,5 +1,5 @@
 /**
- * `resolveWorldRepoBridge`, against a fake `window.materialBluemap.worldRepo`.
+ * `resolveWorldRepoBridge`, against a fake `window.worldlens.worldRepo`.
  *
  * Unlike `pagesBridge.ts` (which degrades method by method because Pages grew its preload
  * gradually), `main/worldrepo/ipc.ts` registers all eleven `worldrepo:*` channels in one call,
@@ -60,7 +60,7 @@ function fullApi(): WorldRepoBridge {
 }
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 describe("resolveWorldRepoBridge", () => {
@@ -68,20 +68,20 @@ describe("resolveWorldRepoBridge", () => {
         expect(resolveWorldRepoBridge()).toBeNull();
     });
 
-    it("returns null when materialBluemap exists but carries no worldRepo namespace", () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {};
+    it("returns null when worldlens exists but carries no worldRepo namespace", () => {
+        (globalThis as { worldlens?: unknown }).worldlens = {};
         expect(resolveWorldRepoBridge()).toBeNull();
     });
 
     it("returns null when even one of the eleven methods is missing - genuinely all-or-nothing", () => {
         const incomplete: Partial<WorldRepoBridge> = { ...fullApi() };
         delete incomplete.adoptionPlan;
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { worldRepo: incomplete };
+        (globalThis as { worldlens?: unknown }).worldlens = { worldRepo: incomplete };
         expect(resolveWorldRepoBridge()).toBeNull();
     });
 
     it("returns a working bridge when every method is present", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { worldRepo: fullApi() };
+        (globalThis as { worldlens?: unknown }).worldlens = { worldRepo: fullApi() };
         const bridge = resolveWorldRepoBridge();
         expect(bridge).not.toBeNull();
         const owners = await bridge?.owners();
@@ -91,7 +91,7 @@ describe("resolveWorldRepoBridge", () => {
     it("routes every call straight through to the underlying namespace, with the right arguments", async () => {
         const calls: unknown[] = [];
         const api = fullApi();
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             worldRepo: {
                 ...api,
                 remoteTip: (owner: string, repo: string, branch?: string) => {

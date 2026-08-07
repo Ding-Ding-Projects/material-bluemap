@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FieldMeta } from "@material-bluemap/config";
+import type { FieldMeta } from "@worldlens/config";
 import { DOC_PREVIEW_LINES, docLinesOf, docShownText, isDocLong, provenanceOf } from "./explainField.js";
 
 function field(overrides: Partial<FieldMeta> = {}): FieldMeta {

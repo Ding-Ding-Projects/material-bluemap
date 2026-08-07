@@ -42,7 +42,7 @@ const target: RemoteTarget = {
 
 function memoryStorage(): TargetStorage {
     const values = new Map<string, string>([
-        ["material-bluemap-remote-targets", JSON.stringify({ version: 1, targets: [target] })],
+        ["worldlens-remote-targets", JSON.stringify({ version: 1, targets: [target] })],
     ]);
     return {
         getItem: (key) => values.get(key) ?? null,

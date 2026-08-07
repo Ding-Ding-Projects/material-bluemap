@@ -14,8 +14,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RenderManager, WatchService, type BmMap } from "@material-bluemap/engine";
-import { MapUpdateService } from "@material-bluemap/server";
+import { RenderManager, WatchService, type BmMap } from "@worldlens/engine";
+import { MapUpdateService } from "@worldlens/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../src/logger.js";
 import { startWatchers } from "../src/render.js";

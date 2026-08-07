@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { PackPath } from "../../vfs/PackFileSystem.js";
 import type { Extension } from "../ResourcePack.js";
 import { ResourcePack } from "../ResourcePack.js";

@@ -74,7 +74,7 @@ export async function generateWorld({ repoRoot, seed, size, out }) {
     if (!(await exists(cli)))
         throw new Error(
             `the world generator is not built: ${cli} does not exist ` +
-                `(run \`pnpm --filter @material-bluemap/worldgen build\` in design/)`,
+                `(run \`pnpm --filter @worldlens/worldgen build\` in design/)`,
         );
 
     const name = `world-seed-${seed}-size-${size}`;

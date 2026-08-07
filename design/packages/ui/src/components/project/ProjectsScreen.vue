@@ -13,7 +13,7 @@ import {
     VSpacer,
     VTextField,
 } from "vuetify/components";
-import { serializeProjectFile, type ProjectFile } from "@material-bluemap/config";
+import { serializeProjectFile, type ProjectFile } from "@worldlens/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ProjectList from "./ProjectList.vue";
 import DiscoveredWorldsPanel from "./DiscoveredWorldsPanel.vue";

@@ -1,4 +1,4 @@
-import { Color, Key, Vector3i } from "@material-bluemap/shared";
+import { Color, Key, Vector3i } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { ResourcePath } from "../../../resources/ResourcePath.js";
 import { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";
@@ -18,7 +18,7 @@ import { BlockStateModelRenderer } from "./BlockStateModelRenderer.js";
 import { LiquidModelRenderer } from "./LiquidModelRenderer.js";
 import { MissingModelRenderer } from "./MissingModelRenderer.js";
 import { ResourceModelRenderer } from "./ResourceModelRenderer.js";
-import { Vector3f } from "@material-bluemap/shared";
+import { Vector3f } from "@worldlens/shared";
 import {
     cubeModel,
     cullingProperties,

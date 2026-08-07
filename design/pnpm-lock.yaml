@@ -38,19 +38,19 @@ importers:
 
   packages/app:
     dependencies:
-      '@material-bluemap/config':
+      '@worldlens/config':
         specifier: workspace:*
         version: link:../config
-      '@material-bluemap/parts':
+      '@worldlens/parts':
         specifier: workspace:*
         version: link:../parts
-      '@material-bluemap/render-actions':
+      '@worldlens/render-actions':
         specifier: workspace:*
         version: link:../render-actions
-      '@material-bluemap/server':
+      '@worldlens/server':
         specifier: workspace:*
         version: link:../server
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
       electron-store:
@@ -75,20 +75,20 @@ importers:
 
   packages/cli:
     dependencies:
-      '@material-bluemap/config':
+      '@worldlens/config':
         specifier: workspace:*
         version: link:../config
-      '@material-bluemap/engine':
+      '@worldlens/engine':
         specifier: workspace:*
         version: link:../engine
-      '@material-bluemap/server':
+      '@worldlens/server':
         specifier: workspace:*
         version: link:../server
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
-      '@material-bluemap/worldgen':
+      '@worldlens/worldgen':
         specifier: workspace:*
         version: link:../worldgen
       '@types/pngjs':
@@ -109,13 +109,13 @@ importers:
       '@bokuweb/zstd-wasm':
         specifier: ^0.0.27
         version: 0.0.27
-      '@material-bluemap/config':
+      '@worldlens/config':
         specifier: workspace:*
         version: link:../config
-      '@material-bluemap/nbt':
+      '@worldlens/nbt':
         specifier: workspace:*
         version: link:../nbt
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
       chokidar:
@@ -160,20 +160,20 @@ importers:
 
   packages/render-actions:
     devDependencies:
-      '@material-bluemap/worldgen':
+      '@worldlens/worldgen':
         specifier: workspace:*
         version: link:../worldgen
 
   packages/server:
     dependencies:
-      '@material-bluemap/engine':
+      '@worldlens/engine':
         specifier: workspace:*
         version: link:../engine
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
-      '@material-bluemap/worldgen':
+      '@worldlens/worldgen':
         specifier: workspace:*
         version: link:../worldgen
       '@types/pngjs':
@@ -205,13 +205,13 @@ importers:
       '@fontsource/roboto-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@material-bluemap/config':
+      '@worldlens/config':
         specifier: workspace:*
         version: link:../config
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
-      '@material-bluemap/viewer':
+      '@worldlens/viewer':
         specifier: workspace:*
         version: link:../viewer
       '@mdi/js':
@@ -248,7 +248,7 @@ importers:
 
   packages/viewer:
     dependencies:
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
       dompurify:
@@ -273,14 +273,14 @@ importers:
 
   packages/worldgen:
     dependencies:
-      '@material-bluemap/nbt':
+      '@worldlens/nbt':
         specifier: workspace:*
         version: link:../nbt
-      '@material-bluemap/shared':
+      '@worldlens/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
-      '@material-bluemap/engine':
+      '@worldlens/engine':
         specifier: workspace:*
         version: link:../engine
 

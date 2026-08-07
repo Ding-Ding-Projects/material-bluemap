@@ -4,7 +4,7 @@ import {
     type BlueNBT,
     type NBTReader,
     type TypeDeserializer,
-} from "@material-bluemap/nbt";
+} from "@worldlens/nbt";
 import type { BlockEntity } from "../../BlockEntity.js";
 import { BLOCK_ENTITY_TOKEN } from "./BlockEntityTypeResolver.js";
 

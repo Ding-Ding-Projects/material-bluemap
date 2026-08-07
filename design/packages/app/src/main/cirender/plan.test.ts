@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ProjectFile, ProjectMap } from "@material-bluemap/config";
+import type { ProjectFile, ProjectMap } from "@worldlens/config";
 import {
     DEFAULT_BUDGET_MINUTES,
     DEFAULT_MAX_JOBS,

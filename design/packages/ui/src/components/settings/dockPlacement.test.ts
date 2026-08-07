@@ -306,7 +306,7 @@ describe("remembering a placement", () => {
 
     it("drops one unknown placement rather than the whole file", () => {
         const storage = memoryStorage({
-            "material-bluemap-dock-placement": JSON.stringify({
+            "worldlens-dock-placement": JSON.stringify({
                 version: 1,
                 surfaces: { "app-settings": "bottom", "old-panel": "diagonal" },
             }),
@@ -316,11 +316,11 @@ describe("remembering a placement", () => {
 
     it("refuses junk, a missing key and a future schema alike", () => {
         expect(readDockPlacements(memoryStorage())).toEqual({});
-        expect(readDockPlacements(memoryStorage({ "material-bluemap-dock-placement": "{" }))).toEqual({});
+        expect(readDockPlacements(memoryStorage({ "worldlens-dock-placement": "{" }))).toEqual({});
         expect(
             readDockPlacements(
                 memoryStorage({
-                    "material-bluemap-dock-placement": JSON.stringify({ version: 99, surfaces: { a: "left" } }),
+                    "worldlens-dock-placement": JSON.stringify({ version: 99, surfaces: { a: "left" } }),
                 }),
             ),
         ).toEqual({});
@@ -555,7 +555,7 @@ describe("remembering a docked edge's thickness", () => {
 
     it("drops one unknown edge and one non-numeric value rather than the whole file", () => {
         const storage = memoryStorage({
-            "material-bluemap-dock-size": JSON.stringify({
+            "worldlens-dock-size": JSON.stringify({
                 version: 1,
                 surfaces: { "app-settings": { right: 600, diagonal: 300, bottom: "wide" } },
             }),
@@ -565,11 +565,11 @@ describe("remembering a docked edge's thickness", () => {
 
     it("refuses junk, a missing key and a future schema alike", () => {
         expect(readDockSizes(memoryStorage())).toEqual({});
-        expect(readDockSizes(memoryStorage({ "material-bluemap-dock-size": "{" }))).toEqual({});
+        expect(readDockSizes(memoryStorage({ "worldlens-dock-size": "{" }))).toEqual({});
         expect(
             readDockSizes(
                 memoryStorage({
-                    "material-bluemap-dock-size": JSON.stringify({ version: 99, surfaces: { a: { left: 300 } } }),
+                    "worldlens-dock-size": JSON.stringify({ version: 99, surfaces: { a: { left: 300 } } }),
                 }),
             ),
         ).toEqual({});
@@ -610,7 +610,7 @@ describe("remembering a floating panel's rectangle", () => {
 
     it("drops a malformed rectangle rather than the whole file", () => {
         const storage = memoryStorage({
-            "material-bluemap-dock-floating": JSON.stringify({
+            "worldlens-dock-floating": JSON.stringify({
                 version: 1,
                 surfaces: { "app-settings": RECT, "eula-viewer": { top: 0, left: 0, width: "wide" } },
             }),
@@ -620,11 +620,11 @@ describe("remembering a floating panel's rectangle", () => {
 
     it("refuses junk, a missing key and a future schema alike", () => {
         expect(readDockFloatingRects(memoryStorage())).toEqual({});
-        expect(readDockFloatingRects(memoryStorage({ "material-bluemap-dock-floating": "{" }))).toEqual({});
+        expect(readDockFloatingRects(memoryStorage({ "worldlens-dock-floating": "{" }))).toEqual({});
         expect(
             readDockFloatingRects(
                 memoryStorage({
-                    "material-bluemap-dock-floating": JSON.stringify({ version: 99, surfaces: { a: RECT } }),
+                    "worldlens-dock-floating": JSON.stringify({ version: 99, surfaces: { a: RECT } }),
                 }),
             ),
         ).toEqual({});

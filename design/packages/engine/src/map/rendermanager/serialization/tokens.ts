@@ -1,5 +1,5 @@
-import { TypeToken } from "@material-bluemap/nbt";
-import type { Vector2i } from "@material-bluemap/shared";
+import { TypeToken } from "@worldlens/nbt";
+import type { Vector2i } from "@worldlens/shared";
 import type { BmMap } from "../../BmMap.js";
 import type { RenderTask } from "../RenderTask.js";
 import type { TileUpdateStrategy } from "../TileUpdateStrategy.js";

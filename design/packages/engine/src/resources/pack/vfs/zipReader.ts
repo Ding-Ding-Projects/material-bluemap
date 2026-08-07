@@ -13,8 +13,8 @@
  * runner, since it is the platform-specific binary that gets resolved and esbuild
  * chokes on the binary regardless of which one it is.
  *
- * `@material-bluemap/engine` is reachable from that same bundle (via
- * `@material-bluemap/server`, which `packages/app` imports directly), so the native
+ * `@worldlens/engine` is reachable from that same bundle (via
+ * `@worldlens/server`, which `packages/app` imports directly), so the native
  * dependency had to come out of here too, not just out of the app's own zip-reading
  * code. This mirrors `zip.ts`'s approach: parse the central directory directly and
  * decompress with `node:zlib`. It additionally supports reading from an in-memory

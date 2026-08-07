@@ -1,8 +1,8 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
-import { BlueNBT, INT, IOException, LenientListAdapter, RegistryAdapter, TypeToken } from "@material-bluemap/nbt";
-import type { ObjectSchema } from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+import { BlueNBT, INT, IOException, LenientListAdapter, RegistryAdapter, TypeToken } from "@worldlens/nbt";
+import type { ObjectSchema } from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import { FileHelper } from "../../../util/FileHelper.js";
 import type { BmMap } from "../../BmMap.js";
 import { MAP_PURGE_TASK_SERIALIZED_TOKEN, MapPurgeTask, MapPurgeTaskSerialized } from "../MapPurgeTask.js";

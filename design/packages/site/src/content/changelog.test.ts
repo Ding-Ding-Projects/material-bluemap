@@ -7,7 +7,7 @@ describe("changelog parser", () => {
             "# Changelog",
             "## 1.2.3 - 2026-08-04",
             "### Rendering",
-            "- Paint the map - [`abc1234`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/abc1234567890)",
+            "- Paint the map - [`abc1234`](https://github.com/Ding-Ding-Projects/worldlens/commit/abc1234567890)",
             "## Unreleased",
             "### Fixes",
             "- Keep the empty state honest",
@@ -20,7 +20,7 @@ describe("changelog parser", () => {
                 category: "Rendering",
                 subject: "Paint the map",
                 commit: "abc1234",
-                commitUrl: "https://github.com/Ding-Ding-Projects/material-bluemap/commit/abc1234567890",
+                commitUrl: "https://github.com/Ding-Ding-Projects/worldlens/commit/abc1234567890",
             },
             {
                 id: "Unreleased:Fixes:1",
@@ -50,7 +50,7 @@ describe("changelog parser", () => {
             "## Unreleased",
             "### Documentation",
             "- Merge pull request #26 from Ding-Ding-Projects/pages-material3-full-continuation - " +
-                "[`5c1254ce44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5c1254ce44e227d2f383d8d67f01dfbee65964d3) " +
+                "[`5c1254ce44`](https://github.com/Ding-Ding-Projects/worldlens/commit/5c1254ce44e227d2f383d8d67f01dfbee65964d3) " +
                 "_(summary of 20 commits, also listed here)_",
         ].join("\n"));
         expect(rows).toEqual([
@@ -63,7 +63,7 @@ describe("changelog parser", () => {
                     "Merge pull request #26 from Ding-Ding-Projects/pages-material3-full-continuation " +
                     "_(summary of 20 commits, also listed here)_",
                 commit: "5c1254ce44",
-                commitUrl: "https://github.com/Ding-Ding-Projects/material-bluemap/commit/5c1254ce44e227d2f383d8d67f01dfbee65964d3",
+                commitUrl: "https://github.com/Ding-Ding-Projects/worldlens/commit/5c1254ce44e227d2f383d8d67f01dfbee65964d3",
             },
         ]);
     });
@@ -74,7 +74,7 @@ describe("changelog parser", () => {
         const rows = parseChangelog([
             "## Unreleased",
             "### Notes",
-            "- Ship the thing - [`0123456789`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0123456789abcdef0123456789abcdef01234567) (see also #42)",
+            "- Ship the thing - [`0123456789`](https://github.com/Ding-Ding-Projects/worldlens/commit/0123456789abcdef0123456789abcdef01234567) (see also #42)",
         ].join("\n"));
         expect(rows).toEqual([
             {
@@ -84,7 +84,7 @@ describe("changelog parser", () => {
                 category: "Notes",
                 subject: "Ship the thing (see also #42)",
                 commit: "0123456789",
-                commitUrl: "https://github.com/Ding-Ding-Projects/material-bluemap/commit/0123456789abcdef0123456789abcdef01234567",
+                commitUrl: "https://github.com/Ding-Ding-Projects/worldlens/commit/0123456789abcdef0123456789abcdef01234567",
             },
         ]);
     });
@@ -94,7 +94,7 @@ describe("changelog parser", () => {
             "## Unreleased",
             "### Documentation",
             "- Merge current default history into Pages continuation - " +
-                "[`857a16da4a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/857a16da4af93c85647fdad172695d852ab1c2c6) " +
+                "[`857a16da4a`](https://github.com/Ding-Ding-Projects/worldlens/commit/857a16da4af93c85647fdad172695d852ab1c2c6) " +
                 "_(summary of 5 commits, also listed here)_",
         ].join("\n"));
         expect(rows).toHaveLength(1);

@@ -28,7 +28,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { HoconParseError, parseHocon } from "@material-bluemap/shared";
+import { HoconParseError, parseHocon } from "@worldlens/shared";
 import {
     MAX_MAP_CONFIG_LENGTH,
     defaultRenderThreads,
@@ -90,7 +90,7 @@ export interface WrittenEngineConfig {
 function coreConf(options: WriteEngineConfigOptions): string {
     const threads = options.renderThreads ?? defaultRenderThreads();
     return [
-        "# Written by Material BlueMap for a single run. Edits here are overwritten.",
+        "# Written by Worldlens for a single run. Edits here are overwritten.",
         `accept-download: ${options.acceptDownload ? "true" : "false"}`,
         `data: ${hoconString(options.engineDataDir)}`,
         `render-thread-count: ${String(threads)}`,
@@ -106,7 +106,7 @@ function coreConf(options: WriteEngineConfigOptions): string {
 
 function webappConf(options: WriteEngineConfigOptions): string {
     return [
-        "# Written by Material BlueMap for a single run. Edits here are overwritten.",
+        "# Written by Worldlens for a single run. Edits here are overwritten.",
         "enabled: true",
         `webroot: ${hoconString(options.engineWebRoot)}`,
         "update-settings-file: true",
@@ -126,13 +126,13 @@ function webserverConf(options: WriteEngineConfigOptions): string {
     const server = options.webServer;
     if (server === undefined) {
         return [
-            "# Written by Material BlueMap. The app serves rendered maps itself.",
+            "# Written by Worldlens. The app serves rendered maps itself.",
             "enabled: false",
             "",
         ].join("\n");
     }
     return [
-        "# Written by Material BlueMap for a single run. Edits here are overwritten.",
+        "# Written by Worldlens for a single run. Edits here are overwritten.",
         "enabled: true",
         `webroot: ${hoconString(options.engineWebRoot)}`,
         `ip: ${hoconString(server.ip)}`,
@@ -144,7 +144,7 @@ function webserverConf(options: WriteEngineConfigOptions): string {
 
 function storageConf(storageRoot: string): string {
     return [
-        "# Written by Material BlueMap for a single run. Edits here are overwritten.",
+        "# Written by Worldlens for a single run. Edits here are overwritten.",
         "storage-type: file",
         `root: ${hoconString(storageRoot)}`,
         // gzip is upstream's default and is what the file layout on disk assumes.
@@ -160,7 +160,7 @@ function mapConf(map: EngineMapRequest, index: number): string {
     const dimension = map.dimension ?? "minecraft:overworld";
     if (map.config === undefined) {
         const lines = [
-            "# Written by Material BlueMap for a single run. Edits here are overwritten.",
+            "# Written by Worldlens for a single run. Edits here are overwritten.",
             `world: ${hoconString(map.world)}`,
             `dimension: ${hoconString(dimension)}`,
             `name: ${hoconString(map.name ?? map.id)}`,
@@ -180,7 +180,7 @@ function mapConf(map: EngineMapRequest, index: number): string {
     const text = [
         map.config.trimEnd(),
         "",
-        "# Written by Material BlueMap. HOCON's later key wins, so these three replace",
+        "# Written by Worldlens. HOCON's later key wins, so these three replace",
         "# whatever the body above says: the run has to read the world this app was",
         "# pointed at and write where this app serves from.",
         `world: ${hoconString(map.world)}`,

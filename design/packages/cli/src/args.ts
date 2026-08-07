@@ -1,7 +1,7 @@
 /**
  * Argument parsing for the standalone CLI.
  *
- * The actual parsing is not reimplemented here: `@material-bluemap/config`'s
+ * The actual parsing is not reimplemented here: `@worldlens/config`'s
  * `cli/flags.ts` already models every flag `BlueMapCLI.createOptions()` declares
  * (transcribed from the Java source and checked against real `--help` output — see that
  * file's own doc comment), a `parseCliArgs` that reads an argv the same way Commons CLI
@@ -24,7 +24,7 @@ import {
     type CliInvocation,
     type CliParseIssue,
     type ResolvedCliActions,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 export { parseCliArgs, resolveCliActions, buildCliArgs, CLI_FLAGS };
 export type { CliInvocation, CliParseIssue, ResolvedCliActions };

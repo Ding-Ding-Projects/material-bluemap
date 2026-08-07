@@ -5,8 +5,8 @@ import {
     RegistryAdapter,
     TypeToken,
     type ObjectSchema,
-} from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import type { Cell } from "./CellStorage.js";
 import { TILE_STATE_ARRAY_TOKEN, TILE_STATE_TOKEN, TileState } from "./TileState.js";
 

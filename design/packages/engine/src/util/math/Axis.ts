@@ -1,4 +1,4 @@
-import { Vector3i } from "@material-bluemap/shared";
+import { Vector3i } from "@worldlens/shared";
 
 /**
  * upstream: util/math/Axis.java — a Java enum (X / Y / Z); ported as a class with

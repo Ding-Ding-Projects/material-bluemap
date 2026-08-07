@@ -1,4 +1,4 @@
-import { BlueNBT, NamingStrategy } from "@material-bluemap/nbt";
+import { BlueNBT, NamingStrategy } from "@worldlens/nbt";
 import { BLOCK_STATE_TOKEN, BlockStateDeserializer } from "./data/BlockStateDeserializer.js";
 import { KEY_TOKEN, KeyDeserializer } from "./data/KeyDeserializer.js";
 import { UUID_TOKEN, UUIDDeserializer } from "./data/UUIDDeserializer.js";

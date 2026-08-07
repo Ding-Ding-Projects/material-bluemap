@@ -33,7 +33,7 @@ export type RenderEngineId = "upstream-java" | "typescript";
  */
 export const RENDER_ENGINE_LABELS: Readonly<Record<RenderEngineId, string>> = {
     "upstream-java": "BlueMap engine (Java)",
-    typescript: "Material BlueMap engine (TypeScript)",
+    typescript: "Worldlens engine (TypeScript)",
 };
 
 export type RenderOutcome = "running" | "finished" | "failed" | "cancelled";

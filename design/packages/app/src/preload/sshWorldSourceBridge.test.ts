@@ -19,7 +19,7 @@ vi.mock("electron", () => ({
 
 import { contextBridge, ipcRenderer } from "electron";
 // Side-effect import: evaluating the preload runs its one top-level statement,
-// `exposeInMainWorld("materialBluemap", bridge)`, against the mock above.
+// `exposeInMainWorld("worldlens", bridge)`, against the mock above.
 import "./index.js";
 
 /** Only the `sshWorldSource` namespace this test drives, cast off the exposed bridge object. */
@@ -45,7 +45,7 @@ let bridge: SshWorldSourceBridgeUnderTest;
 beforeAll(() => {
     const calls = vi.mocked(contextBridge.exposeInMainWorld).mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.[0]).toBe("materialBluemap");
+    expect(calls[0]?.[0]).toBe("worldlens");
     bridge = calls[0]?.[1] as SshWorldSourceBridgeUnderTest;
 });
 
@@ -56,7 +56,7 @@ beforeEach(() => {
     vi.mocked(ipcRenderer.off).mockReset();
 });
 
-describe("window.materialBluemap.sshWorldSource routes to worldsource:ssh:*", () => {
+describe("window.worldlens.sshWorldSource routes to worldsource:ssh:*", () => {
     it("validate(target) sends the target as the sole argument", async () => {
         await bridge.sshWorldSource.validate(TARGET);
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);

@@ -47,7 +47,7 @@ import {
     type ProjectMap,
     type ProjectRender,
     type ProjectStorage,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 import {
     isExplicit,
     openConfigFile,
@@ -713,7 +713,7 @@ export type RenderFieldKey = keyof ProjectRender;
  * mentions it: an empty thread count lets BlueMap choose, `force`/`fixEdges`/`metrics` are
  * off, and no output-folder override is set. Unlike a real config file's fields, these five
  * are project-level render options with no `FieldMeta` of their own, so this is this
- * module's own default rather than a delegation to `@material-bluemap/config`.
+ * module's own default rather than a delegation to `@worldlens/config`.
  */
 export function isRenderFieldDefault(project: ProjectFile, key: RenderFieldKey): boolean {
     return project.render[key] === EMPTY_RENDER[key];
@@ -778,7 +778,7 @@ export function withSingletonFieldSet(project: ProjectFile, kind: SingletonKind,
  * The map id and display name a preset writes for a vanilla dimension.
  *
  * Not invented: this is the exact id and name `generateConfigSet` in
- * `@material-bluemap/config`'s `generate.ts` writes for the same dimension (`maps/overworld.conf`
+ * `@worldlens/config`'s `generate.ts` writes for the same dimension (`maps/overworld.conf`
  * named "Overworld", and so on for the nether and the end), so a preset-created map reads
  * the same as the one BlueMap's own CLI would generate for a fresh config folder.
  */
@@ -1220,5 +1220,5 @@ export function exportProjects(rows: readonly ProjectRow[], format: ExportFormat
 export function exportFileName(format: ExportFormat, at: Date = new Date()): string {
     const stamp = at.toISOString().replace(/[:.]/g, "-");
     const extension = format === "markdown" ? "md" : format;
-    return `material-bluemap-projects-${stamp}.${extension}`;
+    return `worldlens-projects-${stamp}.${extension}`;
 }

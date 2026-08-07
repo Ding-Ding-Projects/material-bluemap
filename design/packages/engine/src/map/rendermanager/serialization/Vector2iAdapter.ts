@@ -1,6 +1,6 @@
-import { TagType } from "@material-bluemap/nbt";
-import type { NBTReader, NBTWriter, TypeAdapter } from "@material-bluemap/nbt";
-import { Vector2i } from "@material-bluemap/shared";
+import { TagType } from "@worldlens/nbt";
+import type { NBTReader, NBTWriter, TypeAdapter } from "@worldlens/nbt";
+import { Vector2i } from "@worldlens/shared";
 
 /**
  * upstream: `common/.../rendermanager/serialization/Vector2iAdapter.java`

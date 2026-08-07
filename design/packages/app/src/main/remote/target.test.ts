@@ -21,7 +21,7 @@ const GOOD = {
     host: "render.example",
     user: "renderer",
     port: 2222,
-    workDir: "/srv/material-bluemap",
+    workDir: "/srv/worldlens",
 };
 
 describe("validateTarget", () => {
@@ -110,9 +110,9 @@ describe("checkWorkDir", () => {
             ok: true,
             path: "/home/renderer/renders",
         });
-        expect(checkWorkDir("/var/lib/material-bluemap")).toEqual({
+        expect(checkWorkDir("/var/lib/worldlens")).toEqual({
             ok: true,
-            path: "/var/lib/material-bluemap",
+            path: "/var/lib/worldlens",
         });
     });
 

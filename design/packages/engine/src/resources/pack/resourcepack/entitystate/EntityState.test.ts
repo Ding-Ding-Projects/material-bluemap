@@ -1,4 +1,4 @@
-import { Vector3f } from "@material-bluemap/shared";
+import { Vector3f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { EntityRendererType } from "../../../../map/hires/entity/EntityRendererType.js";
 import { parse } from "../../../adapter/JsonMapper.js";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MASK_SHAPES, type MaskShapeMeta, type PlainValue } from "@material-bluemap/config";
+import { MASK_SHAPES, type MaskShapeMeta, type PlainValue } from "@worldlens/config";
 import { createShapeDraft, draftToRecord, hasInvalidField, setDraftSubtract, setFieldNumber, setFieldText } from "./maskDraft.js";
 
 const BOX_SHAPE = MASK_SHAPES.find((shape) => shape.key === "box") as MaskShapeMeta;

@@ -60,7 +60,7 @@
 
 import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { findWorldDirectories } from "@material-bluemap/render-actions";
+import { findWorldDirectories } from "@worldlens/render-actions";
 import { ActionsCallError } from "../cirender/actions.js";
 import { GH_COMMAND, detectGh, ghApiJson, ghApiSend, nodeProcessRunner } from "../cirender/gh.js";
 import type { GhStatus, ProcessRunner } from "../cirender/gh.js";
@@ -281,7 +281,7 @@ export interface WorldRepoHostOptions {
 }
 
 const DEFAULT_COMMITTER = {
-    name: "Material BlueMap",
+    name: "Worldlens",
     email: "material-bluemap@users.noreply.github.com",
 } as const;
 
@@ -1177,7 +1177,7 @@ export class WorldRepoHost {
                 `${owner}/${repo}`,
                 wanted === "public" ? "--public" : "--private",
                 "--description",
-                "A Minecraft world kept by Material BlueMap",
+                "A Minecraft world kept by Worldlens",
             ],
             { signal },
         );

@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { VIcon, VList, VListItem, VTooltip } from "vuetify/components";
 import { mdiCircleMedium } from "@mdi/js";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import MenuSearchBar from "./MenuSearchBar.vue";
 import { useMenuSearch } from "./menuPrefs";
 import { createMatcher } from "./regex";

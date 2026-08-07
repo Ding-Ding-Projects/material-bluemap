@@ -6,7 +6,7 @@ Minecraft 3D map renderer — shipped as:
 - a **Material Design 3 Electron desktop app**: render local Minecraft worlds fully
   offline, connect to remote BlueMap servers, and host/manage dockerized BlueMap servers
   from a full GUI (every BlueMap option editable in the app, no config files), and
-- a **standalone BlueMap server** (`@material-bluemap/cli`): headless render + HTTP server
+- a **standalone BlueMap server** (`@worldlens/cli`): headless render + HTTP server
   that serves the map webapp to ordinary browsers, drop-in compatible with upstream
   BlueMap HOCON configs.
 

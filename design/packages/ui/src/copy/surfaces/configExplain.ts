@@ -24,7 +24,7 @@
  * `map.conf` carries exactly one comment for the whole `render-mask` block and one for
  * the whole `marker-sets` block, describing each as a whole rather than any one field or
  * property inside it. Every field this surface explains is `docSource: "authored"` in
- * `@material-bluemap/config` for that reason: the text is written from the Java class and
+ * `@worldlens/config` for that reason: the text is written from the Java class and
  * its own Javadoc (`BoxMaskConfig`, `CircleMaskConfig`, `MarkerSet`, …) rather than copied
  * from a comment that does not exist. It is still accurate — nothing here is invented —
  * but it is not a quotation, and `config.explain.authored` plus `config.explain.authoredHint`

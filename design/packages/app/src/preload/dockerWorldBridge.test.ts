@@ -21,7 +21,7 @@ vi.mock("electron", () => ({
 
 import { contextBridge, ipcRenderer } from "electron";
 // Side-effect import: evaluating the preload runs its one top-level statement,
-// `exposeInMainWorld("materialBluemap", bridge)`, against the mock above.
+// `exposeInMainWorld("worldlens", bridge)`, against the mock above.
 import "./index.js";
 
 /** Only the `dockerWorld` namespace this test drives, cast off the exposed bridge object. */
@@ -44,7 +44,7 @@ let bridge: DockerWorldBridgeUnderTest;
 beforeAll(() => {
     const calls = vi.mocked(contextBridge.exposeInMainWorld).mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.[0]).toBe("materialBluemap");
+    expect(calls[0]?.[0]).toBe("worldlens");
     bridge = calls[0]?.[1] as DockerWorldBridgeUnderTest;
 });
 
@@ -53,7 +53,7 @@ beforeEach(() => {
     vi.mocked(ipcRenderer.invoke).mockResolvedValue(undefined);
 });
 
-describe("window.materialBluemap.dockerWorld routes to dockerworld:*", () => {
+describe("window.worldlens.dockerWorld routes to dockerworld:*", () => {
     it("list() asks dockerworld:list with no argument", async () => {
         await bridge.dockerWorld.list();
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);

@@ -184,7 +184,7 @@ const worldCatalogBridge = computed<WorldCatalogBridge | null>(() =>
  * The shared folder-browse affordance, probed by hand rather than through `useConfigHost()`.
  *
  * This screen is not nested under `provideConfigHost()` the way the config editor is, and
- * `window.materialBluemap.dialog` asks nothing of its caller beyond existing - it is the
+ * `window.worldlens.dialog` asks nothing of its caller beyond existing - it is the
  * same "screen-agnostic path field" surface Settings and the remote target editor already
  * reach through. A build carrying none of it simply hides the Browse button; typing the
  * path, or choosing it from the list below, both still work.
@@ -194,7 +194,7 @@ const dialogPickFolder = computed<
 >(() => {
     const host = (
         globalThis as {
-            materialBluemap?: {
+            worldlens?: {
                 dialog?: {
                     pickFolder?: (options: {
                         title: string;
@@ -203,7 +203,7 @@ const dialogPickFolder = computed<
                 };
             };
         }
-    ).materialBluemap;
+    ).worldlens;
     const pick = host?.dialog?.pickFolder;
     return typeof pick === "function" ? pick : null;
 });

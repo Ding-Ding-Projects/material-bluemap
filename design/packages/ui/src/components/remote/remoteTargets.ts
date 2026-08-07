@@ -26,14 +26,14 @@
 import type { RemoteTarget } from "./remoteBridge.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
-const STORAGE_KEY = "material-bluemap-remote-targets";
+const STORAGE_KEY = "worldlens-remote-targets";
 
 /** Bumped when the stored shape changes in a way reading cannot repair. */
 export const REMOTE_TARGET_STORAGE_VERSION = 1;
 
 export const DEFAULT_SSH_PORT = 22;
 /** Where a render stages by default: under the remote account's own home, not `/tmp`. */
-export const DEFAULT_WORK_DIR = "~/.material-bluemap/renders";
+export const DEFAULT_WORK_DIR = "~/.worldlens/renders";
 
 /**
  * The form, as strings.

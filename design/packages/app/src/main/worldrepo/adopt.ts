@@ -56,7 +56,7 @@
  * nothing machine-specific in either, because both live inside a tree that may sit in a
  * public repository (`repo.ts`'s own doc comment says as much for the identical Pages marker
  * both are modelled on). The project file this module reads alongside the world-repo marker
- * ({@link PROJECT_FILE_NAME}, `@material-bluemap/config`'s own schema) was designed the same
+ * ({@link PROJECT_FILE_NAME}, `@worldlens/config`'s own schema) was designed the same
  * way for the same reason: `project.ts`'s doc comment states outright that the world path is
  * "deliberately" left out, because "storing it as well would create a second source of truth
  * that goes wrong the moment somebody moves or copies the folder". Adoption leans on exactly
@@ -100,7 +100,7 @@ import {
     parseProjectFile,
     type ProjectFile,
     type ProjectReadFailure,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 import { ActionsCallError } from "../cirender/actions.js";
 import { CI_BOOTSTRAP_MARKER_FILE, CI_BOOTSTRAP_MARKER_TOOL, CI_BOOTSTRAP_MARKER_VERSION } from "../cirender/bootstrap.js";
 import type { CiBootstrapMarker } from "../cirender/bootstrap.js";
@@ -594,7 +594,7 @@ function describeProjectFailure(failure: ProjectReadFailure): string {
             return `${PROJECT_FILE_NAME} was not valid JSON: ${failure.message}`;
         case "too-new":
             return (
-                `This project was written by a newer version of Material BlueMap (format ` +
+                `This project was written by a newer version of Worldlens (format ` +
                 `${String(failure.version)}).`
             );
         case "invalid":
@@ -782,7 +782,7 @@ export async function buildAdoptionPlan(
             reason: parsed.failure.kind === "too-new" ? "project-too-new" : "project-unreadable",
             message:
                 parsed.failure.kind === "too-new"
-                    ? `This repository's project was written by a newer version of Material BlueMap ` +
+                    ? `This repository's project was written by a newer version of Worldlens ` +
                       `(format ${String(parsed.failure.version)}; this build reads up to ` +
                       `${String(PROJECT_FORMAT_VERSION)}). Update the app to adopt it rather than ` +
                       "guessing at settings this build does not understand."

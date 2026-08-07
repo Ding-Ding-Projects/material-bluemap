@@ -1,10 +1,10 @@
 {
-    "name": "@material-bluemap/app",
+    "name": "@worldlens/app",
     "version": "0.1.0",
     "private": true,
     "type": "module",
-    "description": "Electron desktop app",
-    "author": "Material BlueMap contributors",
+    "description": "Worldlens desktop application for rendering and publishing Minecraft world maps",
+    "author": "Worldlens contributors",
     "main": "./dist/main/index.js",
     "scripts": {
         "build": "node build.mjs",
@@ -23,11 +23,11 @@
         "@bokuweb/zstd-wasm": "^0.0.27"
     },
     "dependencies": {
-        "@material-bluemap/config": "workspace:*",
-        "@material-bluemap/parts": "workspace:*",
-        "@material-bluemap/render-actions": "workspace:*",
-        "@material-bluemap/server": "workspace:*",
-        "@material-bluemap/shared": "workspace:*",
+        "@worldlens/config": "workspace:*",
+        "@worldlens/parts": "workspace:*",
+        "@worldlens/render-actions": "workspace:*",
+        "@worldlens/server": "workspace:*",
+        "@worldlens/shared": "workspace:*",
         "electron-store": "^10.1.0"
     }
 }

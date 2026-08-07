@@ -1,4 +1,4 @@
-import { Vector4d } from "@material-bluemap/shared";
+import { Vector4d } from "@worldlens/shared";
 import type { JsonAdapter } from "./AbstractTypeAdapterFactory.js";
 import { JsonParseError, nextDouble, type JsonValue } from "./JsonMapper.js";
 

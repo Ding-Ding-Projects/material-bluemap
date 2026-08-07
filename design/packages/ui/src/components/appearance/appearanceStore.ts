@@ -41,10 +41,10 @@ import {
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 /** The storage key, namespaced like every other preference this app keeps. */
-export const APPEARANCE_STORAGE_KEY = "material-bluemap-appearance";
+export const APPEARANCE_STORAGE_KEY = "worldlens-appearance";
 
 /** The marker an exported file carries, so a stray JSON file is not read as a theme. */
-export const APPEARANCE_FORMAT = "material-bluemap-appearance";
+export const APPEARANCE_FORMAT = "worldlens-appearance";
 
 export const APPEARANCE_VERSION = 1;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
-import { Color, Vector2i } from "@material-bluemap/shared";
+import { Color, Vector2i } from "@worldlens/shared";
 import { LowresTile } from "./LowresTile.js";
 
 const SIZE = new Vector2i(4, 4);

@@ -14,7 +14,7 @@
  * needs that application running against a real release, which cannot happen in this test
  * suite, and asserting it from a passing regex would be a claim about software this
  * repository does not build. See `docs/backup.md` and
- * https://github.com/Ding-Ding-Projects/material-bluemap/issues/36 for why this line was
+ * https://github.com/Ding-Ding-Projects/worldlens/issues/36 for why this line was
  * drawn deliberately rather than left as an open question: the sibling application was
  * confirmed to exist and to share this exact format, so the limit here is a scoping
  * decision, not an unavailability.

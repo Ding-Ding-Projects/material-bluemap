@@ -1,5 +1,5 @@
-import { IOException, TagType } from "@material-bluemap/nbt";
-import type { NBTReader, NBTWriter, TypeAdapter } from "@material-bluemap/nbt";
+import { IOException, TagType } from "@worldlens/nbt";
+import type { NBTReader, NBTWriter, TypeAdapter } from "@worldlens/nbt";
 import type { BmMap } from "../../BmMap.js";
 
 /**

@@ -31,7 +31,7 @@ const EMPTY: TabStripState = {
     id: "strip-main",
     label: "Main",
     windowId: "window-1",
-    windowLabel: "Material BlueMap",
+    windowLabel: "Worldlens",
     placement: "left",
     tabs: [],
     groups: [],

@@ -26,7 +26,7 @@ import { pathToFileURL } from "node:url";
  * The same problem hits `__dirname`/`__filename`: esbuild leaves a bundled CJS
  * module's own `__dirname` references untouched too, and a plain ESM bundle has
  * no such global either. `@bokuweb/zstd-wasm`'s node entry point (reached from
- * `@material-bluemap/engine`'s `Compression.ZSTD`, which real Linear-format region
+ * `@worldlens/engine`'s `Compression.ZSTD`, which real Linear-format region
  * files decompress through) locates its `.wasm` binary with
  * `readFile(resolve(__dirname, './zstd.wasm'))` at its own top level - so loading
  * it after this bundle previously threw `ReferenceError: __dirname is not
@@ -90,7 +90,9 @@ export function copyZstdWasmAsset(destDir) {
  * rather than a placeholder that would silently fail to update. It is not used inside CI;
  * see the throw below for why that distinction matters.
  */
-export const DEFAULT_REPOSITORY = "Ding-Ding-Projects/material-bluemap";
+export const DEFAULT_REPOSITORY = "Ding-Ding-Projects/worldlens";
+export const BUILD_REPOSITORY_VARIABLE = "WORLDLENS_BUILD_REPOSITORY";
+export const LEGACY_BUILD_REPOSITORY_VARIABLE = "MATERIAL_BLUEMAP_BUILD_REPOSITORY";
 
 /** What `resolveFeed` (main/update/feed.ts) itself accepts: `owner/repo`, nothing else. */
 const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
@@ -130,11 +132,13 @@ const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
  *    wrong address forever.
  */
 export function resolveBuildRepository(env) {
-    const explicit = env["MATERIAL_BLUEMAP_BUILD_REPOSITORY"]?.trim();
+    const current = env[BUILD_REPOSITORY_VARIABLE]?.trim();
+    const legacy = env[LEGACY_BUILD_REPOSITORY_VARIABLE]?.trim();
+    const explicit = current || legacy;
     if (explicit !== undefined && explicit !== "") {
         if (!REPOSITORY_PATTERN.test(explicit)) {
             throw new Error(
-                `MATERIAL_BLUEMAP_BUILD_REPOSITORY="${explicit}" is not a well-formed "owner/repo" value, so ` +
+                `${current ? BUILD_REPOSITORY_VARIABLE : LEGACY_BUILD_REPOSITORY_VARIABLE}="${explicit}" is not a well-formed "owner/repo" value, so ` +
                     "the bundle cannot be given it as the update feed's repository.",
             );
         }
@@ -160,7 +164,7 @@ export function resolveBuildRepository(env) {
                 `Refusing to fall back to ${DEFAULT_REPOSITORY}: a wrong repository baked into a real release is ` +
                 "invisible until an update silently stops arriving, which is exactly the failure this check " +
                 "exists to catch. Set GITHUB_REPOSITORY (GitHub Actions does this automatically for every job) " +
-                "or MATERIAL_BLUEMAP_BUILD_REPOSITORY explicitly, then rebuild.",
+                `or ${BUILD_REPOSITORY_VARIABLE} explicitly, then rebuild.`,
         );
     }
 
@@ -169,6 +173,14 @@ export function resolveBuildRepository(env) {
 
 async function main() {
     const repository = resolveBuildRepository(process.env);
+    if (
+        !process.env[BUILD_REPOSITORY_VARIABLE]?.trim() &&
+        process.env[LEGACY_BUILD_REPOSITORY_VARIABLE]?.trim()
+    ) {
+        console.warn(
+            `app build: ${LEGACY_BUILD_REPOSITORY_VARIABLE} is deprecated; use ${BUILD_REPOSITORY_VARIABLE}.`,
+        );
+    }
     console.log(`app build: update feed repository = ${repository}`);
 
     /** Main process: ESM (Electron ≥28 supports ESM entry points). */
@@ -185,7 +197,7 @@ async function main() {
         // Textual substitution: every occurrence of this identifier in the bundled source
         // becomes this JSON string literal. `src/main/globals.d.ts` declares the identifier
         // for TypeScript; `src/main/index.ts` is the only place that reads it.
-        define: { __MATERIAL_BLUEMAP_REPOSITORY__: JSON.stringify(repository) },
+        define: { __WORLDLENS_REPOSITORY__: JSON.stringify(repository) },
     });
 
     copyZstdWasmAsset("dist/main");

@@ -56,7 +56,7 @@ const RELEASE: DiscoveredRelease = {
     htmlUrl: "https://github.com/owner/repo/releases/tag/v1.4.0",
     downloads: [
         { name: "test-world-seed-1739.zip", split: true, parts: 3, bytes: 4_030_000_000 },
-        { name: "material-bluemap-setup.exe", split: false, parts: 1, bytes: 91_400_000 },
+        { name: "worldlens-setup.exe", split: false, parts: 1, bytes: 91_400_000 },
     ],
 };
 
@@ -340,7 +340,7 @@ describe("the endings, which are three different things", () => {
             failure: failure({
                 code: "asset-not-found",
                 message: "The release has no download called 'world.zip'.",
-                detail: "material-bluemap-setup.exe",
+                detail: "worldlens-setup.exe",
             }),
         };
         const fake = fakeBridge({ result: refused });
@@ -584,7 +584,7 @@ describe("a build that cannot download", () => {
             discoverRelease: () => Promise.resolve({ ok: true as const, release: RELEASE }),
             startDownload: () => Promise.resolve({ ok: true } as unknown as DownloadResult),
         };
-        vi.stubGlobal("materialBluemap", host);
+        vi.stubGlobal("worldlens", host);
         try {
             // A Download button that starts tens of minutes of invisible work is worse
             // than a surface that says the desktop app is needed.
@@ -600,7 +600,7 @@ describe("a build that cannot download", () => {
             startDownload: () => Promise.resolve({ ok: false } as unknown as DownloadResult),
             onDownloadEvent: () => () => undefined,
         };
-        vi.stubGlobal("materialBluemap", host);
+        vi.stubGlobal("worldlens", host);
         try {
             const bridge = resolveDownloadBridge();
             expect(bridge).not.toBeNull();
@@ -632,7 +632,7 @@ describe("a build that cannot download", () => {
                         : null,
                 ),
         };
-        vi.stubGlobal("materialBluemap", host);
+        vi.stubGlobal("worldlens", host);
         try {
             const bridge = resolveDownloadBridge();
             expect(bridge?.canParseLink).toBe(true);

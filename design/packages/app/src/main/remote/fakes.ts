@@ -131,7 +131,7 @@ export function testTarget(overrides: Partial<RemoteTarget> = {}): RemoteTarget 
         port: 2222,
         user: "renderer",
         identityFile: null,
-        workDir: "/srv/material-bluemap",
+        workDir: "/srv/worldlens",
         image: "eclipse-temurin:25-jre",
         docker: "docker",
         keepRemoteFiles: false,

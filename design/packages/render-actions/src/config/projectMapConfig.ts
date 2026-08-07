@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /** The project file is deliberately bundled inside every world archive the app uploads. */
-export const PROJECT_FILE_NAME = "material-bluemap.project.json";
+export const PROJECT_FILE_NAME = "worldlens.project.json";
 
 export interface ProjectMapConfigResult {
     readonly source: "project" | "defaults";

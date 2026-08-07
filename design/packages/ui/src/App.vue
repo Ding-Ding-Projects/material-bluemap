@@ -19,7 +19,7 @@ import {
     mdiSourceRepository,
     mdiWeb,
 } from "@mdi/js";
-import type { MenuPage } from "@material-bluemap/viewer";
+import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
 import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";

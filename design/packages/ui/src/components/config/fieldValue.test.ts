@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { descriptorFor, type FieldMeta } from "@material-bluemap/config";
+import { descriptorFor, type FieldMeta } from "@worldlens/config";
 import {
     JAVA_DOUBLE_MAX,
     JAVA_INT_MAX,

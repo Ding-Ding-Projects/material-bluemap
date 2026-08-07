@@ -18,7 +18,7 @@ import {
     VSwitch,
     VTextField,
 } from "vuetify/components";
-import type { FieldMeta, PlainValue, ProjectFile } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue, ProjectFile } from "@worldlens/config";
 import PathField from "../PathField.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -55,7 +55,7 @@ import {
  *
  * Nothing here names a BlueMap setting. The maps and storages panels hand their files to
  * `../config/ConfigFileForm.vue`, and so do the four singleton tabs, so the groups, the
- * controls, the documentation and the defaults all come from `@material-bluemap/config`.
+ * controls, the documentation and the defaults all come from `@worldlens/config`.
  * A setting added to the schema tomorrow appears here with no change to this file.
  *
  * ## Absent is not empty
@@ -461,7 +461,7 @@ function setOutputFolder(value: string): void {
         <TabbedNavigation
             ref="tabsNav"
             :pages="pages"
-            storage-key="material-bluemap-project-editor-tabs"
+            storage-key="worldlens-project-editor-tabs"
             :window-label="t('project.editor.windowLabel', 'This project')"
             :strip-label="t('project.editor.tabsLabel', 'Project sections')"
             class="mb-project-editor__tabs"

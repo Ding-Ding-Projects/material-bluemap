@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import type { Vector2i } from "@material-bluemap/shared";
+import type { Vector2i } from "@worldlens/shared";
 import type { ChunkConsumer } from "../ChunkConsumer.js";
 import { Region } from "../Region.js";
 import { ChunkGrid } from "./ChunkGrid.js";

@@ -23,7 +23,7 @@
  * typed" and gets its own browse button too - backed by that SSH listing, never by the local
  * file dialog `PathField.vue` uses. The tests below prove that distinction rather than
  * merely that a button exists: the work-directory button must never touch
- * `window.materialBluemap.dialog`, and must depend on the *remote* bridge's `canBrowse`
+ * `window.worldlens.dialog`, and must depend on the *remote* bridge's `canBrowse`
  * rather than on the local dialog bridge `PathField.vue` probes.
  */
 
@@ -103,7 +103,7 @@ function buttonByAria(wrapper: VueWrapper, aria: string) {
 }
 
 afterEach(() => {
-    delete (window as { materialBluemap?: unknown }).materialBluemap;
+    delete (window as { worldlens?: unknown }).worldlens;
 });
 
 describe("the identity file's browse button", () => {
@@ -118,7 +118,7 @@ describe("the identity file's browse button", () => {
 
     it("writes a picked path into the draft through the same event typing uses", async () => {
         const calls: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             dialog: {
                 pickFolder: async () => null,
                 pickFile: async (options: unknown) => {
@@ -168,9 +168,9 @@ describe("the identity file's browse button", () => {
     it("never asks the local file dialog to open the work-directory browser", async () => {
         // The local dialog bridge is wired up, exactly as the identity-file test above does,
         // and is never touched: the work directory's browse button must go through the
-        // *remote* bridge's SSH listing, never through `window.materialBluemap.dialog`.
+        // *remote* bridge's SSH listing, never through `window.worldlens.dialog`.
         const pickFolder = async (): Promise<string | null> => "C:\\wrong\\place";
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             dialog: { pickFolder, pickFile: async () => null },
         };
 
@@ -250,7 +250,7 @@ describe("the identity file's browse button", () => {
         expect(call.target.user).toBe("renderer");
         expect(call.path).toBe("/srv/renders");
         // ...and never the local file dialog this same form's identity field does use.
-        expect((window as { materialBluemap?: unknown }).materialBluemap).toBeUndefined();
+        expect((window as { worldlens?: unknown }).worldlens).toBeUndefined();
 
         wrapper.unmount();
     });

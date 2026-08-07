@@ -1,7 +1,7 @@
 /**
  * Reading, writing and finding a project file inside somebody's Minecraft world.
  *
- * The shape of a project is fixed elsewhere - `@material-bluemap/config` owns the schema,
+ * The shape of a project is fixed elsewhere - `@worldlens/config` owns the schema,
  * the file name, the format version, and the pure text-to-project reader. Nothing here
  * re-decides any of that. This module is the other half of that seam: the only code in the
  * application allowed to put a byte inside a world folder, written the way `config/ipc.ts`
@@ -49,7 +49,7 @@ import {
     serializeProjectFile,
     type ProjectFile,
     type ProjectReadFailure,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 /**
  * The largest project file this reads or writes.
@@ -433,7 +433,7 @@ export async function writeProject(
             ok: false,
             failure: existing.failure,
             reason:
-                `This world's project was made by a newer version of Material BlueMap ` +
+                `This world's project was made by a newer version of Worldlens ` +
                 `(format ${String(existing.failure.version)}, this build reads ${String(PROJECT_FORMAT_VERSION)}). ` +
                 `Saving over it would throw away every setting this version does not know about, so ` +
                 `nothing was written. Update the app to open it.`,

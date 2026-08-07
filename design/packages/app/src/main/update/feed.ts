@@ -35,10 +35,15 @@
 const PUBLIC_FEED_HOST = "https://update.electronjs.org";
 
 /** Environment overrides, so a self-hosted or staging feed needs no rebuild. */
-export const FEED_URL_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_FEED";
-export const FEED_TOKEN_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_TOKEN";
+export const FEED_URL_VARIABLE = "WORLDLENS_UPDATE_FEED";
+export const FEED_TOKEN_VARIABLE = "WORLDLENS_UPDATE_TOKEN";
 /** Set this to switch the updater off entirely on a machine that manages its own installs. */
-export const FEED_DISABLE_VARIABLE = "MATERIAL_BLUEMAP_DISABLE_UPDATES";
+export const FEED_DISABLE_VARIABLE = "WORLDLENS_DISABLE_UPDATES";
+
+/** Old names remain readable for installed clients and managed-machine configuration. */
+export const LEGACY_FEED_URL_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_FEED";
+export const LEGACY_FEED_TOKEN_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_TOKEN";
+export const LEGACY_FEED_DISABLE_VARIABLE = "MATERIAL_BLUEMAP_DISABLE_UPDATES";
 
 export interface FeedInputs {
     /** `app.isPackaged`. False for a development run and for an unpacked directory. */
@@ -86,6 +91,17 @@ function truthy(value: string | undefined): boolean {
     return normalized === "1" || normalized === "true" || normalized === "yes";
 }
 
+function firstEnvironmentValue(
+    environment: Readonly<Record<string, string | undefined>>,
+    primary: string,
+    legacy: string,
+): string | undefined {
+    const current = environment[primary]?.trim();
+    if (current !== undefined && current !== "") return current;
+    const old = environment[legacy]?.trim();
+    return old === "" ? undefined : old;
+}
+
 /**
  * The feed this build should use, or the reason there is not one.
  *
@@ -97,7 +113,10 @@ function truthy(value: string | undefined): boolean {
 export function resolveFeed(inputs: FeedInputs): FeedResolution {
     const environment = inputs.environment;
 
-    if (truthy(environment[FEED_DISABLE_VARIABLE])) {
+    if (
+        truthy(environment[FEED_DISABLE_VARIABLE]) ||
+        truthy(environment[LEGACY_FEED_DISABLE_VARIABLE])
+    ) {
         return {
             ok: false,
             reason:
@@ -106,11 +125,19 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
         };
     }
 
-    const token = environment[FEED_TOKEN_VARIABLE]?.trim();
+    const token = firstEnvironmentValue(
+        environment,
+        FEED_TOKEN_VARIABLE,
+        LEGACY_FEED_TOKEN_VARIABLE,
+    );
     const headers: Record<string, string> = {};
     if (token !== undefined && token !== "") headers["Authorization"] = `Bearer ${token}`;
 
-    const override = environment[FEED_URL_VARIABLE]?.trim();
+    const override = firstEnvironmentValue(
+        environment,
+        FEED_URL_VARIABLE,
+        LEGACY_FEED_URL_VARIABLE,
+    );
     if (override !== undefined && override !== "") {
         if (!isSecureFeedUrl(override)) {
             return {

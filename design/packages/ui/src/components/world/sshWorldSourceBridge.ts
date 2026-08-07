@@ -108,7 +108,7 @@ export interface SshWorldSourceBridge {
 }
 
 type Host = Partial<{
-    materialBluemap: Partial<{ sshWorldSource: Partial<SshWorldSourceBridge> }>;
+    worldlens: Partial<{ sshWorldSource: Partial<SshWorldSourceBridge> }>;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -124,7 +124,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * perform.
  */
 export function resolveSshWorldSourceBridge(): SshWorldSourceBridge | null {
-    const candidate = (globalThis as Host).materialBluemap?.sshWorldSource;
+    const candidate = (globalThis as Host).worldlens?.sshWorldSource;
     if (candidate === undefined) return null;
 
     const required: readonly (keyof SshWorldSourceBridge)[] = [

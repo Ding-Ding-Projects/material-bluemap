@@ -15,7 +15,7 @@ import {
     VSwitch,
     VTextarea,
 } from "vuetify/components";
-import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
 import ConfigField from "./ConfigField.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import { filterFields, sampleTextFor } from "./configSearch.js";
@@ -28,7 +28,7 @@ import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
  *
  * Nothing here names a setting. The groups, the fields inside them, the controls,
  * the documentation and the defaults are all read from
- * `@material-bluemap/config`, so a setting added to the schema appears on this
+ * `@worldlens/config`, so a setting added to the schema appears on this
  * form with no change to this component, and no setting can be forgotten by
  * somebody hand-writing a form.
  */

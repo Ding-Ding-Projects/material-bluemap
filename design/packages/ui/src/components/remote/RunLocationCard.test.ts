@@ -99,7 +99,7 @@ const offer: HostKeyOffer = {
 
 function storageWith(targets: readonly RemoteTarget[]): TargetStorage {
     const cells = new Map<string, string>([
-        ["material-bluemap-remote-targets", JSON.stringify({ version: 1, targets })],
+        ["worldlens-remote-targets", JSON.stringify({ version: 1, targets })],
     ]);
     return {
         getItem: (key) => cells.get(key) ?? null,

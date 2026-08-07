@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve } from "node:path";
-import type { Grid, Key, Vector2i } from "@material-bluemap/shared";
+import type { Grid, Key, Vector2i } from "@worldlens/shared";
 import type { WatchService } from "../util/WatchService.js";
 import type { Chunk } from "./Chunk.js";
 import type { DimensionType } from "./DimensionType.js";

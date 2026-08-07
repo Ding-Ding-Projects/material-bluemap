@@ -1,4 +1,4 @@
-import { parseHocon } from "@material-bluemap/shared";
+import { parseHocon } from "@worldlens/shared";
 
 /**
  * Converts a given value to JSON and writes it to the given key in

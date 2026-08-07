@@ -1,4 +1,4 @@
-import type { MatrixM3f, MatrixM4f } from "@material-bluemap/shared";
+import type { MatrixM3f, MatrixM4f } from "@worldlens/shared";
 
 /**
  * upstream: map/hires/TileModel.java

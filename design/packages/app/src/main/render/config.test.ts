@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { parseHocon } from "@material-bluemap/shared";
+import { parseHocon } from "@worldlens/shared";
 import {
     InvalidRenderRequestError,
     MAX_MAP_CONFIG_LENGTH,
@@ -399,7 +399,7 @@ describe("a map config the caller supplied", () => {
         // beside it.
         expect(await readMapConf()).toBe(
             [
-                "# Written by Material BlueMap for a single render. Edits here are overwritten.",
+                "# Written by Worldlens for a single render. Edits here are overwritten.",
                 'world: "C:\\\\worlds\\\\My World"',
                 'dimension: "minecraft:overworld"',
                 'name: "overworld"',

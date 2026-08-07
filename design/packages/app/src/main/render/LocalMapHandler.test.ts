@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { HttpServer } from "@material-bluemap/server";
+import { HttpServer } from "@worldlens/server";
 import { LocalMapHandler } from "./LocalMapHandler.js";
 
 /**

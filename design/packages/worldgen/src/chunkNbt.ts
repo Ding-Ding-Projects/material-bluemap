@@ -1,4 +1,4 @@
-import { NBTWriter } from "@material-bluemap/nbt";
+import { NBTWriter } from "@worldlens/nbt";
 import type { BiomeDefinition } from "./biomes.js";
 import { parseBlockState, type ParsedBlockState } from "./blocks.js";
 import { blockIndex, columnIndex, type ChunkData } from "./chunk.js";

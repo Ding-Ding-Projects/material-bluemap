@@ -1,5 +1,5 @@
-import { IOException, TypeToken } from "@material-bluemap/nbt";
-import type { ObjectSchema } from "@material-bluemap/nbt";
+import { IOException, TypeToken } from "@worldlens/nbt";
+import type { ObjectSchema } from "@worldlens/nbt";
 import type { BmMap, LowresTileManagerLike } from "../BmMap.js";
 import type { MapRenderTask } from "./MapRenderTask.js";
 import { RenderTask } from "./RenderTask.js";

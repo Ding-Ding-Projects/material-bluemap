@@ -1,6 +1,6 @@
 import { readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import type { DataPack } from "../resources/pack/datapack/DataPack.js";
 import type { World } from "./World.js";
 

@@ -253,7 +253,7 @@ describe("pasting a link", () => {
 
         // The default owner/repo are untouched: a null answer must not blank a field
         // somebody had already filled in by hand.
-        expect(wrapper.findAll("input").some((input) => input.element.value === "material-bluemap")).toBe(true);
+        expect(wrapper.findAll("input").some((input) => input.element.value === "worldlens")).toBe(true);
 
         wrapper.unmount();
     });
@@ -398,7 +398,7 @@ describe("a download, on screen", () => {
             type: "log",
             downloadId: DOWNLOAD_ID,
             level: "info",
-            message: "Resolved release v1.4.0 from Ding-Ding-Projects/material-bluemap",
+            message: "Resolved release v1.4.0 from Ding-Ding-Projects/worldlens",
             at: "t2",
         });
         await nextTick();
@@ -416,7 +416,7 @@ describe("a download, on screen", () => {
         const logPanel = wrapper.find(`#${logPanelId}`);
         expect(logPanel.exists()).toBe(true);
         expect(logPanel.element.tagName).toBe("PRE");
-        expect(logPanel.text()).toContain("Resolved release v1.4.0 from Ding-Ding-Projects/material-bluemap");
+        expect(logPanel.text()).toContain("Resolved release v1.4.0 from Ding-Ding-Projects/worldlens");
 
         wrapper.unmount();
     });
@@ -439,7 +439,7 @@ describe("what was already going", () => {
     it("promises to carry on only where there is something to carry on from", async () => {
         const base = {
             asset: "test-world-seed-1739.zip",
-            repository: "Ding-Ding-Projects/material-bluemap",
+            repository: "Ding-Ding-Projects/worldlens",
             tag: "v1.4.0",
             bytes: 4_030_000_000,
             parts: 3,
@@ -469,7 +469,7 @@ describe("what was already going", () => {
 
     it("is searchable, by a field with its own regex builder anchored to it", async () => {
         const base = {
-            repository: "Ding-Ding-Projects/material-bluemap",
+            repository: "Ding-Ding-Projects/worldlens",
             tag: "v1.4.0",
             bytes: 4_030_000_000,
             parts: 3,
@@ -535,7 +535,7 @@ describe("what was already going", () => {
                 {
                     downloadId: DOWNLOAD_ID,
                     asset: "test-world-seed-1739.zip",
-                    repository: "Ding-Ding-Projects/material-bluemap",
+                    repository: "Ding-Ding-Projects/worldlens",
                     tag: "v1.4.0",
                     outcome: "finished",
                     bytes: 4_030_000_000,
@@ -552,7 +552,7 @@ describe("what was already going", () => {
         const wrapper = render(fake.bridge);
         await flushPromises();
 
-        expect(wrapper.text()).toContain("Ding-Ding-Projects/material-bluemap");
+        expect(wrapper.text()).toContain("Ding-Ding-Projects/worldlens");
         expect(wrapper.text()).toContain("3 parts, rejoined here");
         expect(wrapper.text()).toContain("Use this folder");
 

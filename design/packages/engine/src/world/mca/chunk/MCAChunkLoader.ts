@@ -1,4 +1,4 @@
-import { IOException, type TypeToken } from "@material-bluemap/nbt";
+import { IOException, type TypeToken } from "@worldlens/nbt";
 import type { Compression } from "../../../storage/compression/Compression.js";
 import { Chunk } from "../../Chunk.js";
 import type { ChunkLoader } from "../ChunkLoader.js";

@@ -1,4 +1,4 @@
-import { Color } from "@material-bluemap/shared";
+import { Color } from "@worldlens/shared";
 import type { PNG } from "pngjs";
 
 /**

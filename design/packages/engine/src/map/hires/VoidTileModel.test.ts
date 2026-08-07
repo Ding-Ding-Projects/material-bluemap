@@ -1,4 +1,4 @@
-import { MatrixM3f, MatrixM4f } from "@material-bluemap/shared";
+import { MatrixM3f, MatrixM4f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import type { TileModel } from "./TileModel.js";
 import { VoidTileModel } from "./VoidTileModel.js";

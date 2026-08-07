@@ -115,7 +115,7 @@ export const commandPalette: Article = {
                             term: "Size",
                             description: [
                                 "Stored under ",
-                                { code: "material-bluemap-palette" },
+                                { code: "worldlens-palette" },
                                 ". Two values, card and full window, and anything else read back is discarded.",
                             ],
                         },

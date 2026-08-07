@@ -251,7 +251,7 @@ async function waitFor<T>(
  */
 async function packForNames(folder: string): Promise<{ secondPartMark: string }> {
     const { packFolder } = await import("./archive.js");
-    const { splitFile } = await import("@material-bluemap/parts");
+    const { splitFile } = await import("@worldlens/parts");
     const scratch = join(workDir, "scratch");
     await mkdir(scratch, { recursive: true });
     const archivePath = join(scratch, "probe.zip");

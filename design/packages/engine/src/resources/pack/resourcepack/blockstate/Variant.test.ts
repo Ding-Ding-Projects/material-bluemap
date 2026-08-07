@@ -1,4 +1,4 @@
-import { MatrixM4f, VectorM3f } from "@material-bluemap/shared";
+import { MatrixM4f, VectorM3f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { BlockRendererType } from "../../../../map/hires/block/BlockRendererType.js";
 import { ResourcePath } from "../../../ResourcePath.js";

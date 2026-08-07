@@ -40,7 +40,7 @@ import {
     wavesExceedWorkflow,
 } from "./resume/waves.js";
 
-const USAGE = `material-bluemap render-actions
+const USAGE = `worldlens render-actions
 
 Plans, configures, merges and verifies a BlueMap render that is split across parallel
 GitHub Actions jobs. The workflow calls these commands; the logic lives here so it can

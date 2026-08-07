@@ -1,4 +1,4 @@
-import { Color, Key, type Keyed } from "@material-bluemap/shared";
+import { Color, Key, type Keyed } from "@worldlens/shared";
 import { GrassColorModifier } from "./GrassColorModifier.js";
 
 export interface Biome extends Keyed {

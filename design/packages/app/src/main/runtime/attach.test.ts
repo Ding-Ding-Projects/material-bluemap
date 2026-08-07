@@ -31,7 +31,7 @@ function output(partial: Partial<CommandOutput> = {}): CommandOutput {
 
 const RECORD: ContainerHandoff = newContainerHandoff({
     renderId: "world-abc123",
-    containerName: "material-bluemap-world-abc123",
+    containerName: "worldlens-world-abc123",
     mode: "docker",
     mapIds: ["overworld"],
     docker: "docker",
@@ -73,8 +73,8 @@ describe("the commands", () => {
     });
 
     it("lists exited containers too, because one that ended is exactly what is being looked for", () => {
-        expect(listArguments("material-bluemap")).toContain("-a");
-        expect(listArguments("material-bluemap")).toContain("name=material-bluemap");
+        expect(listArguments("worldlens")).toContain("-a");
+        expect(listArguments("worldlens")).toContain("name=worldlens");
     });
 });
 

@@ -1,4 +1,4 @@
-import { TypeToken, type BlueNBT, type ObjectSchema } from "@material-bluemap/nbt";
+import { TypeToken, type BlueNBT, type ObjectSchema } from "@worldlens/nbt";
 import { DimensionType } from "../../DimensionType.js";
 import { DIMENSION_TYPE_TOKEN } from "./DimensionTypeDeserializer.js";
 

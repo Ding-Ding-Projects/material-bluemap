@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
-import { IOException } from "@material-bluemap/nbt";
-import { Vector2i } from "@material-bluemap/shared";
+import { IOException } from "@worldlens/nbt";
+import { Vector2i } from "@worldlens/shared";
 import { Compression } from "../../../storage/compression/Compression.js";
 import type { ChunkConsumer } from "../../ChunkConsumer.js";
 import { Region } from "../../Region.js";

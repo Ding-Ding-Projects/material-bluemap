@@ -1,4 +1,4 @@
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import { ResourcePath } from "../resources/ResourcePath.js";
 import { isJsonArray, isJsonObject, type JsonValue } from "../resources/adapter/JsonMapper.js";
 import { ResourcePool } from "../resources/pack/ResourcePool.js";

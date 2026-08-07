@@ -170,5 +170,5 @@ export function remoteStopArguments(
 
 /** The container name for a remote render. Prefixed so it is obvious on a shared host. */
 export function remoteContainerName(renderId: string): string {
-    return containerName("material-bluemap-remote", renderId);
+    return containerName("worldlens-remote", renderId);
 }

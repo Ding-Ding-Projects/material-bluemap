@@ -29,7 +29,7 @@
  * silently presenting an upper bound as a real number.
  */
 
-import type { BlurMask, BoxMask, CircleMask, EllipseMask, MaskConfig, PolygonMask } from "@material-bluemap/config";
+import type { BlurMask, BoxMask, CircleMask, EllipseMask, MaskConfig, PolygonMask } from "@worldlens/config";
 import { JAVA_DOUBLE_MAX, JAVA_INT_MAX, JAVA_INT_MIN } from "./fieldValue.js";
 
 /** Blocks along one side of a chunk. Minecraft's own constant, not a BlueMap choice. */

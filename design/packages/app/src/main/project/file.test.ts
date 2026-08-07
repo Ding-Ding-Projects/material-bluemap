@@ -24,7 +24,7 @@ import {
     projectFileSchema,
     serializeProjectFile,
     type ProjectFile,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 import {
     PROJECT_TEMP_SUFFIX,

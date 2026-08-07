@@ -18,7 +18,7 @@ import {
     VSpacer,
     VTextField,
 } from "vuetify/components";
-import { DIMENSION_OPTIONS, DIMENSION_TYPE_OPTIONS, type FieldMeta, type MapPreset, type PlainValue } from "@material-bluemap/config";
+import { DIMENSION_OPTIONS, DIMENSION_TYPE_OPTIONS, type FieldMeta, type MapPreset, type PlainValue } from "@worldlens/config";
 import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import ConfigSuperConfirm from "./ConfigSuperConfirm.vue";

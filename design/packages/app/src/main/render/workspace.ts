@@ -119,7 +119,7 @@ export async function listRenderIds(storageDir: string): Promise<string[]> {
  * Expands the storage directory the setup step stored.
  *
  * `packages/ui/.../setup/mapStorage.ts` keeps the person's choice in the renderer, and
- * its default is a token form - `%APPDATA%\Material BlueMap\maps` on Windows, `~/...`
+ * its default is a token form - `%APPDATA%\Worldlens\maps` on Windows, `~/...`
  * elsewhere - because the renderer has no home directory to resolve against. That file
  * states the contract plainly: "the main process expands it when a render starts". This
  * is that expansion, and it is the only place it happens.
@@ -175,7 +175,7 @@ export function expandStorageDirectory(
  * The default storage directory: `<userData>/maps`.
  *
  * The same place `defaultMapStorageDir` in the setup step names, arrived at from the
- * other side. On Windows Electron's `userData` **is** `%APPDATA%\Material BlueMap`, so
+ * other side. On Windows Electron's `userData` **is** `%APPDATA%\Worldlens`, so
  * the two agree by construction rather than by both hard-coding the same string.
  */
 export function defaultStorageDirectory(userData: string): string {

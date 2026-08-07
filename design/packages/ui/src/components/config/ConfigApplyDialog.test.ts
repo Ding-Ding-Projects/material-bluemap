@@ -139,7 +139,7 @@ describe("the save dialog's dismissal guard", () => {
  */
 describe("a long config file path, in the files list", () => {
     const longPath =
-        "C:\\Users\\Someone With A Long Name\\Documents\\Material BlueMap Projects\\survival-server-backups-2026\\config\\maps\\overworld.conf";
+        "C:\\Users\\Someone With A Long Name\\Documents\\Worldlens Projects\\survival-server-backups-2026\\config\\maps\\overworld.conf";
 
     function renderWithPlan(plan: WorkspacePlan) {
         return mount(ConfigApplyDialog, {

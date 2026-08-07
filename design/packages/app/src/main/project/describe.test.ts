@@ -15,7 +15,7 @@ import {
     projectFileSchema,
     type ProjectFile,
     type ProjectMap,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 import { describeProjectChange, describeProjectRestore, describeReadFailure } from "./index.js";
 

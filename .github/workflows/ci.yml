@@ -139,7 +139,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm build
-      # After `build`, never before: a package resolves a sibling `@material-bluemap/*`
+      # After `build`, never before: a package resolves a sibling `@worldlens/*`
       # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
       # cross-package import is a "cannot find module" until the build has run.
       #
@@ -737,7 +737,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter @material-bluemap/parts run build
+          pnpm --filter @worldlens/parts run build
 
       # Nothing happens here on an ordinary build: every asset this release carries today
       # is far under the cap, `split` stays 0, and the notes below say nothing about

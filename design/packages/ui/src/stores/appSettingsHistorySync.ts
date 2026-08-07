@@ -30,7 +30,7 @@
  *
  * ## Every `localStorage`-backed store is either wired here, or excluded here by name
  *
- * `docs/config-history.md` names every `material-bluemap-*` preference this package keeps.
+ * `docs/config-history.md` names every `worldlens-*` preference this package keeps.
  * Each one now does exactly one of two things, and {@link APP_SETTINGS_HISTORY_KEYS} plus
  * {@link EXCLUDED_APP_SETTINGS} are the audit trail for which: a store either calls
  * {@link recordAppSetting} from wherever it already writes `localStorage`, under the key
@@ -65,7 +65,7 @@ function valuesBagFrom(current: unknown): Record<string, unknown> {
  * convention for the surfaces this build has not wired in yet.
  */
 export function recordAppSetting(key: string, value: unknown): void {
-    const bridge = typeof window === "undefined" ? null : window.materialBluemap;
+    const bridge = typeof window === "undefined" ? null : window.worldlens;
     const save = simpleHistorySaveFn(bridge, "appSettingsHistory");
     if (save === null) return;
     const read = simpleHistoryReadFn(bridge, "appSettingsHistory");
@@ -125,10 +125,10 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     // its own `localStorage` key (see `DEFAULT_TAB_STORAGE_KEY` and each `storage-key`
     // prop) - `writeTabWorkspace` records under `tabs.<that key>` so the four cannot
     // collide in the shared bag the way they would if they all recorded under "tabs".
-    { key: "tabs.material-bluemap-tabs", owner: "components/tabs/tabStorage.ts" },
-    { key: "tabs.material-bluemap-settings-tabs", owner: "components/tabs/tabStorage.ts" },
-    { key: "tabs.material-bluemap-config-editor-tabs", owner: "components/tabs/tabStorage.ts" },
-    { key: "tabs.material-bluemap-project-editor-tabs", owner: "components/tabs/tabStorage.ts" },
+    { key: "tabs.worldlens-tabs", owner: "components/tabs/tabStorage.ts" },
+    { key: "tabs.worldlens-settings-tabs", owner: "components/tabs/tabStorage.ts" },
+    { key: "tabs.worldlens-config-editor-tabs", owner: "components/tabs/tabStorage.ts" },
+    { key: "tabs.worldlens-project-editor-tabs", owner: "components/tabs/tabStorage.ts" },
 ];
 
 /** One store's key, its owner, and why it is deliberately never mirrored into history. */

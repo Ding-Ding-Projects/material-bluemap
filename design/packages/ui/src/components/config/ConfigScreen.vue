@@ -22,7 +22,7 @@ import {
     VToolbar,
     VTooltip,
 } from "vuetify/components";
-import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@material-bluemap/config";
+import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@worldlens/config";
 import ConfigApplyDialog from "./ConfigApplyDialog.vue";
 import { HistoryPanel } from "../history/index.js";
 import { GlossaryTerm } from "../glossary/index.js";
@@ -58,7 +58,7 @@ import { notices } from "../../stores/notices.js";
  * Everything BlueMap can be told, in one place: the four singleton config files,
  * one editor per map, one per storage, and the command-line flags a run is
  * started with. Nothing is a curated subset. The forms are generated from
- * `@material-bluemap/config`, so what appears here is exactly what BlueMap
+ * `@worldlens/config`, so what appears here is exactly what BlueMap
  * reads, and a setting added to the schema arrives with its control, its
  * documentation and its re-render warning already attached.
  *
@@ -213,7 +213,7 @@ watch(workspace, async (value) => {
  * points at the setting that owns it.
  */
 async function readConsent(): Promise<void> {
-    const bridge = (window as { materialBluemap?: { readConsent?: () => Promise<{ accepted: boolean }> } }).materialBluemap;
+    const bridge = (window as { worldlens?: { readConsent?: () => Promise<{ accepted: boolean }> } }).worldlens;
     if (bridge?.readConsent === undefined) return;
     try {
         consentAccepted.value = (await bridge.readConsent()).accepted;
@@ -534,7 +534,7 @@ async function confirmSave(): Promise<void> {
 
         // A history that cannot be kept must not turn a save that worked into one that
         // failed, so this is fire-and-forget: the bridge call never rejects.
-        void window.materialBluemap?.history?.snapshot(current.folder);
+        void window.worldlens?.history?.snapshot(current.folder);
 
         workspace.value = markWorkspaceSaved(current, currentPlan);
         applyOpen.value = false;
@@ -692,7 +692,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
             <TabbedNavigation
                 ref="tabsNav"
                 :pages="pages"
-                storage-key="material-bluemap-config-editor-tabs"
+                storage-key="worldlens-config-editor-tabs"
                 :window-label="t('config.shell.windowLabel', 'The options editor')"
                 :strip-label="t('config.shell.tabsLabel', 'Config screens')"
                 class="mb-config-screen__tabs"

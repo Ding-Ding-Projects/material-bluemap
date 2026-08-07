@@ -1,4 +1,4 @@
-import { MatrixM4f } from "@material-bluemap/shared";
+import { MatrixM4f } from "@worldlens/shared";
 import { BlockRendererType } from "../../../../map/hires/block/BlockRendererType.js";
 import { ResourcePath } from "../../../ResourcePath.js";
 import { AbstractTypeAdapterFactory } from "../../../adapter/AbstractTypeAdapterFactory.js";

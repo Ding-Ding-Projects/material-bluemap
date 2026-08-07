@@ -64,7 +64,7 @@ beforeEach(async () => {
     await writeFile(join(world, "level.dat"), "level");
     await writeFile(join(world, "region", "r.0.0.mca"), "region");
     await writeFile(
-        join(world, "material-bluemap.project.json"),
+        join(world, "worldlens.project.json"),
         JSON.stringify({
             version: 1,
             id: "p",

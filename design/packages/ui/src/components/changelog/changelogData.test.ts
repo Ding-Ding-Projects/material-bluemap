@@ -64,7 +64,7 @@ describe("the generated changelog", () => {
     });
 
     it("resolves its commit links against this repository", () => {
-        expect(CHANGELOG_REPOSITORY_URL).toBe("https://github.com/Ding-Ding-Projects/material-bluemap");
+        expect(CHANGELOG_REPOSITORY_URL).toBe("https://github.com/Ding-Ding-Projects/worldlens");
     });
 
     it("carries a full SHA on every entry, with the short form a real prefix of it", () => {

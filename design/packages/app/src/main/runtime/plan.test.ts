@@ -15,7 +15,7 @@ const LINUX = { platform: "linux" as const, home: "/home/somebody" };
 function dockerOptions(overrides: Record<string, unknown> = {}): Parameters<typeof planDockerLaunch>[0] {
     return {
         role: "render",
-        containerName: "material-bluemap-render-world-abc",
+        containerName: "worldlens-render-world-abc",
         jarPath: "/opt/app/cli.jar",
         hostConfigDir: "/srv/renders/world/config-container",
         hostDataDir: "/srv/renders/world/data",
@@ -136,8 +136,8 @@ describe("a Docker launch", () => {
 
     it("removes the container when it ends and gives it a name it can be stopped by", () => {
         const launch = planDockerLaunch(dockerOptions());
-        expect(launch.args.slice(0, 4)).toEqual(["run", "--rm", "--name", "material-bluemap-render-world-abc"]);
-        expect(launch.containerName).toBe("material-bluemap-render-world-abc");
+        expect(launch.args.slice(0, 4)).toEqual(["run", "--rm", "--name", "worldlens-render-world-abc"]);
+        expect(launch.containerName).toBe("worldlens-render-world-abc");
     });
 
     it("puts an init process at PID 1, so a stop reaches the JVM", () => {
@@ -182,11 +182,11 @@ describe("a Docker launch", () => {
 
 describe("naming and stopping a container", () => {
     it("keeps a name Docker will accept", () => {
-        expect(containerName("material-bluemap-render", "world-9f2c1a")).toBe(
-            "material-bluemap-render-world-9f2c1a",
+        expect(containerName("worldlens-render", "world-9f2c1a")).toBe(
+            "worldlens-render-world-9f2c1a",
         );
-        expect(containerName("material-bluemap-render", "my world!")).toBe("material-bluemap-render-my-world-");
-        expect(containerName("", "")).toBe("material-bluemap");
+        expect(containerName("worldlens-render", "my world!")).toBe("worldlens-render-my-world-");
+        expect(containerName("", "")).toBe("worldlens");
     });
 
     it("stops politely, with a deadline", () => {

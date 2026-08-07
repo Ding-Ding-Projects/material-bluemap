@@ -45,8 +45,8 @@ import {
     manifestNameFor,
     readManifest,
     sha256File,
-} from "@material-bluemap/parts";
-import type { PartRecord, PartsManifest } from "@material-bluemap/parts";
+} from "@worldlens/parts";
+import type { PartRecord, PartsManifest } from "@worldlens/parts";
 import * as failures from "./failure.js";
 import type { DownloadFailure } from "./failure.js";
 import { HttpDownloadError, downloadToFile, isAbort } from "./http.js";
@@ -321,7 +321,7 @@ function assetAccess(token: string | null): AssetAccess {
             return token === null ? asset.downloadUrl : asset.apiUrl;
         },
         headers(): Record<string, string> {
-            if (token === null) return { "user-agent": "material-bluemap" };
+            if (token === null) return { "user-agent": "worldlens" };
             return { ...apiHeaders(token), accept: "application/octet-stream" };
         },
     };

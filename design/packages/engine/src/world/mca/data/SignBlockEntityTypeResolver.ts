@@ -1,4 +1,4 @@
-import type { TypeToken, TypeResolver } from "@material-bluemap/nbt";
+import type { TypeToken, TypeResolver } from "@worldlens/nbt";
 import {
     LEGACY_SIGN_BLOCK_ENTITY_TOKEN,
     SIGN_BLOCK_ENTITY_TOKEN,

@@ -1,4 +1,4 @@
-import { Grid, type Color, type Vector2i } from "@material-bluemap/shared";
+import { Grid, type Color, type Vector2i } from "@worldlens/shared";
 import type { ResourcePack } from "../resources/pack/resourcepack/ResourcePack.js";
 import type { MapStorage } from "../storage/MapStorage.js";
 import type { World } from "../world/World.js";

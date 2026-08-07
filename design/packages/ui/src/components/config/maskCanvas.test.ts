@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { BoxMask, CircleMask, MaskConfig } from "@material-bluemap/config";
+import type { BoxMask, CircleMask, MaskConfig } from "@worldlens/config";
 import {
     BLOCKS_PER_REGION,
     CHUNK_BLOCKS,

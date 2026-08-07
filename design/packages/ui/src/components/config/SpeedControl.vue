@@ -12,7 +12,7 @@ import {
     VTable,
     VTooltip,
 } from "vuetify/components";
-import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
 import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import { fieldValue, type EditableConfigFile } from "./configModel.js";
 import {

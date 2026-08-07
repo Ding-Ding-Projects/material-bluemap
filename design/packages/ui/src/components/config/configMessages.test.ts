@@ -20,7 +20,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
-import { generateConfigSet, renderPluginTemplate, type ListControl } from "@material-bluemap/config";
+import { generateConfigSet, renderPluginTemplate, type ListControl } from "@worldlens/config";
 import MapsScreen from "./MapsScreen.vue";
 import StoragesScreen from "./StoragesScreen.vue";
 import ConfigListField from "./ConfigListField.vue";

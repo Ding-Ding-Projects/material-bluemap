@@ -21,7 +21,7 @@
  */
 
 /** Who says so, which is the difference between a citation and an assertion. */
-export type FidelitySource = "chunker" | "material-bluemap";
+export type FidelitySource = "chunker" | "worldlens";
 
 export interface FidelityNote {
     readonly id: string;
@@ -74,7 +74,7 @@ export const FIDELITY_NOTES: readonly FidelityNote[] = [
             "the closest Java block it can, and where there is no counterpart the result is " +
             "an approximation. Bedrock-only blocks and some block states will therefore " +
             "render as something near to, rather than exactly, what was there.",
-        source: "material-bluemap",
+        source: "worldlens",
     },
     {
         id: "not-a-round-trip",
@@ -83,7 +83,7 @@ export const FIDELITY_NOTES: readonly FidelityNote[] = [
             "The converted world is a snapshot taken at the moment of conversion. Playing " +
             "the Bedrock world afterwards does not update it, and the map rendered from the " +
             "copy will not show anything built since. Convert again to bring it up to date.",
-        source: "material-bluemap",
+        source: "worldlens",
     },
 ];
 

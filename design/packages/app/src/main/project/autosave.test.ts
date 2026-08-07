@@ -19,7 +19,7 @@ import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { PROJECT_FORMAT_VERSION, projectFileSchema, type ProjectFile } from "@material-bluemap/config";
+import { PROJECT_FORMAT_VERSION, projectFileSchema, type ProjectFile } from "@worldlens/config";
 
 import { runGit, type GitResult, type GitRunner } from "../history/index.js";
 

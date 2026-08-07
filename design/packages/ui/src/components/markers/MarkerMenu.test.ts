@@ -50,7 +50,7 @@ beforeAll(() => {
     // `defineProperty` mutations to `globalThis` are not guaranteed to be undone between
     // files sharing a worker, so this file would silently inherit whatever key/value
     // pairs that other file's stand-in was left holding, including a stale
-    // `material-bluemap-marker-filters-open` from an entirely unrelated run. Owning this
+    // `worldlens-marker-filters-open` from an entirely unrelated run. Owning this
     // file's own stand-in - installed here, cleared in `beforeEach` below - makes the
     // filters-open state deterministic regardless of what ran before it.
     Object.defineProperty(globalThis, "localStorage", {

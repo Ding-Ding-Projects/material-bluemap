@@ -1,11 +1,11 @@
 /**
  * The bridge behind `PathField.vue`: the screen-agnostic folder/file picker.
  *
- * `configHost.ts` probes `window.materialBluemap.config` and is only ever installed by three
+ * `configHost.ts` probes `window.worldlens.config` and is only ever installed by three
  * screens (`WorldScreen.vue`, `ProjectsScreen.vue`, `ConfigScreen.vue`) through
  * `provideConfigHost()`. Settings, Backup and the remote target editor sit outside all three,
  * so `useConfigHost()` resolves to `null` there even in the real desktop app. This probes
- * `window.materialBluemap.dialog` directly instead - reachable from anywhere in the renderer,
+ * `window.worldlens.dialog` directly instead - reachable from anywhere in the renderer,
  * with nothing to provide and nothing to inject.
  *
  * Same all-or-nothing rule as `createBridgeConfigHost`: a half-wired bridge is worse than
@@ -37,7 +37,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 export function resolvePathFieldBridge(): PathFieldBridge | null {
     if (typeof window === "undefined") return null;
 
-    const root = (window as { materialBluemap?: { dialog?: unknown } }).materialBluemap;
+    const root = (window as { worldlens?: { dialog?: unknown } }).worldlens;
     const api = root?.dialog as Partial<PathFieldBridge> | undefined;
     if (!api) return null;
     if (!isFunction(api.pickFolder) || !isFunction(api.pickFile)) return null;

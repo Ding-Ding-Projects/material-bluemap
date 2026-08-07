@@ -34,7 +34,7 @@
 import { win32 } from "node:path";
 
 /** Electron's `productName`, which is also the leaf of its `userData` directory. */
-export const PRODUCT_DIRECTORY = "Material BlueMap";
+export const PRODUCT_DIRECTORY = "Worldlens";
 
 /**
  * Folder names that mean "this is a sync root".
@@ -160,7 +160,7 @@ export function resolveDocumentsDirectory(inputs: DocumentsInputs): DocumentsRes
 }
 
 /**
- * The folder rendered maps go in by default: `<Documents>\Material BlueMap\maps`.
+ * The folder rendered maps go in by default: `<Documents>\Worldlens\maps`.
  *
  * Documents rather than `%APPDATA%` because a tile tree is the person's own output and
  * belongs somewhere they can find it, back it up and point a web server at - not inside an

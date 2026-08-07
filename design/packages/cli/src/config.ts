@@ -32,7 +32,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { cpus, totalmem } from "node:os";
 import { join } from "node:path";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import {
     fileStorageDescriptor,
     generateConfigSet,
@@ -56,7 +56,7 @@ import {
     type SqlStorageConfig,
     type WebappConfig,
     type WebserverConfig,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 import type { Logger } from "./logger.js";
 
 /** upstream: `BlueMapCLI.configFolder`'s field default, `Path.of("config")`. */

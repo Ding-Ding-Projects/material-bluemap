@@ -104,7 +104,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** The catalog half of the preload, or null when this build has none. */
 export function resolveWorldCatalogBridge(): WorldCatalogBridge | null {
-    const host = (globalThis as { materialBluemap?: Partial<WorldCatalogBridge> }).materialBluemap;
+    const host = (globalThis as { worldlens?: Partial<WorldCatalogBridge> }).worldlens;
     if (host === undefined) return null;
 
     const required = [
@@ -135,8 +135,8 @@ export function resolveWorldCatalogBridge(): WorldCatalogBridge | null {
  * accept the drop and doing nothing.
  */
 export function pathForDroppedFile(file: File): string | null {
-    const host = (globalThis as { materialBluemap?: { pathForDroppedFile?: (f: File) => string | null } })
-        .materialBluemap;
+    const host = (globalThis as { worldlens?: { pathForDroppedFile?: (f: File) => string | null } })
+        .worldlens;
     if (!isFunction(host?.pathForDroppedFile)) return null;
     try {
         return host.pathForDroppedFile(file);

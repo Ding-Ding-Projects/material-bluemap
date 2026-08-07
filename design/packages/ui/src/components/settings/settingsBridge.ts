@@ -2,7 +2,7 @@
  * The seam between the settings surface and the main process.
  *
  * Every type here is a structural mirror of one the Electron preload exposes on
- * `window.materialBluemap`, restated rather than imported for the same reason
+ * `window.worldlens`, restated rather than imported for the same reason
  * `worldBridge.ts` and `firstRunFlow.ts` restate theirs: this package compiles and runs
  * in three places and only one of them has a preload. In a browser tab there is no main
  * process to ask, and under Vitest the whole surface is driven by a fake.
@@ -249,7 +249,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** The preload, or null when there is none. Every method on it is still optional. */
 export function resolveSettingsBridge(): SettingsBridge | null {
-    const host = (globalThis as { materialBluemap?: SettingsBridge }).materialBluemap;
+    const host = (globalThis as { worldlens?: SettingsBridge }).worldlens;
     return host ?? null;
 }
 

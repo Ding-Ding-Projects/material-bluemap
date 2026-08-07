@@ -1,4 +1,4 @@
-# `@material-bluemap/worldgen`
+# `@worldlens/worldgen`
 
 Generates a **synthetic Minecraft world, written directly in Anvil format by this
 repository**, for use as a deterministic render fixture.
@@ -7,7 +7,7 @@ repository**, for use as a deterministic render fixture.
 > Nothing here is produced by Minecraft. There is no server jar, no client jar, no
 > EULA to accept, and nothing is downloaded at generation time. Every byte of
 > `level.dat` and of every `region/r.X.Z.mca` is written by the code in `src/`, on top
-> of this project's own `@material-bluemap/nbt` writer. The terrain is made up: it is
+> of this project's own `@worldlens/nbt` writer. The terrain is made up: it is
 > plausible-looking, not vanilla-accurate, and a seed here has nothing to do with the
 > same number typed into Minecraft.
 
@@ -15,7 +15,7 @@ repository**, for use as a deterministic render fixture.
 
 The screenshot job used to point at a third party's public BlueMap demo server, which
 meant every push spent someone else's bandwidth and produced captures that changed with
-their uptime ([issue #17](https://github.com/Ding-Ding-Projects/material-bluemap/issues/17)).
+their uptime ([issue #17](https://github.com/Ding-Ding-Projects/worldlens/issues/17)).
 A world this repository generates itself is free, offline, reproducible from a recorded
 seed, and — because it goes out through our NBT writer and comes back in through our
 Anvil reader — it exercises the format code on the way.
@@ -149,7 +149,7 @@ generator version. Two things are worth being precise about:
 ### As a library
 
 ```ts
-import { generateWorld, zipWorld, TerrainGenerator } from "@material-bluemap/worldgen";
+import { generateWorld, zipWorld, TerrainGenerator } from "@worldlens/worldgen";
 
 const world = await generateWorld({ seed: 1234, size: 512, outDir: "./out" });
 await zipWorld(world, "./out/world.zip");

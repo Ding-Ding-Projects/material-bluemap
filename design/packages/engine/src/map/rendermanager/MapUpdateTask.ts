@@ -1,6 +1,6 @@
-import { IOException, INT, TypeToken } from "@material-bluemap/nbt";
-import type { ObjectSchema } from "@material-bluemap/nbt";
-import type { Vector2i } from "@material-bluemap/shared";
+import { IOException, INT, TypeToken } from "@worldlens/nbt";
+import type { ObjectSchema } from "@worldlens/nbt";
+import type { Vector2i } from "@worldlens/shared";
 import type { BmMap } from "../BmMap.js";
 import { CombinedRenderTask } from "./CombinedRenderTask.js";
 import type { MapRenderTask } from "./MapRenderTask.js";

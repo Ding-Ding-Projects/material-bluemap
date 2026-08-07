@@ -1,4 +1,4 @@
-import { Color, Key, Vector3f, Vector4f } from "@material-bluemap/shared";
+import { Color, Key, Vector3f, Vector4f } from "@worldlens/shared";
 import { ResourcePath } from "../../../resources/ResourcePath.js";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import { BlockState as PackBlockState } from "../../../resources/pack/resourcepack/blockstate/BlockState.js";

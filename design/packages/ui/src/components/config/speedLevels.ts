@@ -2,7 +2,7 @@
  * The novice "Speed" dial: one 1-5 number standing in for two raw `core.conf`
  * settings at once, `render-thread-count` and `render-thread-priority`.
  *
- * Both are documented in `@material-bluemap/config`'s `core.ts`:
+ * Both are documented in `@worldlens/config`'s `core.ts`:
  *
  *   render-thread-count     "A higher value can improve the render speed, but
  *                            could impact performance on the host machine."

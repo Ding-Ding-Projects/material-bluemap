@@ -80,7 +80,7 @@ async function onCopy(): Promise<void> {
     const url = host.status.value.url;
     if (url === null) return;
     try {
-        const clipboardBridge = typeof window === "undefined" ? undefined : window.materialBluemap;
+        const clipboardBridge = typeof window === "undefined" ? undefined : window.worldlens;
         if (clipboardBridge) await clipboardBridge.writeClipboardText(url);
         else await navigator.clipboard.writeText(url);
         raiseNotice("success", t("preview.notice.copied", "The address was copied."));

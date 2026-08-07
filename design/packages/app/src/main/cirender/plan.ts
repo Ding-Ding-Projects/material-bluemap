@@ -3,7 +3,7 @@
  *
  * A CI render must be **repeatable**, and repeatable means it does not depend on what
  * somebody typed into a form at four in the afternoon. The world carries
- * `material-bluemap.project.json` at its root - see `@material-bluemap/config`'s
+ * `worldlens.project.json` at its root - see `@worldlens/config`'s
  * `project.ts` - and that file already holds the maps, their ids, their display names and
  * their dimensions. So the plan is read out of it, and syncing the same world twice
  * produces the same inputs without anybody remembering anything.
@@ -12,7 +12,7 @@
  *
  * `render-world.yml` takes nine `workflow_dispatch` inputs, and GitHub caps a workflow at
  * ten. The map's ninety-odd settings do not travel through that narrow API at all. They
- * already live in `material-bluemap.project.json`, inside the exact world archive this
+ * already live in `worldlens.project.json`, inside the exact world archive this
  * sync uploads. The runner reads the selected map's complete HOCON from that project and
  * writes it before its runtime-owned path and shard overrides. This contract records that
  * route explicitly so the app, workflow and UI cannot drift back to a guessed subset.
@@ -28,8 +28,8 @@
 
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { PROJECT_FILE_NAME, parseProjectFile } from "@material-bluemap/config";
-import type { ProjectFile, ProjectMap } from "@material-bluemap/config";
+import { PROJECT_FILE_NAME, parseProjectFile } from "@worldlens/config";
+import type { ProjectFile, ProjectMap } from "@worldlens/config";
 import { RENDER_WORKFLOW_FILE } from "./actions.js";
 
 export { PROJECT_FILE_NAME, RENDER_WORKFLOW_FILE };
@@ -56,7 +56,7 @@ export interface CiRenderPlan {
     readonly configuration: {
         readonly route: "project-archive";
         readonly complete: true;
-        readonly file: "material-bluemap.project.json";
+        readonly file: typeof PROJECT_FILE_NAME;
     };
     /** Backward-compatible UI field. Complete project transport makes it always empty. */
     readonly notCarried: readonly string[];
@@ -118,7 +118,7 @@ function describe(path: string, failure: { kind: string } & Record<string, unkno
     switch (failure.kind) {
         case "too-new":
             return (
-                `${path} was written by a newer version of Material BlueMap (format ` +
+                `${path} was written by a newer version of Worldlens (format ` +
                 `${String(failure["version"])}). Update the app rather than letting this build guess ` +
                 "at settings it does not understand."
             );

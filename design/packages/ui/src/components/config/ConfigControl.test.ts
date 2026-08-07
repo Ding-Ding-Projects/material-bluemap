@@ -31,8 +31,8 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp, VCombobox } from "vuetify/components";
-import type { Control, PlainValue } from "@material-bluemap/config";
-import { descriptorFor } from "@material-bluemap/config";
+import type { Control, PlainValue } from "@worldlens/config";
+import { descriptorFor } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import ColorField from "../appearance/ColorField.vue";
 import PathField from "../PathField.vue";
@@ -196,7 +196,7 @@ describe("a path setting", () => {
     const driverJar = controlFor("storage-sql", "driver-jar");
 
     afterEach(() => {
-        delete (window as unknown as { materialBluemap?: unknown }).materialBluemap;
+        delete (window as unknown as { worldlens?: unknown }).worldlens;
     });
 
     it("renders the one shared PathField, matched to the control's own folder-or-file semantic", () => {
@@ -221,7 +221,7 @@ describe("a path setting", () => {
     });
 
     it("browses through the real bridge end to end: a keyboard-operable button named for the field, writing the pick through to the model", async () => {
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             dialog: {
                 pickFolder: async () => "/picked/world",
                 pickFile: async () => null,

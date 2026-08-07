@@ -1,5 +1,5 @@
 {
-    "name": "@material-bluemap/render-actions",
+    "name": "@worldlens/render-actions",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -7,7 +7,7 @@
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "bin": {
-        "material-bluemap-render-actions": "./dist/cli.js"
+        "worldlens-render-actions": "./dist/cli.js"
     },
     "scripts": {
         "build": "tsc -p tsconfig.json",
@@ -15,6 +15,6 @@
         "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "devDependencies": {
-        "@material-bluemap/worldgen": "workspace:*"
+        "@worldlens/worldgen": "workspace:*"
     }
 }

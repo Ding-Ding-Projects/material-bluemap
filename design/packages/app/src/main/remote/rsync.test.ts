@@ -91,11 +91,11 @@ describe("the command rsync is given", () => {
     });
 
     it("quotes a known_hosts path with a space in it, which Windows always has", () => {
-        // The application data directory on Windows is `...\Material BlueMap\`, and rsync
+        // The application data directory on Windows is `...\Worldlens\`, and rsync
         // splits the remote-shell string itself. An unquoted space there is two arguments.
         const shell = rsyncShellCommand({
             ...OPTIONS,
-            knownHostsFile: "C:\\Users\\me\\AppData\\Roaming\\Material BlueMap\\known_hosts",
+            knownHostsFile: "C:\\Users\\me\\AppData\\Roaming\\Worldlens\\known_hosts",
         });
         expect(shell).toContain('"UserKnownHostsFile=');
     });

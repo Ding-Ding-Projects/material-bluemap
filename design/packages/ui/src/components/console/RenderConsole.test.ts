@@ -173,7 +173,7 @@ describe("advice beside the engine's line", () => {
         expect(wrapper.find(".mb-console__text").text()).toBe("Address already in use");
         // And the advice is separate, and marked as this app speaking.
         expect(wrapper.find(".mb-console__advice").exists()).toBe(true);
-        expect(wrapper.find(".mb-console__speaker").text()).toBe("Material BlueMap");
+        expect(wrapper.find(".mb-console__speaker").text()).toBe("Worldlens");
         expect(wrapper.text()).toContain("mod on the Minecraft server");
         wrapper.unmount();
     });

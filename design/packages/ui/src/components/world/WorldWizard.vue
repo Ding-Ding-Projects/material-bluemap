@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowLeft, mdiArrowRight, mdiCheck, mdiCrosshairsGps, mdiPlay } from "@mdi/js";
 import { VAlert, VBtn, VDivider, VSpacer } from "vuetify/components";
-import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
 import MapIdentityStep from "./MapIdentityStep.vue";
 import MapOptionsStep from "./MapOptionsStep.vue";
 import MapStorageStep from "./MapStorageStep.vue";

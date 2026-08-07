@@ -1,7 +1,7 @@
 /**
  * The seam between the system-dependency installer and the main process.
  *
- * A structural mirror of what the preload exposes on `window.materialBluemap`,
+ * A structural mirror of what the preload exposes on `window.worldlens`,
  * restated rather than imported for the same reason `settingsBridge.ts` restates its
  * own slice: this package compiles and runs in three places (the desktop app, a
  * browser tab, and under Vitest) and only the first of them has a preload. It is
@@ -128,7 +128,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** The preload, or null when there is none. Every method on it is still optional. */
 export function resolveDependencyBridge(): DependencyInstallerBridge | null {
-    const host = (globalThis as { materialBluemap?: DependencyInstallerBridge }).materialBluemap;
+    const host = (globalThis as { worldlens?: DependencyInstallerBridge }).worldlens;
     return host ?? null;
 }
 

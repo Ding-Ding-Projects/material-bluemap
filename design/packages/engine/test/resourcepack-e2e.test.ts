@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { PNG } from "pngjs";
 import { TextureGallery } from "../src/map/TextureGallery.js";
 import { MinecraftVersion } from "../src/resources/MinecraftVersion.js";

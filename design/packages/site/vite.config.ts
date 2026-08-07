@@ -24,8 +24,8 @@ const committedScreenshots = fileURLToPath(new URL("../../../docs/screenshots", 
  * The repository name is read from the environment rather than written in, because it is
  * not a constant: a fork, a rename or a second repository publishing the same site all
  * serve it from a different prefix. A CI probe in a repository named
- * `material-bluemap-ci-probe` built a site whose every asset pointed at
- * `/material-bluemap/`, which is exactly the silent failure the base-path gate exists to
+ * `worldlens-ci-probe` built a site whose every asset pointed at
+ * `/worldlens/`, which is exactly the silent failure the base-path gate exists to
  * catch, arriving through the one door the gate could not see because it was checking
  * against the same hard-coded value.
  *
@@ -34,7 +34,7 @@ const committedScreenshots = fileURLToPath(new URL("../../../docs/screenshots", 
  * plain `pnpm build` working the way it always did.
  */
 const repositoryName = process.env["GITHUB_REPOSITORY"]?.split("/")[1];
-const base = process.env["SITE_BASE"] ?? (repositoryName ? `/${repositoryName}/` : "/material-bluemap/");
+const base = process.env["SITE_BASE"] ?? (repositoryName ? `/${repositoryName}/` : "/worldlens/");
 
 export default defineConfig({
     base,

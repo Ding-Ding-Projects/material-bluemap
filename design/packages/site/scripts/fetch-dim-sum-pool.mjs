@@ -56,7 +56,7 @@ function parseArgs(argv) {
 }
 
 function headers(accept = "application/json") {
-    const value = { accept, "user-agent": "material-bluemap-site-build" };
+    const value = { accept, "user-agent": "worldlens-site-build" };
     const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
     if (token) value.authorization = `Bearer ${token}`;
     return value;

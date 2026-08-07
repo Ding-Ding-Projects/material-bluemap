@@ -1,5 +1,5 @@
 import { LRUCache } from "lru-cache";
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { Part } from "../../../resources/pack/resourcepack/entitystate/Part.js";
 import type { Entity } from "../../../world/Entity.js";

@@ -7,7 +7,7 @@
  * here. Every fact stated below was checked against the schema or the code it describes
  * before being written; see the file comment on each schema module referenced in the doc
  * comments for the source. `anchor` has to match the id `renderMarkdown`'s heading-slugger
- * (`@material-bluemap/viewer`'s `slugifyHeading`) would give the matching `## Heading` in
+ * (`@worldlens/viewer`'s `slugifyHeading`) would give the matching `## Heading` in
  * `docs/glossary.md` - `glossaryTerms.consistency.test.ts` proves that against the real file
  * rather than trusting this comment.
  */

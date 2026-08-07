@@ -114,7 +114,7 @@ export const sshWorldSources: Article = {
                     kind: "paragraph",
                     content: [
                         "The UI seam test resolves the real nested ",
-                        { code: "window.materialBluemap.sshWorldSource" },
+                        { code: "window.worldlens.sshWorldSource" },
                         " shape; mounted tests drive unknown-key review, explicit trust, detection, survey, transfer events and the handoff back to the wizard. Existing tests cover the nine preload channels and the main-process SSH implementation. The UI typecheck, workspace build and surface-policy guards run alongside them.",
                     ],
                 },

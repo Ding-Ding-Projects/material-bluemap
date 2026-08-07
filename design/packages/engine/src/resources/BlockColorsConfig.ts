@@ -1,4 +1,4 @@
-import { Color, Key } from "@material-bluemap/shared";
+import { Color, Key } from "@worldlens/shared";
 import { readFile } from "node:fs/promises";
 import type { BlockColorCalculator } from "../map/hires/block/color/BlockColorCalculator.js";
 import { BlockColorCalculatorFactory } from "../map/hires/block/color/BlockColorCalculatorFactory.js";

@@ -113,7 +113,7 @@ export function createChangelogView(i18n: I18n): HTMLElement {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "material-bluemap-changelog.md";
+        link.download = "worldlens-changelog.md";
         link.click();
         URL.revokeObjectURL(url);
         i18n.bindText(status, "site.filteredExported");

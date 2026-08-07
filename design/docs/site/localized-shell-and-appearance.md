@@ -41,10 +41,10 @@ content renderer and never interpreted as executable HTML.
 
 ## Verification
 
-- `pnpm --filter @material-bluemap/site typecheck`
+- `pnpm --filter @worldlens/site typecheck`
 - `pnpm test --run packages/site/src/content/dateRangePicker.test.ts packages/site/src/content/content.test.ts packages/site/src/search/attachBuilder.test.ts`
 - `pnpm lint`
-- `pnpm --filter @material-bluemap/site build`
+- `pnpm --filter @worldlens/site build`
 
 ## Suggested articles
 

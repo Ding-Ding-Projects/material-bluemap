@@ -1,4 +1,4 @@
-import type { Vector2i } from "@material-bluemap/shared";
+import type { Vector2i } from "@worldlens/shared";
 import type { RenderSettings } from "./hires/RenderSettings.js";
 
 /**

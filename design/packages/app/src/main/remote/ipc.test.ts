@@ -41,7 +41,7 @@ const HEALTHY: PreflightReport = {
     hostKeys: [],
     docker: null,
     freeBytes: 1_000_000_000_000,
-    workDir: "/srv/material-bluemap",
+    workDir: "/srv/worldlens",
 };
 
 function register(

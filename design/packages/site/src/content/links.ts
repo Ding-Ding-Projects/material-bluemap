@@ -7,10 +7,10 @@
  */
 
 export const REPO_OWNER = "Ding-Ding-Projects";
-export const REPO_NAME = "material-bluemap";
+export const REPO_NAME = "worldlens";
 
 /** Base path the site is served from. It is a project page, not a domain root. */
-export const SITE_BASE_PATH = "/material-bluemap/";
+export const SITE_BASE_PATH = "/worldlens/";
 
 export const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
 export const ISSUES_URL = `${REPO_URL}/issues`;

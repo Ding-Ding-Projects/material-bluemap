@@ -20,7 +20,7 @@ function asset(name: string, size: number): Record<string, unknown> {
 function releaseBody(names: [string, number][]): Record<string, unknown> {
     return {
         tag_name: "v0.1.0-build.7",
-        name: "material-bluemap v0.1.0-build.7",
+        name: "worldlens v0.1.0-build.7",
         html_url: "https://github.com/o/r/releases/tag/v0.1.0-build.7",
         assets: names.map(([name, size]) => asset(name, size)),
     };

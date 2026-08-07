@@ -30,7 +30,7 @@ const props = withDefaults(
         /** Shown beside the icon. The window title is set by the document, not here. */
         title?: string;
     }>(),
-    { title: "Material BlueMap" },
+    { title: "Worldlens" },
 );
 
 const { t } = useI18n();

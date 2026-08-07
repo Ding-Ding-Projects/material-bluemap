@@ -122,7 +122,7 @@ const emit = defineEmits<{ "update:open": [value: boolean] }>();
 const { t } = useI18n();
 
 /**
- * The bridge is resolved by the controllers themselves, from `globalThis.materialBluemap`,
+ * The bridge is resolved by the controllers themselves, from `globalThis.worldlens`,
  * exactly as the setup flow and the render flow resolve theirs. It is deliberately not a
  * prop: the shell mounts this with three props and nothing else, and a fourth for
  * plumbing would be a fourth thing for it to get wrong.
@@ -162,18 +162,18 @@ const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
 /**
- * Resolved once, from the same `globalThis.materialBluemap` every other controller on this
+ * Resolved once, from the same `globalThis.worldlens` every other controller on this
  * surface probes, rather than handed down: this surface mounts with three props and
  * nothing else, and a fourth pair for two capabilities most builds and most sessions never
  * touch would be plumbing for its own sake. Null in a browser tab, exactly like every other
  * bridge-backed capability here.
  */
 const profilesHistoryHost = simpleHistoryHostFrom(
-    typeof window === "undefined" ? null : window.materialBluemap,
+    typeof window === "undefined" ? null : window.worldlens,
     "profilesHistory",
 );
 const appSettingsHistoryHost = simpleHistoryHostFrom(
-    typeof window === "undefined" ? null : window.materialBluemap,
+    typeof window === "undefined" ? null : window.worldlens,
     "appSettingsHistory",
 );
 
@@ -678,7 +678,7 @@ function onDrawer(value: boolean): void {
             <TabbedNavigation
                 ref="tabsNav"
                 :pages="settingsPages"
-                storage-key="material-bluemap-settings-tabs"
+                storage-key="worldlens-settings-tabs"
                 :strip-label="t('settings.tabs.strip', 'Settings sections')"
                 :window-label="t('settings.title', 'Settings')"
             >

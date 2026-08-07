@@ -1,4 +1,4 @@
-# `@material-bluemap/config`
+# `@worldlens/config`
 
 BlueMap's configuration, modelled well enough to generate an options GUI from and
 to hand back to the real Java CLI.
@@ -152,7 +152,7 @@ never reach a log, an exported diagnostic, or an issue comment.
 ### Reading a file the CLI generated
 
 ```ts
-import { descriptorFor, parseConfigText } from "@material-bluemap/config";
+import { descriptorFor, parseConfigText } from "@worldlens/config";
 
 const result = parseConfigText(descriptorFor("core"), await readFile(path, "utf8"));
 
@@ -167,7 +167,7 @@ not camelCase, so what you read and what is in the file are the same thing.
 ### Changing one setting without wrecking the file
 
 ```ts
-import { parseHocon, setPlainValue, writeHocon } from "@material-bluemap/config";
+import { parseHocon, setPlainValue, writeHocon } from "@worldlens/config";
 
 const document = parseHocon(text);
 await writeFile(path, writeHocon(setPlainValue(document, ["update-cooldown"], 120)));
@@ -180,7 +180,7 @@ setting lands where its documentation already is.
 ### Generating a config folder
 
 ```ts
-import { generateConfigSet } from "@material-bluemap/config";
+import { generateConfigSet } from "@worldlens/config";
 
 for (const file of generateConfigSet({ webroot, dataFolder, world, version })) {
     // file.path is relative to the config folder; file.text is ready to write
@@ -195,7 +195,7 @@ be launched from.
 ### Expressing a CLI run
 
 ```ts
-import { buildCliArgs, formatCliCommand, resolveCliActions } from "@material-bluemap/config";
+import { buildCliArgs, formatCliCommand, resolveCliActions } from "@worldlens/config";
 
 const invocation = { ...EMPTY_INVOCATION, configFolder, render: true, watch: true };
 buildCliArgs(invocation);              // ["-c", "...", "-r", "-u"]

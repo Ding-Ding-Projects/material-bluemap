@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 
 /**
  * Upstream uses a weak string-interner (StringUtil.intern) so that interned property

@@ -18,7 +18,7 @@
  * a diff somebody can read rather than a behaviour somebody has to run the app to observe.
  */
 
-import type { ProjectFile, ProjectMap, ProjectReadFailure, ProjectStorage } from "@material-bluemap/config";
+import type { ProjectFile, ProjectMap, ProjectReadFailure, ProjectStorage } from "@worldlens/config";
 
 import { MAX_NAMED_FILES, joinNames, type HistoryAction } from "../history/index.js";
 
@@ -257,7 +257,7 @@ export function describeReadFailure(failure: ProjectReadFailure, path: string): 
             );
         case "too-new":
             return (
-                `${path} was made by a newer version of Material BlueMap (format ` +
+                `${path} was made by a newer version of Worldlens (format ` +
                 `${String(failure.version)}). This build would have to throw away the settings it ` +
                 `does not understand, so it left the file alone. Update the app to open it.`
             );

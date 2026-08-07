@@ -3,6 +3,9 @@ import {
     FEED_DISABLE_VARIABLE,
     FEED_TOKEN_VARIABLE,
     FEED_URL_VARIABLE,
+    LEGACY_FEED_DISABLE_VARIABLE,
+    LEGACY_FEED_TOKEN_VARIABLE,
+    LEGACY_FEED_URL_VARIABLE,
     describeFeed,
     isSecureFeedUrl,
     resolveFeed,
@@ -14,7 +17,7 @@ const packagedWindows: FeedInputs = {
     platform: "win32",
     arch: "x64",
     version: "0.1.0",
-    repository: "Ding-Ding-Projects/material-bluemap",
+    repository: "Ding-Ding-Projects/worldlens",
     environment: {},
 };
 
@@ -24,7 +27,7 @@ describe("resolveFeed", () => {
         expect(resolution.ok).toBe(true);
         if (!resolution.ok) return;
         expect(resolution.feed.url).toBe(
-            "https://update.electronjs.org/Ding-Ding-Projects/material-bluemap/win32-x64/0.1.0",
+            "https://update.electronjs.org/Ding-Ding-Projects/worldlens/win32-x64/0.1.0",
         );
         expect(resolution.feed.serverType).toBe("default");
         expect(resolution.feed.headers).toEqual({});
@@ -103,6 +106,40 @@ describe("resolveFeed", () => {
         expect(resolution.feed.headers["Authorization"]).toBe("Bearer s3cret-token");
         // The URL is the value that reaches the interface, so the token must not be in it.
         expect(resolution.feed.url).not.toContain("s3cret-token");
+    });
+
+    it("reads legacy update variables but gives Worldlens variables precedence", () => {
+        const legacy = resolveFeed({
+            ...packagedWindows,
+            environment: {
+                [LEGACY_FEED_URL_VARIABLE]: "https://legacy.example/feed",
+                [LEGACY_FEED_TOKEN_VARIABLE]: "legacy-token",
+            },
+        });
+        expect(legacy.ok).toBe(true);
+        if (!legacy.ok) return;
+        expect(legacy.feed.url).toBe("https://legacy.example/feed");
+        expect(legacy.feed.headers.Authorization).toBe("Bearer legacy-token");
+
+        const current = resolveFeed({
+            ...packagedWindows,
+            environment: {
+                [FEED_URL_VARIABLE]: "https://worldlens.example/feed",
+                [LEGACY_FEED_URL_VARIABLE]: "https://legacy.example/feed",
+                [FEED_TOKEN_VARIABLE]: "worldlens-token",
+                [LEGACY_FEED_TOKEN_VARIABLE]: "legacy-token",
+            },
+        });
+        expect(current.ok).toBe(true);
+        if (!current.ok) return;
+        expect(current.feed.url).toBe("https://worldlens.example/feed");
+        expect(current.feed.headers.Authorization).toBe("Bearer worldlens-token");
+
+        const disabled = resolveFeed({
+            ...packagedWindows,
+            environment: { [LEGACY_FEED_DISABLE_VARIABLE]: "true" },
+        });
+        expect(disabled.ok).toBe(false);
     });
 });
 

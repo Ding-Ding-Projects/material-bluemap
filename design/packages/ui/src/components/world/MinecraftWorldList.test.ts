@@ -573,7 +573,7 @@ describe("the step around it", () => {
 
     it("takes a dropped folder when the shell can say where it is", async () => {
         const dropped = "/media/usb/Bastion";
-        vi.stubGlobal("materialBluemap", { pathForDroppedFile: () => dropped });
+        vi.stubGlobal("worldlens", { pathForDroppedFile: () => dropped });
 
         const view = mount(WorldFolderStep, {
             props: {

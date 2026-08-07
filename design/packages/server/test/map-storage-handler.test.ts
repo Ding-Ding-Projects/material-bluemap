@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Compression, FileMapStorage } from "@material-bluemap/engine";
+import { Compression, FileMapStorage } from "@worldlens/engine";
 import { HttpServer } from "../src/http/HttpServer.js";
 import { MapStorageHandler } from "../src/http/MapStorageHandler.js";
 

@@ -1,5 +1,5 @@
 /**
- * Integration contract for `@material-bluemap/site` search surfaces.
+ * Integration contract for `@worldlens/site` search surfaces.
  *
  * This file is the single agreed boundary between the search module (which owns every search
  * bar, the regex builder, and both bulk-close actions) and the rest of the site:

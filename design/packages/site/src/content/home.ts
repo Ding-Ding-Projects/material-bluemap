@@ -57,7 +57,7 @@ import {
 } from "./links.js";
 
 export const home: HomeContent = {
-    title: "material-bluemap",
+    title: "worldlens",
     tagline:
         "A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.",
     summary:
@@ -69,7 +69,7 @@ export const home: HomeContent = {
             content: [
                 { link: "BlueMap", href: UPSTREAM_URL, external: true },
                 " renders a Minecraft world into 3D map tiles and serves them to a browser. ",
-                "material-bluemap ports that renderer from Java to TypeScript, and builds two things on ",
+                "worldlens ports that renderer from Java to TypeScript, and builds two things on ",
                 "top of it: a Material Design 3 desktop application, and a way to render a world on ",
                 "GitHub's runners with nothing installed locally. A headless server serving the same map ",
                 "to an ordinary browser is planned and is not built.",
@@ -862,8 +862,8 @@ export const home: HomeContent = {
             language: "sh",
             caption: "Clone, install and verify",
             code: [
-                "git clone https://github.com/Ding-Ding-Projects/material-bluemap.git",
-                "cd material-bluemap",
+                "git clone https://github.com/Ding-Ding-Projects/worldlens.git",
+                "cd worldlens",
                 "git submodule update --init --recursive",
                 "",
                 "cd design",

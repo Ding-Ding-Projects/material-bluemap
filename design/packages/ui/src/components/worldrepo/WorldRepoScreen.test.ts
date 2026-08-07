@@ -156,7 +156,7 @@ function fakeWorldRepo(overrides: Partial<WorldRepoBridge> = {}): FakeWorldRepo 
                         fullName: `${c.owner}/${c.repo}`,
                         branch: "world",
                         status: "prepared",
-                        marker: { tool: "material-bluemap", version: 1, branch: "world", updatedAt: "2026-01-01T00:00:00.000Z" },
+                        marker: { tool: "worldlens", version: 1, branch: "world", updatedAt: "2026-01-01T00:00:00.000Z" },
                         bootstrapMarker: null,
                         message: `${c.owner}/${c.repo}: its world branch carries this application's world marker - it looks like a repository this application prepared.`,
                     }),
@@ -172,7 +172,7 @@ function fakeWorldRepo(overrides: Partial<WorldRepoBridge> = {}): FakeWorldRepo 
                     owner: request.owner,
                     repo: request.repo,
                     branch: request.branch ?? "world",
-                    marker: { tool: "material-bluemap", version: 1, branch: "world", updatedAt: "2026-01-01T00:00:00.000Z" },
+                    marker: { tool: "worldlens", version: 1, branch: "world", updatedAt: "2026-01-01T00:00:00.000Z" },
                     bootstrapMarker: null,
                     preparedByNewerMarkerVersion: false,
                     project: { version: 1, id: "p1", name: "Andyville", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", appVersion: null, maps: [], storages: [], render: { threads: null, force: false, fixEdges: false, metrics: false, outputFolder: null }, core: null, webapp: null, webserver: null, plugin: null, fromWizard: false },
@@ -243,7 +243,7 @@ function fakeProjectHost(): { host: ProjectHost; writes: { world: string; projec
         readProject: () => Promise.resolve({ ok: false, failure: { kind: "absent" } }),
         writeProject: (world, project) => {
             writes.push({ world, project });
-            return Promise.resolve({ ok: true, file: `${world}/material-bluemap.project.json`, historyOk: true, revision: null, historyMessage: "" } satisfies ProjectWriteAnswer);
+            return Promise.resolve({ ok: true, file: `${world}/worldlens.project.json`, historyOk: true, revision: null, historyMessage: "" } satisfies ProjectWriteAnswer);
         },
     };
     return { host, writes };

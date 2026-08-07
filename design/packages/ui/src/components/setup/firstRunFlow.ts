@@ -68,7 +68,7 @@ export interface FirstRunStateLike {
 
 /**
  * The bridge surface this flow uses. A structural interface rather than a reference to
- * the ambient `Window["materialBluemap"]` type, so a test can hand in a fake and so
+ * the ambient `Window["worldlens"]` type, so a test can hand in a fake and so
  * this module compiles in a build that has no Electron preload at all.
  */
 export interface SetupBridge {
@@ -85,7 +85,7 @@ export interface SetupBridge {
  * `mapStorageDirectory` is the preload's own `render:storageDirectory`, and it exists
  * today. There used to be a `chooseMapStorageDirectory` declared here too, waiting for
  * a folder picker that never landed; the step's browse button is `PathField.vue` now,
- * which reaches the real `window.materialBluemap.dialog` bridge directly through
+ * which reaches the real `window.worldlens.dialog` bridge directly through
  * `pathFieldHost.ts` rather than through this interface, so there is nothing left here
  * for a picker to probe.
  *
@@ -105,13 +105,13 @@ export interface OptionalStorageBridge {
 }
 
 export function resolveBridge(): SetupBridge | null {
-    const host = globalThis as { materialBluemap?: SetupBridge };
-    return host.materialBluemap ?? null;
+    const host = globalThis as { worldlens?: SetupBridge };
+    return host.worldlens ?? null;
 }
 
 export function resolveStorageBridge(): OptionalStorageBridge | null {
-    const host = globalThis as { materialBluemap?: OptionalStorageBridge };
-    return host.materialBluemap ?? null;
+    const host = globalThis as { worldlens?: OptionalStorageBridge };
+    return host.worldlens ?? null;
 }
 
 export interface FirstRunController {

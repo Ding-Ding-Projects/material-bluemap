@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { PackVersion } from "../../../resources/pack/PackVersion.js";
 import { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";

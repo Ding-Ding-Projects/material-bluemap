@@ -40,7 +40,7 @@ vi.mock("electron", () => ({
 
 import { contextBridge, ipcRenderer } from "electron";
 // Side-effect import: evaluating the preload runs its one top-level statement,
-// `exposeInMainWorld("materialBluemap", bridge)`, against the mock above.
+// `exposeInMainWorld("worldlens", bridge)`, against the mock above.
 import "./index.js";
 
 /** Only the download methods this test drives, cast off the exposed bridge object. */
@@ -65,7 +65,7 @@ beforeAll(() => {
     const calls = vi.mocked(contextBridge.exposeInMainWorld).mock.calls;
     // Exactly one bridge is exposed, under the one key the renderer reads it back from.
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.[0]).toBe("materialBluemap");
+    expect(calls[0]?.[0]).toBe("worldlens");
     bridge = calls[0]?.[1] as DownloadsBridge;
 });
 

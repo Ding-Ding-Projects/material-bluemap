@@ -1,5 +1,5 @@
-import { parseHocon } from "@material-bluemap/shared";
-import { getLocalStorage } from "@material-bluemap/viewer";
+import { parseHocon } from "@worldlens/shared";
+import { getLocalStorage } from "@worldlens/viewer";
 import { createI18n, type I18n } from "vue-i18n";
 import { installAppVoice, mergeVoiceInto } from "./copy/appVoice.js";
 import { languageMode } from "./components/setup/setupI18n.js";

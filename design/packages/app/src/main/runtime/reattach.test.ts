@@ -76,7 +76,7 @@ function record(overrides: Partial<ContainerHandoff> = {}): ContainerHandoff {
     return {
         ...newContainerHandoff({
             renderId: "world-abc123",
-            containerName: "material-bluemap-world-abc123",
+            containerName: "worldlens-world-abc123",
             mode: "docker",
             mapIds: ["overworld"],
             docker: "docker",
@@ -226,7 +226,7 @@ describe("scanning at launch", () => {
         // output was going, so the only honest thing is to name it.
         const { subject } = reattacher({
             access: fakeAccess({ state: "running" }),
-            listContainers: () => Promise.resolve(["material-bluemap-something-else"]),
+            listContainers: () => Promise.resolve(["worldlens-something-else"]),
         });
         const scan = await subject.scan();
         expect(scan.strays).toHaveLength(1);
@@ -262,7 +262,7 @@ describe("a container that is still running", () => {
         expect(events.map((event) => event.type)).toContain("finished");
         const progress = events.find((event) => event.type === "progress");
         expect(progress?.type === "progress" && progress.task.percent).toBeCloseTo(25.663, 3);
-        expect(access.collected).toEqual(["material-bluemap-world-abc123"]);
+        expect(access.collected).toEqual(["worldlens-world-abc123"]);
     });
 
     it("removes the note once the run is over, so the offer is not made again", async () => {
@@ -315,7 +315,7 @@ describe("a container that finished while the app was away", () => {
         const result = await subject.resume("world-abc123");
         expect(result.ok).toBe(true);
         expect(result.ok === true && result.action).toBe("collected");
-        expect(access.collected).toEqual(["material-bluemap-world-abc123"]);
+        expect(access.collected).toEqual(["worldlens-world-abc123"]);
         expect(events.map((event) => event.type)).toContain("finished");
     });
 
@@ -326,7 +326,7 @@ describe("a container that finished while the app was away", () => {
 
         const result = await subject.resume("world-abc123");
         expect(result.ok).toBe(true);
-        expect(access.collected).toEqual(["material-bluemap-world-abc123"]);
+        expect(access.collected).toEqual(["worldlens-world-abc123"]);
         const log = events.find((event) => event.type === "log" && event.message.includes("--rm"));
         expect(log).toBeDefined();
     });
@@ -378,7 +378,7 @@ describe("cancelling a reattached container", () => {
         expect(subject.cancel("world-abc123")).toBe(true);
         const result = await running;
 
-        expect(access.stopped).toEqual(["material-bluemap-world-abc123"]);
+        expect(access.stopped).toEqual(["worldlens-world-abc123"]);
         expect(result.ok).toBe(true);
         // A cancelled render is cancelled, never a failure with a code.
         expect(events.some((event) => event.type === "cancelled")).toBe(true);
@@ -438,13 +438,13 @@ describe("a container on this computer", () => {
                 });
             },
         });
-        await access.stop("material-bluemap-world-abc123");
+        await access.stop("worldlens-world-abc123");
         expect(calls[0]).toEqual([
             "docker",
             "stop",
             "--time",
             "8",
-            "material-bluemap-world-abc123",
+            "worldlens-world-abc123",
         ]);
     });
 });

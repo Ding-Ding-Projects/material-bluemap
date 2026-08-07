@@ -4,8 +4,8 @@ import {
     TypeToken,
     type NBTReader,
     type TypeDeserializer,
-} from "@material-bluemap/nbt";
-import { Vector3i } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Vector3i } from "@worldlens/shared";
 
 export const VECTOR3I_TOKEN: TypeToken<Vector3i> = TypeToken.of("Vector3i");
 

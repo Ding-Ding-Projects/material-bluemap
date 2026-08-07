@@ -16,4 +16,4 @@
  * every build passes a value or throws - so a missing `define` entry would fail with an
  * esbuild "could not resolve" error rather than silently leaving this `undefined` at runtime.
  */
-declare const __MATERIAL_BLUEMAP_REPOSITORY__: string;
+declare const __WORLDLENS_REPOSITORY__: string;

@@ -27,7 +27,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import { withGlobalReset } from "../appearance/appearanceStore.js";
 import { appearanceState, commitAppearance } from "../appearance/useAppearance.js";
 import { SCREENS } from "../config/configSearch.js";

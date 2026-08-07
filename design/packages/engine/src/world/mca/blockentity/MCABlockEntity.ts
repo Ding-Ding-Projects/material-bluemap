@@ -5,8 +5,8 @@ import {
     type BlueNBT,
     type FieldsSchema,
     type ObjectSchema,
-} from "@material-bluemap/nbt";
-import type { Key } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import type { Key } from "@worldlens/shared";
 import type { BlockEntity } from "../../BlockEntity.js";
 import { KEY_TOKEN } from "../data/KeyDeserializer.js";
 

@@ -1001,5 +1001,5 @@ type BackupAnswer<T> =
     | { readonly ok: false; readonly message: string };
 
 interface Window {
-    materialBluemap?: MaterialBlueMapBridge;
+    worldlens?: MaterialBlueMapBridge;
 }

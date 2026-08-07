@@ -44,7 +44,7 @@
  * "unlimited" -- typing `-2147483648` by hand remains the way to leave an axis unbounded.
  */
 
-import type { MaskConfig, PlainValue } from "@material-bluemap/config";
+import type { MaskConfig, PlainValue } from "@worldlens/config";
 import { JAVA_DOUBLE_MAX, JAVA_INT_MAX, JAVA_INT_MIN, isUnboundedSentinel } from "./fieldValue.js";
 
 /* -------------------------------------------------------------------------- */

@@ -124,7 +124,7 @@ function fakeBridge(options: {
 }
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 describe("the missing state, with provisioning available", () => {

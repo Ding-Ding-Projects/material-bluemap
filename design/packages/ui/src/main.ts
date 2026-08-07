@@ -1,6 +1,6 @@
 import { createApp, reactive } from "vue";
-import { setI18nAdapter, setReactiveFactory } from "@material-bluemap/viewer";
-import type { ReactiveFactory } from "@material-bluemap/viewer";
+import { setI18nAdapter, setReactiveFactory } from "@worldlens/viewer";
+import type { ReactiveFactory } from "@worldlens/viewer";
 import App from "./App.vue";
 import { vuetify } from "./vuetify.js";
 import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";

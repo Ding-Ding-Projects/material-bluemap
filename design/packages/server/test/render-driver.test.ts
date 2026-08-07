@@ -22,9 +22,9 @@ import {
     type Chunk as ChunkType,
     type ChunkConsumer,
     type World,
-} from "@material-bluemap/engine";
-import { Grid, Key, Vector2i } from "@material-bluemap/shared";
-import { generateWorld } from "@material-bluemap/worldgen";
+} from "@worldlens/engine";
+import { Grid, Key, Vector2i } from "@worldlens/shared";
+import { generateWorld } from "@worldlens/worldgen";
 import { HttpServer } from "../src/http/HttpServer.js";
 import { RenderDriver } from "../src/render/RenderDriver.js";
 import { RenderUpdateHandler } from "../src/http/RenderUpdateHandler.js";

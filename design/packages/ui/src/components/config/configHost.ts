@@ -97,7 +97,7 @@ export interface ConfigHost {
 
 /**
  * The shape the preload bridge is expected to expose, as an optional extension
- * of the existing `window.materialBluemap` object.
+ * of the existing `window.worldlens` object.
  *
  * This is declared here rather than in `bridge.d.ts` so that the editor compiles
  * against a shell that has not grown these methods yet, and degrades to "no host"
@@ -119,7 +119,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 }
 
 /**
- * Probes `window.materialBluemap.config` and returns a host only when every
+ * Probes `window.worldlens.config` and returns a host only when every
  * method is really there.
  *
  * A half-wired bridge is worse than none: it would present a folder picker that
@@ -128,7 +128,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 export function createBridgeConfigHost(): ConfigHost | null {
     if (typeof window === "undefined") return null;
 
-    const root = (window as { materialBluemap?: { config?: unknown } }).materialBluemap;
+    const root = (window as { worldlens?: { config?: unknown } }).worldlens;
     const api = root?.config as Partial<BridgeConfigApi> | undefined;
     if (!api) return null;
 
@@ -157,7 +157,7 @@ export function createBridgeConfigHost(): ConfigHost | null {
     };
 }
 
-const CONFIG_HOST: InjectionKey<ConfigHost | null> = Symbol("material-bluemap-config-host");
+const CONFIG_HOST: InjectionKey<ConfigHost | null> = Symbol("worldlens-config-host");
 
 /** Installs a host for everything below this component. */
 export function provideConfigHost(host: ConfigHost | null): void {

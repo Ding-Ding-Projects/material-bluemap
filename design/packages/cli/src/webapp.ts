@@ -24,7 +24,7 @@ import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { MapConfig, WebappConfig } from "@material-bluemap/config";
+import type { MapConfig, WebappConfig } from "@worldlens/config";
 import type { Logger } from "./logger.js";
 
 /** upstream: `WebFilesManager.Settings`, field-for-field, in upstream's own declared order. */
@@ -155,7 +155,7 @@ export async function ensureWebappFiles(webroot: string, force: boolean, logger:
         throw new WebappSourceNotFoundError(
             "Could not find the webapp bundle to copy. Looked at: " +
                 candidateWebappSources().join(", ") +
-                ". Run 'pnpm --filter @material-bluemap/cli build' from a checkout with the " +
+                ". Run 'pnpm --filter @worldlens/cli build' from a checkout with the " +
                 "vendor/BlueMap submodule present, or set BLUEMAP_WEBAPP_SOURCE to a directory " +
                 "containing a built BlueMap webapp (index.html, assets/, lang/).",
         );

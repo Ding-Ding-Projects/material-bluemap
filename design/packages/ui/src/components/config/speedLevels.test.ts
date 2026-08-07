@@ -1,4 +1,4 @@
-import { coreConfigDescriptor } from "@material-bluemap/config";
+import { coreConfigDescriptor } from "@worldlens/config";
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_SPEED_LEVEL, SPEED_LEVELS, matchThreadCount, speedLevelByNumber, speedLevelFor } from "./speedLevels.js";

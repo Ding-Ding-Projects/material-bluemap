@@ -1,7 +1,7 @@
 /**
  * Binding the CLI's flags to controls.
  *
- * `@material-bluemap/config` models the flags and works out what a given set of
+ * `@worldlens/config` models the flags and works out what a given set of
  * them actually makes the CLI do. What it deliberately does not carry is the
  * mapping from one flag to one field of {@link CliInvocation}, because that is a
  * user-interface concern. It lives here, next to the screen that uses it, and
@@ -13,7 +13,7 @@
  * still has to open a terminal.
  */
 
-import { CLI_FLAGS, type CliFlag, type CliInvocation } from "@material-bluemap/config";
+import { CLI_FLAGS, type CliFlag, type CliInvocation } from "@worldlens/config";
 
 /** A flag's current value, in the shape its control binds to. */
 export type FlagValue = boolean | string | readonly string[] | null;

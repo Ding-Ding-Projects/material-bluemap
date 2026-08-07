@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 
 /**
  * upstream: resourcepack/ResourcePack.java @ v0.10.3-mc1.12

@@ -9,7 +9,7 @@ import {
     TypeToken,
     type BlueNBT,
     type ObjectSchema,
-} from "@material-bluemap/nbt";
+} from "@worldlens/nbt";
 import { BlockState } from "../../BlockState.js";
 import { Chunk } from "../../Chunk.js";
 import { Biome } from "../../biome/Biome.js";

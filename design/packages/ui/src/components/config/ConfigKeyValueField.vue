@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiClose, mdiEye, mdiEyeOff, mdiPlus } from "@mdi/js";
 import { VAlert, VBtn, VTextField } from "vuetify/components";
-import type { KeyValueControl, PlainValue } from "@material-bluemap/config";
+import type { KeyValueControl, PlainValue } from "@worldlens/config";
 
 /**
  * An editable string-to-string mapping. In practice this is one setting:

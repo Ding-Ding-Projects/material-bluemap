@@ -9,7 +9,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 function ready(overrides: Partial<UpdateState> = {}): UpdateState {
@@ -171,21 +171,21 @@ describe("createUpdates", () => {
 describe("resolveUpdateBridge", () => {
     it("answers null when the shell has no updater methods", () => {
         expect(resolveUpdateBridge()).toBeNull();
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {};
+        (globalThis as { worldlens?: unknown }).worldlens = {};
         expect(resolveUpdateBridge()).toBeNull();
     });
 
     it("answers null when it can read the state but never hear about a change", () => {
         // A banner that has to poll is either stale or a timer nobody asked for, and the
         // whole point of this one is that it appears the moment the download finishes.
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             updateState: () => Promise.resolve(unknownUpdateState("0.1.0")),
         };
         expect(resolveUpdateBridge()).toBeNull();
     });
 
     it("reports a partly wired shell as partly wired rather than refusing outright", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             updateState: () => Promise.resolve(unknownUpdateState("0.1.0")),
             onUpdateEvent: () => () => {},
         };

@@ -9,7 +9,7 @@ import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
  * stored without an explicit need, and a filter that silently survives a restart is how a
  * user comes to believe half their maps or settings have disappeared.
  */
-const STORAGE_KEY = "material-bluemap-menu-search";
+const STORAGE_KEY = "worldlens-menu-search";
 
 export interface MenuSearchState {
     /** Whether the search field is revealed. Persisted per surface. */

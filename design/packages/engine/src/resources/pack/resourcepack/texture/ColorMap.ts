@@ -1,4 +1,4 @@
-import type { Color } from "@material-bluemap/shared";
+import type { Color } from "@worldlens/shared";
 import type { PNG } from "pngjs";
 import type { Biome } from "../../../../world/biome/Biome.js";
 

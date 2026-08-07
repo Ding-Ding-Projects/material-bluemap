@@ -60,7 +60,7 @@ describe.skipIf(!shouldRun)("provisionJava against the real Adoptium API", () =>
         "resolves, downloads, verifies and extracts a real Temurin 25 JDK that a real `java -version` accepts",
         { timeout: 10 * 60 * 1000 },
         async () => {
-            const dataDir = mkdtempSync(join(tmpdir(), "material-bluemap-real-jdk-"));
+            const dataDir = mkdtempSync(join(tmpdir(), "worldlens-real-jdk-"));
             try {
                 const record = await provisionJava({ dataDir, feature: 25 });
 

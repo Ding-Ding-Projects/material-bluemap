@@ -21,9 +21,9 @@
  * `/maps/...` is never shadowed by a same-named file on disk.
  */
 
-import type { BmMap, RenderManager } from "@material-bluemap/engine";
-import type { WebserverConfig } from "@material-bluemap/config";
-import { HttpServer, MapStorageHandler, RenderDriver, RenderUpdateHandler, StaticHandler } from "@material-bluemap/server";
+import type { BmMap, RenderManager } from "@worldlens/engine";
+import type { WebserverConfig } from "@worldlens/config";
+import { HttpServer, MapStorageHandler, RenderDriver, RenderUpdateHandler, StaticHandler } from "@worldlens/server";
 import type { Logger } from "./logger.js";
 
 export interface RunningServer {

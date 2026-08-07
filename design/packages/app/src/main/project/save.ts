@@ -16,7 +16,7 @@
  * failed when it did not, and hiding a broken history until they need it.
  */
 
-import type { ProjectFile } from "@material-bluemap/config";
+import type { ProjectFile } from "@worldlens/config";
 
 import type { HistoryRevision } from "../history/index.js";
 

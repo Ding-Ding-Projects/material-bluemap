@@ -132,7 +132,7 @@ const shotDir = join(appRoot, "screenshots");
  * captures an app with no map - which the manifest would then report as `mapDrew: false`
  * rather than passing silently.
  */
-const PROFILE_STORAGE_KEY = "material-bluemap-profiles";
+const PROFILE_STORAGE_KEY = "worldlens-profiles";
 
 /** Window geometries worth proving, including the narrow widths where labels clip. */
 const VIEWPORTS = [
@@ -671,7 +671,7 @@ function captureWorldFolder(): string | null {
     const cli = resolve(here, "../../worldgen/dist/cli.js");
     if (!existsSync(cli)) return null;
 
-    const out = join(tmpdir(), "material-bluemap-capture-world");
+    const out = join(tmpdir(), "worldlens-capture-world");
     try {
         // Deterministic seed: the same world every run, so a capture that changes is a
         // change in the application rather than in the terrain behind it.
@@ -843,9 +843,9 @@ async function ensureFirstRunClosed(): Promise<void> {
         .evaluate(async () => {
             const bridge = (
                 window as unknown as {
-                    materialBluemap?: { completeFirstRun?: () => Promise<unknown> };
+                    worldlens?: { completeFirstRun?: () => Promise<unknown> };
                 }
-            ).materialBluemap;
+            ).worldlens;
             await bridge?.completeFirstRun?.();
         })
         .catch(() => {
@@ -866,7 +866,7 @@ test.beforeAll(async () => {
 
     // A throwaway profile directory, so the first-run flow is genuinely a first run and
     // whatever machine this is running on keeps its own settings.
-    const userData = await mkdtemp(join(tmpdir(), "material-bluemap-capture-"));
+    const userData = await mkdtemp(join(tmpdir(), "worldlens-capture-"));
     console.log(`[harness] user data: ${userData}`);
 
     app = await electron.launch({

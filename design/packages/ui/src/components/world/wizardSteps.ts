@@ -3,7 +3,7 @@
  *
  * Nothing here lists a setting by hand except the five the first, second and
  * fourth steps ask for in their own words. Everything else is whatever remains in
- * `@material-bluemap/config`, grouped by the schema's own groups, so a setting
+ * `@worldlens/config`, grouped by the schema's own groups, so a setting
  * added to the schema tomorrow appears in the options step with no change to this
  * file. That is the whole point: a hand-written list of 92 fields is a list that
  * silently stops being 92 fields, and nobody notices until somebody asks why a
@@ -15,7 +15,7 @@
  * clicks away rather than in a text editor.
  */
 
-import { descriptorFor, type ConfigFileDescriptor, type FieldMeta } from "@material-bluemap/config";
+import { descriptorFor, type ConfigFileDescriptor, type FieldMeta } from "@worldlens/config";
 
 export const WIZARD_STEPS = ["world", "identity", "options", "storage", "review"] as const;
 export type WizardStep = (typeof WIZARD_STEPS)[number];

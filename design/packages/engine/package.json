@@ -1,5 +1,5 @@
 {
-    "name": "@material-bluemap/engine",
+    "name": "@worldlens/engine",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -13,9 +13,9 @@
     },
     "dependencies": {
         "@bokuweb/zstd-wasm": "^0.0.27",
-        "@material-bluemap/config": "workspace:*",
-        "@material-bluemap/nbt": "workspace:*",
-        "@material-bluemap/shared": "workspace:*",
+        "@worldlens/config": "workspace:*",
+        "@worldlens/nbt": "workspace:*",
+        "@worldlens/shared": "workspace:*",
         "chokidar": "^4.0.3",
         "lru-cache": "^11.5.2",
         "lz4js": "^0.2.0",

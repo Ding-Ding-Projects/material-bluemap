@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { WORLDLENS_IDENTITY } from "@material-bluemap/shared";
+import { WORLDLENS_IDENTITY } from "@worldlens/shared";
 import {
     productDisplayName,
     resetProductDisplayName,

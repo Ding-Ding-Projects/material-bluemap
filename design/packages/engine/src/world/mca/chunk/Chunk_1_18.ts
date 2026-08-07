@@ -7,8 +7,8 @@ import {
     listOf,
     type BlueNBT,
     type ObjectSchema,
-} from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import { BlockState } from "../../BlockState.js";
 import type { DimensionType } from "../../DimensionType.js";
 import type { LightData } from "../../LightData.js";

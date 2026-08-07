@@ -1,11 +1,11 @@
 /**
  * Regression coverage for the repository this build's update feed asks.
  *
- * `main/index.ts:611` used to hardcode `"Ding-Ding-Projects/material-bluemap"` as the
+ * `main/index.ts:611` used to hardcode `"Ding-Ding-Projects/worldlens"` as the
  * literal passed to `resolveFeed`'s `repository` field - baked into all 114 installers
  * published so far. `build.mjs` now decides that value once, at bundle time, with
  * `resolveBuildRepository`, and hands it to esbuild's `define` so every occurrence of the
- * `__MATERIAL_BLUEMAP_REPOSITORY__` identifier in the bundled source is replaced with it
+ * `__WORLDLENS_REPOSITORY__` identifier in the bundled source is replaced with it
  * before the file is written (see `src/main/globals.d.ts` for why the identifier needs no
  * import, and `build.mjs` for the CI/override/fallback rules).
  *
@@ -21,7 +21,7 @@
  *     matters for a bundle this shape.
  *  2. The whole point of baking a value in at bundle time is that it can go stale - a
  *     rename, a fork, a second repository publishing the same code - so the runtime escape
- *     hatch (`MATERIAL_BLUEMAP_UPDATE_FEED`) has to keep working *no matter what got baked
+ *     hatch (`WORLDLENS_UPDATE_FEED`, plus its legacy alias) has to keep working *no matter what got baked
  *     in*, including a repository that is wrong. The second test below bakes in a
  *     deliberately different, stale-looking repository and proves the override still wins
  *     and the stale value never reaches the URL.
@@ -34,7 +34,12 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { DEFAULT_REPOSITORY, resolveBuildRepository } from "../build.mjs";
+import {
+    BUILD_REPOSITORY_VARIABLE,
+    DEFAULT_REPOSITORY,
+    LEGACY_BUILD_REPOSITORY_VARIABLE,
+    resolveBuildRepository,
+} from "../build.mjs";
 
 /** `packages/app/`, matching zstdMainBundle.test.ts's own resolution of the same root. */
 const appPackageDir = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -51,7 +56,7 @@ interface FeedBundleResult {
 
 /**
  * Bundles a throwaway entry point that calls the real `resolveFeed` with a `repository`
- * read from the injected `__MATERIAL_BLUEMAP_REPOSITORY__` identifier - exactly how
+ * read from the injected `__WORLDLENS_REPOSITORY__` identifier - exactly how
  * `main/index.ts` does it - defines that identifier the same way `build.mjs` does, and runs
  * the result in a real `node` child process so the reported feed reflects what a genuine
  * bundle would compute, not vite-node's own module semantics.
@@ -89,7 +94,7 @@ async function bundleAndResolveFeed(options: {
             '  platform: "win32",',
             '  arch: "x64",',
             '  version: "9.9.9",',
-            "  repository: __MATERIAL_BLUEMAP_REPOSITORY__,",
+            "  repository: __WORLDLENS_REPOSITORY__,",
             "  environment: process.env,",
             "});",
             "process.stdout.write(JSON.stringify(resolution));",
@@ -106,7 +111,7 @@ async function bundleAndResolveFeed(options: {
         format: "esm",
         target: "node22",
         // Exactly the substitution build.mjs performs for the real bundle.
-        define: { __MATERIAL_BLUEMAP_REPOSITORY__: JSON.stringify(options.injectedRepository) },
+        define: { __WORLDLENS_REPOSITORY__: JSON.stringify(options.injectedRepository) },
     });
 
     try {
@@ -123,14 +128,23 @@ async function bundleAndResolveFeed(options: {
 }
 
 describe("resolveBuildRepository", () => {
-    it("prefers an explicit MATERIAL_BLUEMAP_BUILD_REPOSITORY over everything else", () => {
+    it("prefers an explicit WORLDLENS_BUILD_REPOSITORY over everything else", () => {
         expect(
             resolveBuildRepository({
-                MATERIAL_BLUEMAP_BUILD_REPOSITORY: "Some-Fork/material-bluemap",
-                GITHUB_REPOSITORY: "Ding-Ding-Projects/material-bluemap",
+                WORLDLENS_BUILD_REPOSITORY: "Some-Fork/worldlens",
+                GITHUB_REPOSITORY: "Ding-Ding-Projects/worldlens",
                 CI: "true",
             }),
-        ).toBe("Some-Fork/material-bluemap");
+        ).toBe("Some-Fork/worldlens");
+    });
+
+    it("keeps the legacy build override readable during migration", () => {
+        expect(
+            resolveBuildRepository({
+                [LEGACY_BUILD_REPOSITORY_VARIABLE]: "Some-Fork/worldlens",
+            }),
+        ).toBe("Some-Fork/worldlens");
+        expect(BUILD_REPOSITORY_VARIABLE).toBe("WORLDLENS_BUILD_REPOSITORY");
     });
 
     it("uses GitHub Actions' own GITHUB_REPOSITORY when there is no explicit override", () => {
@@ -149,8 +163,8 @@ describe("resolveBuildRepository", () => {
     });
 
     it("throws on a malformed explicit override instead of shipping it", () => {
-        expect(() => resolveBuildRepository({ MATERIAL_BLUEMAP_BUILD_REPOSITORY: "not-a-repo" })).toThrow(
-            /MATERIAL_BLUEMAP_BUILD_REPOSITORY/,
+        expect(() => resolveBuildRepository({ WORLDLENS_BUILD_REPOSITORY: "not-a-repo" })).toThrow(
+            /WORLDLENS_BUILD_REPOSITORY/,
         );
     });
 
@@ -173,7 +187,12 @@ describe("the repository build.mjs bakes into the bundle", () => {
             injectedRepository,
             // Cleared explicitly so a developer's own shell environment can never leak an
             // override into what is supposed to be the un-overridden case.
-            envOverrides: { MATERIAL_BLUEMAP_UPDATE_FEED: undefined, MATERIAL_BLUEMAP_DISABLE_UPDATES: undefined },
+            envOverrides: {
+                WORLDLENS_UPDATE_FEED: undefined,
+                WORLDLENS_DISABLE_UPDATES: undefined,
+                MATERIAL_BLUEMAP_UPDATE_FEED: undefined,
+                MATERIAL_BLUEMAP_DISABLE_UPDATES: undefined,
+            },
         });
 
         expect(result.stderr).toBe("");
@@ -183,7 +202,7 @@ describe("the repository build.mjs bakes into the bundle", () => {
         expect(resolution.feed?.url).toBe(`https://update.electronjs.org/${injectedRepository}/win32-x64/9.9.9`);
     });
 
-    it("still lets MATERIAL_BLUEMAP_UPDATE_FEED override a stale baked-in repository", async () => {
+    it("still lets WORLDLENS_UPDATE_FEED override a stale baked-in repository", async () => {
         // Deliberately a repository nobody would want live, so the assertion below proves
         // the override actually replaced it rather than merely matching by coincidence.
         const staleInjectedRepository = "Stale-Owner/pre-rename-repo";
@@ -192,7 +211,7 @@ describe("the repository build.mjs bakes into the bundle", () => {
         const result = await bundleAndResolveFeed({
             workDirPrefix: "override-wins",
             injectedRepository: staleInjectedRepository,
-            envOverrides: { MATERIAL_BLUEMAP_UPDATE_FEED: overrideUrl },
+            envOverrides: { WORLDLENS_UPDATE_FEED: overrideUrl },
         });
 
         expect(result.stderr).toBe("");

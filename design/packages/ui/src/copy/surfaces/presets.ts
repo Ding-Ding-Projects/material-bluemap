@@ -6,7 +6,7 @@
  * empty state says "here is what BlueMap would set for you, plainly, before you touch
  * anything", and the render tab says "here is what you already changed, and here is the
  * one button back". Neither is allowed to invent a value. Every number, key and field name
- * a preset writes comes straight from `@material-bluemap/config`'s own schema and its
+ * a preset writes comes straight from `@worldlens/config`'s own schema and its
  * generated templates - `projectModel.ts`'s own doc comment on `PROJECT_PRESETS` names
  * exactly which schema field backs each one - so this module's job is only to say, in
  * words, what those functions already do.

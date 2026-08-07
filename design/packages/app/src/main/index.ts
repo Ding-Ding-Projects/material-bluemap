@@ -25,7 +25,7 @@ import {
     StaticHandler,
     RemoteProxyHandler,
     type RemoteProfile,
-} from "@material-bluemap/server";
+} from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
 import { upstreamJavaEngine } from "./render/engine.js";
 import { installRenderIpc } from "./render/ipc.js";
@@ -640,7 +640,7 @@ function startUpdates(render: RenderIpc): void {
             version: app.getVersion(),
             // Baked in by esbuild's `define` in build.mjs (see globals.d.ts), never written
             // here as a literal. 114 installers already shipped with "Ding-Ding-Projects/
-            // material-bluemap" hardcoded at this exact call site; a rename that moves the
+            // worldlens" hardcoded at this exact call site; a rename that moves the
             // repository would leave every one of them asking an address that only works
             // until GitHub's redirect lapses, is reused, or the repo moves again - and the
             // failure is invisible, because a client that cannot reach its feed just stops
@@ -649,7 +649,7 @@ function startUpdates(render: RenderIpc): void {
             // FEED` runtime override that `environment` below still feeds into `resolveFeed`
             // remains the way to point an already-installed client somewhere else without a
             // rebuild - which is what actually rescues those 114 installers during a rename.
-            repository: __MATERIAL_BLUEMAP_REPOSITORY__,
+            repository: __WORLDLENS_REPOSITORY__,
             environment: process.env,
         }),
         engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,
@@ -1268,11 +1268,11 @@ async function launch(): Promise<void> {
         await createWindow();
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error("[material-bluemap] startup failed:", error);
+        console.error("[worldlens] startup failed:", error);
         dialog.showErrorBox(
-            "Material BlueMap could not start",
+            "Worldlens could not start",
             `${message}\n\nThis is a bug. Please report it with this message at\n` +
-                `https://github.com/Ding-Ding-Projects/material-bluemap/issues`,
+                `https://github.com/Ding-Ding-Projects/worldlens/issues`,
         );
         app.exit(1);
     }

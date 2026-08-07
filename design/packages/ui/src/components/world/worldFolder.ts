@@ -16,7 +16,7 @@
  * language modes apply to them like everything else.
  */
 
-import type { MapPreset } from "@material-bluemap/config";
+import type { MapPreset } from "@worldlens/config";
 
 /** One file or directory found inside the chosen folder. */
 export interface WorldFolderEntry {

@@ -44,9 +44,9 @@ sample provider.
   every schema tab has a unique search field and adjacent builder slot.
 - Focused Pages suites — 127 tests passed across 13 files, including localization, content,
   changelog, article-palette, regex-builder and settings-tab search coverage.
-- `pnpm --filter @material-bluemap/site typecheck`
+- `pnpm --filter @worldlens/site typecheck`
 - `pnpm lint`
-- `pnpm --filter @material-bluemap/site build` — 205 modules transformed.
+- `pnpm --filter @worldlens/site build` — 205 modules transformed.
 
 ## Suggested articles
 

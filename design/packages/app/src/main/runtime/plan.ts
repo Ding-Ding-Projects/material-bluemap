@@ -333,7 +333,7 @@ const CONTAINER_NAME_TAIL = /[^a-zA-Z0-9_.-]+/g;
  */
 export function containerName(prefix: string, renderId: string): string {
     const cleaned = `${prefix}-${renderId}`.replace(CONTAINER_NAME_TAIL, "-").replace(/^[^a-zA-Z0-9]+/, "");
-    const name = cleaned === "" ? "material-bluemap" : cleaned;
+    const name = cleaned === "" ? "worldlens" : cleaned;
     return name.slice(0, 60);
 }
 

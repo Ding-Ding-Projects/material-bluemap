@@ -24,7 +24,7 @@
  *   accepts and validates the flag (the folder must exist) but does not scan it. See
  *   `config.ts`'s doc comment.
  *
- * The vanilla client jar itself IS real: `@material-bluemap/engine`'s `MinecraftVersion`
+ * The vanilla client jar itself IS real: `@worldlens/engine`'s `MinecraftVersion`
  * resolves the version manifest, downloads the jar with SHA-1 verification, and gates the
  * download behind exactly the `accept-download` consent core.conf documents — the same
  * class upstream's own `BlueMapService` calls.
@@ -32,8 +32,8 @@
 
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { DataPack, DirFileSystem, MinecraftVersion, PackVersion, ResourcePack, ZipFileSystem, type PackPath } from "@material-bluemap/engine";
-import type { CoreConfig } from "@material-bluemap/config";
+import { DataPack, DirFileSystem, MinecraftVersion, PackVersion, ResourcePack, ZipFileSystem, type PackPath } from "@worldlens/engine";
+import type { CoreConfig } from "@worldlens/config";
 import type { Logger } from "./logger.js";
 
 export interface ResolvedResources {

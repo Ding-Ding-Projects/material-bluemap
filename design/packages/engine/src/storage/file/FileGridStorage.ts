@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { decodeTilePath, encodeTilePath } from "@material-bluemap/shared";
+import { decodeTilePath, encodeTilePath } from "@worldlens/shared";
 import { walk } from "../../util/FileHelper.js";
 import type { CompressedInputStream } from "../compression/CompressedInputStream.js";
 import type { Compression } from "../compression/Compression.js";

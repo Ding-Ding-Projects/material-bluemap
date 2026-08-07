@@ -183,7 +183,7 @@ export const EXACT = {
 /* -------------------------------------------------------------------------- */
 
 export const FIXED = {
-    "app.name": { en: "Material BlueMap", yue: "Material BlueMap" },
+    "app.name": { en: "Worldlens", yue: "Worldlens" },
 
     "setup.dialogLabel": { en: "First-run setup", yue: "首次啟動設定" },
     "setup.progress": { en: "Step {step} of {total}", yue: "第 {step} 步，共 {total} 步" },
@@ -312,18 +312,18 @@ export const FIXED = {
 export const VOICED = {
     "welcome.heading": {
         en: [
-            "Welcome to Material BlueMap",
-            "Welcome to Material BlueMap",
-            "Welcome to Material BlueMap",
-            "Hello, and welcome to Material BlueMap",
-            "Well hello there. Material BlueMap, reporting for duty",
+            "Welcome to Worldlens",
+            "Welcome to Worldlens",
+            "Welcome to Worldlens",
+            "Hello, and welcome to Worldlens",
+            "Well hello there. Worldlens, reporting for duty",
         ],
         yue: [
-            "歡迎使用 Material BlueMap",
-            "歡迎使用 Material BlueMap",
-            "歡迎使用 Material BlueMap，好高興見到你",
-            "哈囉，歡迎入嚟 Material BlueMap",
-            "喂喂喂，Material BlueMap 恭候多時喇",
+            "歡迎使用 Worldlens",
+            "歡迎使用 Worldlens",
+            "歡迎使用 Worldlens，好高興見到你",
+            "哈囉，歡迎入嚟 Worldlens",
+            "喂喂喂，Worldlens 恭候多時喇",
         ],
     },
     "welcome.what": {

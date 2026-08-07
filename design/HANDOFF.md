@@ -286,9 +286,9 @@ with transfer messages and cancellation. Success feeds the resulting local folde
 the wizard's ordinary `inspect` path.
 
 The renderer seam is feature-detected from the real nested
-`window.materialBluemap.sshWorldSource` namespace and refuses a partial bridge. Focused evidence:
+`window.worldlens.sshWorldSource` namespace and refuses a partial bridge. Focused evidence:
 21/21 mounted/seam/wizard/preload tests pass; the five relevant surface policies pass 55/55;
-`@material-bluemap/ui` typecheck passes; and the production workspace build selected 13 of 14
+`@worldlens/ui` typecheck passes; and the production workspace build selected 13 of 14
 packages and built the UI from 1,553 modules. The language/funny catalogue now covers every
 `components/world` key (the remaining catalogue gap is only `components/project`).
 
@@ -1440,7 +1440,7 @@ being restructured by a different task in the same pass, so the API stops at a c
 ### The CLI and a Dockerfile that was actually built and run (issue #42)
 
 `packages/cli/src/index.ts` was one line, `export {};`. It now mirrors `BlueMapCLI.main
-()`'s real branching, reusing `@material-bluemap/config`'s existing `cli/flags.ts` model
+()`'s real branching, reusing `@worldlens/config`'s existing `cli/flags.ts` model
 rather than a second copy of it, so the GUI and this real CLI cannot quietly drift apart on
 what a flag combination does. It loads a config folder the way `BlueMapConfigManager` does
 (per-file/per-folder defaults, never a single-shot dump), resolves resources through
@@ -1729,7 +1729,7 @@ half-finished edit, not a landed fault.
 1. **The screenshot tool photographs a build, and it is not the build you think it is.**
    Running the build command in `design/packages/app` rebuilds only the background part of
    the app. Everything you can *see* is built by `design/packages/ui`
-   (`pnpm --filter @material-bluemap/ui run build`). Fixing a component, rebuilding the app,
+   (`pnpm --filter @worldlens/ui run build`). Fixing a component, rebuilding the app,
    and taking a new screenshot gives you a picture of the **old** interface, with every test
    still passing. A correct one-line fix was rewritten three times because of this. There is
    now a guard: `design/packages/app/test/freshBundle.ts` refuses to run the screenshot tool
@@ -1981,7 +1981,7 @@ declared the call twelve minutes later and the file now passes its 14 tests on i
 never a defect in anything committed at `9f34cff`. The tree is moving fast enough to watch: a
 run five minutes before this one reported 353 files and 5,721 tests.
 
-`pnpm --filter @material-bluemap/ui build` succeeds locally, which is the exact step that
+`pnpm --filter @worldlens/ui build` succeeds locally, which is the exact step that
 failed on the hosted runner for `80369ec`.
 
 ### CI, stated exactly
@@ -2136,12 +2136,12 @@ still need to be re-run for this additional change.
 
 ## Update, 2026-08-04 — site gate re-run after menu integration
 
-The Pages package now passes `pnpm --filter @material-bluemap/site typecheck`, repository lint,
+The Pages package now passes `pnpm --filter @worldlens/site typecheck`, repository lint,
 the full site Vitest suite (**132 tests across 16 files**), `pnpm --filter
-@material-bluemap/site build` (211 modules), and `git diff --check`. The site build retains the
+@worldlens/site build` (211 modules), and `git diff --check`. The site build retains the
 existing non-failing warning about the main JavaScript chunk exceeding 500 kB. The repository-wide
 Vitest command is not a clean gate on this checkout: 21 engine tests cannot resolve the unbuilt
-`@material-bluemap/nbt` package entry, and config fixture tests fail on the checkout's CRLF/LF
+`@worldlens/nbt` package entry, and config fixture tests fail on the checkout's CRLF/LF
 byte boundary; those failures are outside this Pages change and are reported as such.
 
 The generated changelog was refreshed with `node scripts/build-changelog.mjs` and its check passes
@@ -2371,7 +2371,7 @@ remains a separate cross-surface gap.
 
 Verification in this linked worktree:
 
-- `pnpm --filter @material-bluemap/site typecheck` — passed.
+- `pnpm --filter @worldlens/site typecheck` — passed.
 - Focused site tests — **127 passed** across 13 files, including localization, article-command,
   settings-tab search, content, date-range, changelog and search suites.
 - `pnpm lint` — passed.
@@ -2409,9 +2409,9 @@ authorization slider with Escape and reduced-motion handling.
 
 Evidence from the clean linked worktree:
 
-- `pnpm --filter @material-bluemap/site typecheck` — passed.
-- `pnpm --filter @material-bluemap/site exec vitest run` — 119 tests passed across 9 files.
-- `pnpm --filter @material-bluemap/site build` — Vite production build passed (140 modules).
+- `pnpm --filter @worldlens/site typecheck` — passed.
+- `pnpm --filter @worldlens/site exec vitest run` — 119 tests passed across 9 files.
+- `pnpm --filter @worldlens/site build` — Vite production build passed (140 modules).
 
 This is source, type, unit, and production-bundle evidence. A cheap headless Windows capture of
 the live GitHub Pages site remains a separate runtime/UI boundary and is not claimed by these checks.
@@ -3005,7 +3005,7 @@ A 12-agent reachability audit (mount graph from `App.vue`, three-way IPC parity 
 invoke channels, asset wiring) confirmed the recurring pattern at three layers at once:
 **9 of 72 components were orphans** (the whole `ConfigScreen` subtree, `ConfigNotifications`,
 `MenuChoice`), the **GitHub sign-in and release-download features were complete in main and
-preload with zero renderer lines**, the `window.materialBluemap.config` bridge the options
+preload with zero renderer lines**, the `window.worldlens.config` bridge the options
 GUI probes for **had never existed at all**, and the typefaces every stylesheet names —
 Roboto and Roboto Mono — were bundled nowhere, so the whole chrome rendered in Arial.
 
@@ -3568,7 +3568,7 @@ over:**
    warning path is dead code on both sides of the comparison. Recorded so it is not
    forgotten if a second `World` implementation is ever added.
 
-Verification for this section: `pnpm --filter @material-bluemap/cli run typecheck` — clean.
+Verification for this section: `pnpm --filter @worldlens/cli run typecheck` — clean.
 `npx eslint packages/cli` — clean, after fixing one real `prefer-const` error the change
 introduced. `npx vitest run packages/cli` — **29 passed, 0 skipped, 4 test files**.
 `npx vitest run packages/server` — **42 passed** (`MapUpdateService` itself is untouched by

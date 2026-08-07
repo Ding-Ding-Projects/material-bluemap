@@ -1,5 +1,5 @@
 /**
- * electron-builder packaging configuration for the Material BlueMap desktop app.
+ * electron-builder packaging configuration for the Worldlens desktop app.
  *
  * Why electron-builder and not Electron Forge: Forge's packager step drives its
  * pruning through the package manager and needs pnpm's hoisted node-linker to
@@ -20,8 +20,8 @@
 
 /** @type {import("electron-builder").Configuration} */
 module.exports = {
-    appId: "dev.materialbluemap.desktop",
-    productName: "Material BlueMap",
+    appId: "dev.worldlens.desktop",
+    productName: "Worldlens",
     // `dist/` holds the esbuild output; `release/` is already gitignored.
     directories: {
         output: "release",
@@ -94,14 +94,14 @@ module.exports = {
     },
     squirrelWindows: {
         // NuGet package id: no spaces allowed, so it cannot be derived from productName.
-        name: "MaterialBlueMap",
+        name: "Worldlens",
         // Emitted next to RELEASES and the .nupkg in `release/`.
-        artifactName: "MaterialBlueMap-${version}-Setup.${ext}",
+        artifactName: "Worldlens-${version}-Setup.${ext}",
         // Squirrel refuses to build without this. It must be a URL, not a path:
         // Squirrel fetches it at install time to draw the Add/Remove Programs entry
         // and the shortcut. Pinned to main so a released installer keeps resolving.
         iconUrl:
-            "https://raw.githubusercontent.com/Ding-Ding-Projects/material-bluemap/main/design/packages/app/build/icon.ico",
+            "https://raw.githubusercontent.com/Ding-Ding-Projects/worldlens/main/design/packages/app/build/icon.ico",
     },
     // Releases are published by the CI workflow via `gh release create`, never by
     // electron-builder itself.

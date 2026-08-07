@@ -8,7 +8,7 @@
  * Everything here is resettable through `resetSearchPreferences()`.
  */
 
-const STORAGE_KEY = "material-bluemap-search-prefs";
+const STORAGE_KEY = "worldlens-search-prefs";
 
 export interface StoredFieldPreference {
     readonly mode?: "text" | "regex";

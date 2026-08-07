@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { recordAppSetting } from "./appSettingsHistorySync.js";
 
 afterEach(() => {
-    delete (window as unknown as { materialBluemap?: unknown }).materialBluemap;
+    delete (window as unknown as { worldlens?: unknown }).worldlens;
 });
 
 describe("with no bridge at all", () => {
@@ -23,7 +23,7 @@ describe("with no bridge at all", () => {
 describe("with a bridge that has save but no read", () => {
     it("still saves, with just the one key - nothing to merge against", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 save: (state: unknown) => {
                     saved.push(state);
@@ -43,7 +43,7 @@ describe("with a bridge that has save but no read", () => {
 describe("with both read and save", () => {
     it("merges the new key into the bag read returned, rather than replacing it", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 read: () =>
                     Promise.resolve({
@@ -76,7 +76,7 @@ describe("with both read and save", () => {
 
     it("overwrites only its own key when the bag already has one for it", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 read: () => Promise.resolve({ version: 1, values: { menuSearch: { open: false } } }),
                 save: (state: unknown) => {
@@ -96,7 +96,7 @@ describe("with both read and save", () => {
 
     it("proceeds with just the new key when read rejects, rather than losing the save", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 read: () => Promise.reject(new Error("git is unavailable")),
                 save: (state: unknown) => {
@@ -115,7 +115,7 @@ describe("with both read and save", () => {
     });
 
     it("never throws when save itself rejects", async () => {
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 read: () => Promise.resolve({ version: 1, values: {} }),
                 save: () => Promise.reject(new Error("disk full")),
@@ -132,7 +132,7 @@ describe("with both read and save", () => {
 
     it("treats a bag that is not the expected shape as empty rather than crashing", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 read: () => Promise.resolve("not an object"),
                 save: (state: unknown) => {

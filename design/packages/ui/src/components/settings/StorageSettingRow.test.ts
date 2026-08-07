@@ -10,7 +10,7 @@
  * changed: the row no longer draws a row-local "Choose folder" button gated on
  * `props.setting.canBrowse` (backed by `chooseMapStorageDirectory`, which nothing on the
  * real preload implements - `mapStorageSetting.test.ts` still covers that dead pair
- * directly), and instead adopts `PathField`, which probes `window.materialBluemap.dialog`.
+ * directly), and instead adopts `PathField`, which probes `window.worldlens.dialog`.
  */
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -61,13 +61,13 @@ function browseButton(wrapper: ReturnType<typeof mount>) {
 
 afterEach(() => {
     setSetupStorage(memoryStorage());
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 describe("browsing for the folder", () => {
     it("writes the picked folder through the same v-model typing uses, via the shared PathField", async () => {
         setSetupStorage(memoryStorage());
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             dialog: {
                 pickFolder: async () => "/picked/maps",
                 pickFile: async () => null,
@@ -110,7 +110,7 @@ describe("browsing for the folder", () => {
 
     it("leaves the field untouched on a cancelled pick", async () => {
         setSetupStorage(memoryStorage());
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             dialog: {
                 pickFolder: async () => null,
                 pickFile: async () => null,

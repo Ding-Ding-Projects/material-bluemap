@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { Color, Grid, Vector2i } from "@material-bluemap/shared";
+import { Color, Grid, Vector2i } from "@worldlens/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /*

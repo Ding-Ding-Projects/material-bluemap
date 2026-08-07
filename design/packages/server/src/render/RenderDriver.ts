@@ -26,7 +26,7 @@ import {
     type BmMap,
     type RenderManager,
     type TileUpdateStrategy,
-} from "@material-bluemap/engine";
+} from "@worldlens/engine";
 
 export interface UpdateRequestResult {
     /**

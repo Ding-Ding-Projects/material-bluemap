@@ -1,19 +1,19 @@
 /**
- * Turns a parsed `storages/<id>.conf` — `@material-bluemap/config`'s
+ * Turns a parsed `storages/<id>.conf` — `@worldlens/config`'s
  * `FileStorageConfig` or `SqlStorageConfig` — into a real, working {@link Storage}.
  *
  * There is no upstream file this ports: upstream's Java config layer (`FileConfig`/
  * `SQLConfig` in `common/config/storage/`) builds its storages directly, in the same
  * language as the storage classes themselves. This port's config schema
- * (`@material-bluemap/config`) and its storage implementations live in separate
+ * (`@worldlens/config`) and its storage implementations live in separate
  * packages for reasons that have nothing to do with storage, so *something* has to be
  * the seam between "the config a person edited" and "the storage the engine actually
  * talks to" — this module is that seam, and per issue #32 it is also the fix: before
  * this existed, `design/packages/engine/src/storage/` only had a `file/`
  * implementation, so a config that read `storage-type: sql` had nowhere to go.
  */
-import type { FileStorageConfig, SqlStorageConfig } from "@material-bluemap/config";
-import { Key } from "@material-bluemap/shared";
+import type { FileStorageConfig, SqlStorageConfig } from "@worldlens/config";
+import { Key } from "@worldlens/shared";
 import { Compression } from "./compression/Compression.js";
 import { FileStorage } from "./file/FileStorage.js";
 import type { Storage } from "./Storage.js";

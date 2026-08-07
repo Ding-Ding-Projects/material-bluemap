@@ -53,10 +53,10 @@ function fakeBridge(initial = false): {
     return state;
 }
 
-const globals = globalThis as { materialBluemap?: unknown };
+const globals = globalThis as { worldlens?: unknown };
 
 afterEach(() => {
-    delete globals.materialBluemap;
+    delete globals.worldlens;
 });
 
 describe("resolveWindowBridge", () => {
@@ -68,7 +68,7 @@ describe("resolveWindowBridge", () => {
         // A title bar with a working minimise and a close that throws is worse than one
         // with no buttons: the second is visibly not offering something, the first only
         // looks like it is.
-        globals.materialBluemap = {
+        globals.worldlens = {
             minimizeWindow: () => Promise.resolve(),
             toggleMaximizeWindow: () => Promise.resolve(false),
             // closeWindow missing
@@ -79,7 +79,7 @@ describe("resolveWindowBridge", () => {
     });
 
     it("returns a bridge when every method is present", () => {
-        globals.materialBluemap = fakeBridge().bridge;
+        globals.worldlens = fakeBridge().bridge;
         expect(resolveWindowBridge()).not.toBeNull();
     });
 });

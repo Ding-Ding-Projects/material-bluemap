@@ -1,4 +1,4 @@
-import { NBTWriter } from "@material-bluemap/nbt";
+import { NBTWriter } from "@worldlens/nbt";
 import { blockIndex, columnIndex, type ChunkData } from "./chunk.js";
 import { legacyBiomeFor, legacyBlockFor, type LegacyBlock } from "./legacyMappings.js";
 import {

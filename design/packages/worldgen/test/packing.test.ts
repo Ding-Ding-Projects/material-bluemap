@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PackedIntArrayAccess } from "@material-bluemap/engine";
+import { PackedIntArrayAccess } from "@worldlens/engine";
 import { Random } from "../src/random.js";
 import {
     blockStateBitWidth,

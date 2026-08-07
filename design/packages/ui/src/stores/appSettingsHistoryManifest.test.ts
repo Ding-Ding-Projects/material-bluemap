@@ -9,7 +9,7 @@
  * `menuSearch/menuCoverage.test.ts` holds its own registry to the source.
  *
  * Kept in its own file, under `// @vitest-environment node`: `appSettingsHistorySync.test.ts`
- * runs under jsdom (it stubs `window.materialBluemap`), and jsdom's own `URL`/`location`
+ * runs under jsdom (it stubs `window.worldlens`), and jsdom's own `URL`/`location`
  * globals do not resolve `import.meta.url` the way plain Node does, which is exactly what
  * `fileURLToPath(new URL("...", import.meta.url))` below needs.
  */

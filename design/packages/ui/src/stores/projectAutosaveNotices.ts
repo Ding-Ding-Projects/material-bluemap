@@ -98,7 +98,7 @@ export function handleProjectAutosaveOutcome(
  * seam in this package follows.
  */
 export function wireProjectAutosaveNotices(): () => void {
-    const bridge = typeof window === "undefined" ? undefined : window.materialBluemap;
+    const bridge = typeof window === "undefined" ? undefined : window.worldlens;
     const onAutosaveEvent = bridge?.project?.onAutosaveEvent;
     if (typeof onAutosaveEvent !== "function") return () => {};
 

@@ -29,7 +29,7 @@ export const SITE_ROOT = resolve(here, "..");
 export const GENERATED_DIR = resolve(SITE_ROOT, "src/content/generated");
 
 /** Default repository, overridable so a fork can build its own site. */
-export const DEFAULT_REPO = "Ding-Ding-Projects/material-bluemap";
+export const DEFAULT_REPO = "Ding-Ding-Projects/worldlens";
 
 /** Parse `--name value` and `--name=value` pairs, plus bare `--flag`. */
 export function parseArgs(argv) {

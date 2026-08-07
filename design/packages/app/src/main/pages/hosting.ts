@@ -12,7 +12,7 @@
  *
  * ## The fact the whole feature rests on
  *
- * `@material-bluemap/render-actions`'s `prepareStaticHost` carries the explanation in full,
+ * `@worldlens/render-actions`'s `prepareStaticHost` carries the explanation in full,
  * and it is worth repeating in one line because everything here is downstream of it: the
  * engine writes `0.prbm.gz`, the viewer asks for `0.prbm`, and only a web server that
  * rewrites the name makes those two agree. GitHub Pages does not rewrite anything. So the
@@ -65,8 +65,8 @@
 
 import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { prepareStaticHost, StaticHostError } from "@material-bluemap/render-actions";
-import type { StaticHostReport } from "@material-bluemap/render-actions";
+import { prepareStaticHost, StaticHostError } from "@worldlens/render-actions";
+import type { StaticHostReport } from "@worldlens/render-actions";
 import { ActionsCallError } from "../cirender/actions.js";
 import { GH_COMMAND, detectGh, ghApiJson, ghApiSend, nodeProcessRunner } from "../cirender/gh.js";
 import type { GhStatus, ProcessRunner } from "../cirender/gh.js";
@@ -325,7 +325,7 @@ export interface PagesHostOptions {
 }
 
 const DEFAULT_COMMITTER = {
-    name: "Material BlueMap",
+    name: "Worldlens",
     email: "material-bluemap@users.noreply.github.com",
 } as const;
 
@@ -1378,7 +1378,7 @@ export class PagesHost {
                 `${owner}/${repo}`,
                 wanted === "private" ? "--private" : "--public",
                 "--description",
-                "A BlueMap map published by Material BlueMap",
+                "A BlueMap map published by Worldlens",
             ],
             { signal },
         );

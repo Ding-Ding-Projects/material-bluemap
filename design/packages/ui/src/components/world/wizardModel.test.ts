@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createI18n } from "vue-i18n";
-import { findField, type ConfigIssue } from "@material-bluemap/config";
+import { findField, type ConfigIssue } from "@worldlens/config";
 import { fieldValue } from "../config/configModel.js";
 import {
     FALLBACK_DIMENSIONS,
@@ -37,7 +37,7 @@ function answered() {
     );
     wizard.displayName.value = "Survival";
     wizard.mapId.value = "survival";
-    wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+    wizard.storageDirectory.value = "/var/lib/worldlens/maps";
     return wizard;
 }
 
@@ -320,10 +320,10 @@ describe("stepping through", () => {
         wizard.storageDirectory.value = "maps";
         expect(wizard.canLeave("storage")).toBe(false);
 
-        wizard.storageDirectory.value = "%APPDATA%\\Material BlueMap\\maps";
+        wizard.storageDirectory.value = "%APPDATA%\\Worldlens\\maps";
         expect(wizard.canLeave("storage")).toBe(true);
 
-        wizard.storageDirectory.value = "~/.local/share/material-bluemap/maps";
+        wizard.storageDirectory.value = "~/.local/share/worldlens/maps";
         expect(wizard.canLeave("storage")).toBe(true);
     });
 
@@ -411,7 +411,7 @@ describe("auto-loading the other dimensions", () => {
         );
         wizard.displayName.value = "Survival";
         wizard.mapId.value = "survival";
-        wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+        wizard.storageDirectory.value = "/var/lib/worldlens/maps";
         return wizard;
     }
 
@@ -511,7 +511,7 @@ describe("auto-loading the other dimensions", () => {
             }),
         );
         wizard.mapId.value = "world";
-        wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+        wizard.storageDirectory.value = "/var/lib/worldlens/maps";
 
         wizard.setExtraDimensionsIncluded(["minecraft:the_nether"], true);
         const nether = wizard.toRenderRequest().maps[1]!;
@@ -536,7 +536,7 @@ describe("auto-loading the other dimensions", () => {
             }),
         );
         wizard.mapId.value = "world";
-        wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+        wizard.storageDirectory.value = "/var/lib/worldlens/maps";
 
         wizard.setExtraDimensionsIncluded(["foo:bar-baz", "foo-bar:baz"], true);
         const ids = wizard.toRenderRequest().maps.map((map) => map.id);

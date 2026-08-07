@@ -1,4 +1,4 @@
-import { Key, Registry, type Color, type Keyed } from "@material-bluemap/shared";
+import { Key, Registry, type Color, type Keyed } from "@worldlens/shared";
 import type { BlockAccess } from "../block/BlockAccess.js";
 import type { ColorModifier } from "./ColorModifier.js";
 

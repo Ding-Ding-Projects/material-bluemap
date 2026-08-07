@@ -137,7 +137,7 @@ describe("registerFileHandlers", () => {
             noEvent,
         )) as MapStorageDefaultReadout;
 
-        expect(answer.directory).toBe("C:\\Users\\ada\\Documents\\Material BlueMap\\maps");
+        expect(answer.directory).toBe("C:\\Users\\ada\\Documents\\Worldlens\\maps");
         expect(answer.documents.redirected).toBe(true);
         // The explanation travels with the path, so the setting cannot show one without
         // the other and the redirect is never silent.

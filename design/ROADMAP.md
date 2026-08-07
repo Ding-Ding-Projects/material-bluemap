@@ -147,7 +147,7 @@ Not fully ported, and so keeping this phase open:
 
 - **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), still
   short of what upstream's CLI does.** `packages/cli` was a one-line stub with no tests; it
-  now mirrors `BlueMapCLI.main()`'s real branching (reusing `@material-bluemap/config`'s
+  now mirrors `BlueMapCLI.main()`'s real branching (reusing `@worldlens/config`'s
   `cli/flags.ts` model, not a second copy of it), loads a real config folder the way
   `BlueMapConfigManager` does — writing upstream's own per-file/per-folder defaults, never
   a single-shot dump — resolves real resources through `MinecraftVersion`'s real
@@ -165,7 +165,7 @@ Not fully ported, and so keeping this phase open:
   pack and serves it, and a real subprocess spawn of the built `dist/index.js`.
   **`packages/cli/Dockerfile` was built and run for real**, not authored blind: `docker
   build -f design/packages/cli/Dockerfile .` from the repository root (`pnpm --filter
-  "@material-bluemap/cli..." install`/`build`, then a `pnpm deploy --legacy` prune) produced
+  "@worldlens/cli..." install`/`build`, then a `pnpm deploy --legacy` prune) produced
   a runtime image that rendered a real `packages/worldgen` world mounted read-only, served
   a real hires tile, `index.html` and `settings.json` over its mapped port, answered a real
   `POST /maps/{id}/update`, and — checked with `docker exec ... id` — runs as `uid=1000
@@ -251,7 +251,7 @@ Ported on 2026-08-06 (issue #40's CLI half, closed), in `packages/cli`:
      .createRegionWatchService()` never throws and is the only real `World` implementation
      in this port, so the path is dead today.
 
-Verification for this block: `pnpm --filter @material-bluemap/cli run typecheck` clean;
+Verification for this block: `pnpm --filter @worldlens/cli run typecheck` clean;
 `npx eslint packages/cli` clean (after fixing one real `prefer-const` error the change
 introduced); `npx vitest run packages/cli` — **29 passed, 0 skipped, 4 test files**; `npx
 vitest run packages/server` — **42 passed** (`MapUpdateService` untouched). Both
@@ -311,7 +311,7 @@ Ported on 2026-08-05 (issue #30), in `packages/engine/src/map/rendermanager/seri
 
 - **`SerializableRenderTask`, the polymorphic `RenderTaskAdapter`, `BmMapAdapter` and
   `Vector2iAdapter`** — upstream's four `serialization/` files, ported onto this package's
-  own `@material-bluemap/nbt` (BlueNBT) implementation rather than JSON, matching upstream's
+  own `@worldlens/nbt` (BlueNBT) implementation rather than JSON, matching upstream's
   on-disk shape. `RenderTaskAdapter` dispatches by a stable `{ type, data }` key
   (`map-purge`/`map-save`/`map-update`/`region-update`, upstream's own keys); an unknown
   `type` on read is refused with a readable `IOException` rather than guessed at.
@@ -556,7 +556,7 @@ does. Every dialect's SQL text is transcribed verbatim from `AbstractCommandSet.
 the three `*CommandSet.java` files, checked by a 90-assertion statement-for-statement
 contract test rather than eyeballed. `packages/engine/src/storage/StorageFactory.ts` is
 new: the seam that turns a parsed `FileStorageConfig`/`SqlStorageConfig` from
-`@material-bluemap/config` into a real, working `Storage` — before this, nothing built an
+`@worldlens/config` into a real, working `Storage` — before this, nothing built an
 SQL storage from config at all, which was the defect issue #32 opened over.
 
 Drivers are optional dependencies (`sql.js`, `mysql2`, `pg` — all pure JavaScript/WASM, no
@@ -737,7 +737,7 @@ at `80369ec` — **failure**, `Could not resolve "../console/annotations.js" fro
 knowing exactly, because it is invisible on a developer machine where the file is simply
 present: `f4d3abd` committed the import, and the file it imports was not committed until
 `897ecad`, three commits later. `80369ec` sits between them. The console files were tracked
-correctly by the time this pass started, and `pnpm --filter @material-bluemap/ui build`
+correctly by the time this pass started, and `pnpm --filter @worldlens/ui build`
 succeeds locally, so that specific cause is gone — but a *different* cause has kept every run
 in the pass below red, and it is real, not a re-run of this one.
 

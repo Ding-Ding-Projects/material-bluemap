@@ -17,7 +17,7 @@ export const contentPages: readonly ContentPage[] = [
     {
         id: "home",
         title: "Home",
-        description: "What material-bluemap is, what works today, what does not, and how to install or build it.",
+        description: "What worldlens is, what works today, what does not, and how to install or build it.",
     },
     {
         id: "docs",

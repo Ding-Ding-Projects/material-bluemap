@@ -17,7 +17,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
-import type { PlainValue } from "@material-bluemap/config";
+import type { PlainValue } from "@worldlens/config";
 import MaskDrawingCanvas from "./MaskDrawingCanvas.vue";
 import {
     JAVA_INT_MAX,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BlueNBT, NBTWriter } from "@material-bluemap/nbt";
+import { BlueNBT, NBTWriter } from "@worldlens/nbt";
 import { BlockState } from "../../BlockState.js";
 import { Biome } from "../../biome/Biome.js";
 import { DimensionType } from "../../DimensionType.js";

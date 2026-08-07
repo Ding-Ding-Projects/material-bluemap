@@ -3,7 +3,7 @@ import {
     DISPLAY_NAME_STORAGE_KEY,
     WORLDLENS_IDENTITY,
     resolveDisplayName,
-} from "@material-bluemap/shared";
+} from "@worldlens/shared";
 import { recordAppSetting } from "./appSettingsHistorySync.js";
 
 export interface DisplayNameStorage {

@@ -1,4 +1,4 @@
-import type { Key, Vector2d, Vector3d } from "@material-bluemap/shared";
+import type { Key, Vector2d, Vector3d } from "@worldlens/shared";
 
 export interface Entity {
     getId(): Key;

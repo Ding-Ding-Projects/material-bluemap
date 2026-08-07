@@ -25,9 +25,9 @@ import type {
     FollowCapableControls,
     FollowCapableControlsData,
 } from "./markerTypes.js";
-import type { BlueMapApp, MainMenu, MenuPage } from "@material-bluemap/viewer";
+import type { BlueMapApp, MainMenu, MenuPage } from "@worldlens/viewer";
 
-const FILTERS_OPEN_KEY = "material-bluemap-marker-filters-open";
+const FILTERS_OPEN_KEY = "worldlens-marker-filters-open";
 const EMPTY_POSITION = { x: 0, y: 0, z: 0 };
 
 const props = defineProps<{

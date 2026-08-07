@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { MaskConfig } from "@material-bluemap/config";
-import { BlurMask, CombinedMask } from "@material-bluemap/engine";
+import type { MaskConfig } from "@worldlens/config";
+import { BlurMask, CombinedMask } from "@worldlens/engine";
 import { combinedMaskFromConfig, createMaskFromConfig, maskFor } from "./maps.js";
 
 const BOX: MaskConfig = {

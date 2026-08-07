@@ -24,7 +24,7 @@ import type { MapStorageSetting } from "./mapStorageSetting.js";
  * `props.setting.canBrowse` (backed by `settingsBridge.ts`'s `chooseMapStorageDirectory`)
  * never turns true in the shipped app - nothing on the real preload implements that
  * method - so a row-local "Choose folder" button gated on it never rendered.
- * `PathField.vue` probes `window.materialBluemap.dialog` instead, which the desktop
+ * `PathField.vue` probes `window.worldlens.dialog` instead, which the desktop
  * app's dialog bridge does implement, so the button now actually opens a folder picker
  * rather than staying permanently absent. Where the main process can be asked, the
  * absolute folder it resolved is shown underneath, because `%APPDATA%\...` is the value

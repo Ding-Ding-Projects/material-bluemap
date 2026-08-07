@@ -1,5 +1,5 @@
 import { PassThrough, pipeline, type Readable, type Writable } from "node:stream";
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import type { Compression } from "./Compression.js";
 
 function asBuffer(data: Uint8Array): Buffer {
