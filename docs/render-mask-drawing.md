@@ -8,8 +8,8 @@ halves now: the **value layer** underneath a drawing surface (the two-way-bound 
 honest cost estimate, the engine-fidelity check, and export/import) and the drawing surface
 itself, `design/packages/ui/src/components/config/MaskDrawingCanvas.vue`, an SVG canvas with
 draggable handles, snap-to-chunk/region, undo/redo, zoom, presets and a keyboard-operable
-equivalent for every gesture. See [What still needs building](#what-still-needs-building) for
-what is genuinely not wired up yet.
+equivalent for every gesture. The canvas is framed by the selected dimension's measured region
+bounds and, for the overworld, the real spawn read from `level.dat`.
 
 ## Behaviour
 
@@ -61,50 +61,29 @@ recomputing that precisely means testing every block, which is most of a render,
 of one. `MaskCostEstimate.exact` says which case applied, so a caller renders "≈" rather than
 presenting an upper bound as a fact.
 
-### Getting the drawn mask to the engine intact — and where it silently does not
+### Getting the drawn mask to every engine intact
 
 `render-mask` reaches the actual render engine through two genuinely different routes, and they
-do **not** honour it equally:
+now honour the same semantics:
 
 - **The local desktop render** runs the real upstream BlueMap jar in a real JVM
   (`design/packages/app/src/main/render/orchestrator.ts`), which deserialises `render-mask`
   through the real `CombinedMaskSerializer` — every shape, `subtract`, any number of them, in
   full. Whatever was drawn is exactly what renders.
-- **The cloud/Actions render** is this project's own TypeScript port
-  (`design/packages/cli/src/maps.ts`, `maskFor`), and today it only translates **one single,
-  non-subtracting box**. Anything richer — a circle, an ellipse, a polygon, a blur, a `subtract`
-  shape, or more than one shape — is logged as unsupported and the map renders **completely
-  unmasked: the whole world**, not a bounding-box approximation of what was drawn.
+- **The standalone CLI and cloud/Actions render** use the TypeScript port in
+  `design/packages/cli/src/maps.ts`. `createMaskFromConfig`, `combinedMaskFromConfig` and
+  `maskFor` construct boxes, circles, ellipses, polygons and recursively nested blur masks,
+  preserve list order and subtraction, and match upstream when the first shape subtracts or the
+  list is empty. Invalid shapes fail with the schema/upstream-compatible reason instead of
+  falling back to an unmasked render.
 
-That gap is exactly the silent-substitution failure a drawing surface must never produce.
-`design/packages/app/src/main/render/maskFidelity.ts`'s `checkCloudFidelity` is a deliberate,
-independent mirror of `maskFor`'s own rule — empty is fine, one non-subtracting box is fine,
-everything else reports `honored: false` with a named reason ("This is a circle…", "This shape is
-set to subtract…", "3 shapes are configured…"). A drawing surface calls this before a cloud
-render starts and shows the real consequence — **the whole world, unmasked** — never a quieter
-phrase like "may not match exactly". `localFidelity` is the reassuring counterpart: the local
-desktop path is always `honored: true`, whatever shape was drawn, so the warning is legibly about
-one render path and not a statement that the mask itself is broken.
-
-**The warning exists at two levels, because the risk does too.**
-`design/packages/ui/src/components/config/MaskDrawingCanvas.vue` shows a per-shape warning while
-one shape is open for drawing (`cloudFidelityForSingleShape` in `maskCanvas.ts`), which answers
-"if this shape were the mask's only entry, would the cloud path translate it?" — true for a plain
-box, false for anything else. That question alone leaves a real gap: draw **two** ordinary,
-non-subtracting boxes and every per-shape alert stays quiet, because each box *alone* would
-translate fine. The mask as a whole still does not, because the cloud path only ever keeps a list
-of exactly one shape.
-
-`design/packages/ui/src/components/config/ConfigMaskField.vue` closes that gap with a second,
-list-level check — `cloudFidelityForMask`, also in `maskCanvas.ts` — shown once for the whole
-render-mask list rather than repeated per shape, and only at the list's top level (never for a
-blur's own nested list, which softens its parent's shapes rather than standing as a mask of its
-own). It is a second hand mirror of the same rule `checkCloudFidelity` already mirrors from
-`maskFor`, kept in sync the same way: `maskCanvas.test.ts` exercises the identical cases
-`maskFidelity.test.ts` does, so a missed hand-sync on either side is a red test, never a silent
-drift. Two ordinary boxes is the case worth naming by name here, because it is the single most
-likely way a real mask exceeds what the cloud renderer understands — nothing about drawing a
-second box looks unusual, and nothing warned about it before this list-level check existed.
+Actions receives the same config rather than a hand-picked subset. The uploaded project archive
+already contains `material-bluemap.project.json`; `design/packages/render-actions` reads the
+selected map's full HOCON from it and writes that configuration into every render job. A shard
+adds its boundary as outside-subtraction boxes with HOCON `render-mask +=`, so the shard boundary
+intersects any user-authored mask instead of replacing it. The desktop editor therefore reports
+**exact local and Actions semantics** for every mask list; the former one-box warning has been
+removed rather than left behind as a stale alarm.
 
 ### Export and import
 
@@ -139,28 +118,25 @@ every save, a restore snapshots the current disk state first and then writes the
 a **new** revision — never a rewrite — and a failed history write never fails the save it was
 recording. Saving a mask you just drew is a save like any other.
 
-## What still needs building
+### World-aware framing and direct discovery
 
-The value layer (synchronised numeric/geometric state, the cost estimate, both cloud-fidelity
-checks, export/import) and the drawing canvas itself are both built, wired together, and voiced
+The value layer, cost estimate, export/import and drawing canvas are built, wired together and voiced
 in the copy catalogue (`design/packages/ui/src/copy/surfaces/maskDraw.ts` is spread into
 `SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS` in `copy/surfaces/index.ts`, exactly like every
-other finished surface). Two things named in earlier drafts of this document are still genuinely
-not wired up:
+other finished surface). Main-process world inspection derives an inclusive block extent from
+each real `r.<x>.<z>.mca` filename without opening region files and reads `SpawnX`/`SpawnZ` from
+`level.dat`. `maskWorldFor` selects the chosen dimension's extent and exposes spawn only for
+`minecraft:overworld`; missing or unreadable measurements remain named unavailable states. The
+wizard, options editor and project editor all pass that context into `ConfigMaskField.vue`.
 
-- **the world-extent/spawn-point backing.** `inspectWorldFolder`/`measureWorld`/`LevelData`'s
-  spawn read already exist for the "Make a map" wizard, but `ConfigMaskField.vue` never passes a
-  `world` prop down to the canvas — every mask editor still opens against `UNKNOWN_WORLD`, an
-  unlabelled grid with no real extent or spawn marker to frame itself against, rather than the
-  real measured world;
-- **command palette entries** pointing at the mask editor specifically. The palette's own
-  catalogue (`copy/surfaces/palette.ts`) has no `mask.*` entries yet, so the render-mask editor is
-  not reachable from a `Ctrl+Shift+F` search today.
+The command palette has a dedicated **Render mask editor** destination. It carries
+`{ screen: "maps", fieldPath: "render-mask" }` through the shell, selects the first real map,
+reveals the field and focuses its editor. It is an exact route, not a link that stops at Maps.
 
 `maskDraft.ts`, `maskGeometry.ts`, `maskFile.ts` and `maskFidelity.ts` are the seam a canvas
 component binds to: call `createShapeDraft`/`setFieldText`/`setFieldNumber` for the synchronised
-value, `estimateRenderCost` for the live cost readout, `checkCloudFidelity` before offering a
-cloud render, and `exportMaskFile`/`parseMaskFile` for the share/reuse file.
+value, `estimateRenderCost` for the live cost readout, `checkCloudFidelity` for the explicit
+cross-route parity contract, and `exportMaskFile`/`parseMaskFile` for the share/reuse file.
 
 ## Failure modes
 
@@ -169,9 +145,10 @@ cloud render, and `exportMaskFile`/`parseMaskFile` for the share/reuse file.
 - **An unbounded shape reports no cost number, never an invented one.** `estimateRenderCost`
   returns `basis: "unbounded"` with `areaBlocks: null` rather than treating Java's
   `Integer.MAX_VALUE` sentinel as a real coordinate.
-- **A mask the cloud render path cannot translate is never silently approximated.**
-  `checkCloudFidelity` reports `honored: false` and the real consequence — the whole world renders,
-  unmasked — with a named reason, before any CI minutes are spent.
+- **An invalid mask never becomes an unmasked render.** Schema and construction failures retain
+  their named reason; every valid shape and ordered/subtracted combination is translated exactly.
+- **Missing world measurements never become guessed coordinates.** The canvas names the missing
+  extent or spawn and keeps its honest unknown-world framing.
 - **A malformed or newer-format mask file is refused with a reason, not silently emptied.**
   `parseMaskFile` never throws and never returns an empty mask for a file that failed to parse.
 - **A history write that fails never fails the save.** Inherited unchanged from
@@ -198,23 +175,20 @@ config editor already trusts for every other value read from a file.
   single shape, multiple shapes with a subtract polygon, and an empty (whole-world) mask exactly;
   a non-JSON file, a wrong format, a future version, and an invalid shape are each refused with a
   named reason.
-- `design/packages/app/src/main/render/maskFidelity.test.ts` — mirrors every case
-  `packages/cli/src/maps.ts`'s own `maskFor` doc comment describes: empty, a single non-subtracting
-  box, a single subtracting box, a circle, more than one shape, and each of the four unsupported
-  shape kinds named distinctly; the local path is always honored regardless of shape.
-- `design/packages/ui/src/components/config/maskCanvas.test.ts` — `cloudFidelityForSingleShape`'s
-  own per-shape cases, plus `cloudFidelityForMask`'s list-level mirror of the same five cases
-  `maskFidelity.test.ts` exercises: empty, one non-subtracting box, one subtracting box, one
-  circle, and two plain boxes.
-- `design/packages/ui/src/components/config/ConfigMaskField.test.ts` — the list-level warning
-  actually renders: silent for an empty mask and for exactly one plain box, present for two plain
-  boxes, a single subtracting box and a single circle, and fires exactly once — never twice — for
-  a blur whose nested list holds two boxes of its own.
+- `design/packages/cli/src/maps.mask.test.ts` — exact box/circle/ellipse/polygon/blur construction,
+  recursive nesting, ordering, subtraction, first-subtraction and invalid-input behaviour.
+- `design/packages/render-actions/src/config/projectMapConfig.test.ts` and `renderConfig.test.ts` — full
+  selected-map config transport from the project archive and additive shard boundaries that do
+  not replace an existing arbitrary mask.
+- `design/packages/app/src/main/world/levelDat.test.ts` and `inspect.test.ts` — exact spawn reads and
+  inclusive block extents derived from region filenames without reading region contents.
+- `design/packages/ui/src/components/config/maskWorld.test.ts`, `paletteCatalog.test.ts` and
+  `App.test.ts` — selected-dimension context, overworld-only spawn and the structured palette
+  target reaching the exact editor field.
 - `design/packages/ui/src/copy/surfaces/maskDraw.test.ts` — the catalogue's own shape (five
   levels, both languages, no em dashes), that level 1 and level 5 genuinely read differently, and
-  that every pinned fact — the real numbers, and "whole world"/"unmasked" and "a single,
-  non-subtracting box" in the two cloud-fidelity warnings specifically — survives every funny
-  level in both languages.
+  that every pinned fact survives every funny level in both languages; palette copy separately
+  pins the exact local/Actions parity and teleport destination.
 
 ## Suggested next
 

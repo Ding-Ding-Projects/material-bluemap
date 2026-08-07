@@ -27,6 +27,33 @@ Editor/live-speed/throughput/sizing set passed 43/43 and the UI typecheck passed
 not include a packaged hidden-desktop screenshot; keep that boundary explicit in release notes if
 the required cheap headless route cannot resolve and capture the packaged window.
 
+## Update, 2026-08-06 — render masks now survive every render route intact
+
+The completed renderer-mask phase removes the last non-box mask gap from the standalone CLI and
+GitHub Actions. `packages/cli/src/maps.ts` now constructs BlueMap-compatible box, circle, ellipse,
+polygon and nested blur masks, preserves list order and subtraction, and applies the same
+first-subtraction/empty-mask behaviour as upstream. Local desktop renders still send the full
+HOCON to upstream's Java serializer. Actions renders now recover each selected map's complete
+config from `material-bluemap.project.json` inside the already-uploaded project archive; sharding
+adds its outside-subtraction boxes with HOCON `render-mask +=`, intersecting the user's arbitrary
+mask instead of replacing it.
+
+The drawing canvas is backed by the world it depicts. Main-process inspection derives inclusive
+block extents from real `r.<x>.<z>.mca` filenames without opening region files and reads `SpawnX`
+and `SpawnZ` from `level.dat`. The wizard, options editor and project editor pass the selected
+dimension's measured bounds to the mask canvas; only the overworld receives the world spawn, and
+missing data stays an explicit unavailable state. `Ctrl+Shift+F` now has a dedicated **Render mask
+editor** result carrying `{ screen: "maps", fieldPath: "render-mask" }`, so the configuration
+surface selects a real map, reveals the field and focuses its editor instead of stopping at Maps.
+
+Integration evidence: `3b9b283` (CLI semantics), `15ab028` (visible route parity), `7e5ecc9`
+(complete Actions config transport), `5d51147` (world context and exact palette target), integrated
+on main as `6f606918`. The phase branch passed 315 distinct focused tests across NBT/world
+inspection, bridges, mask geometry/editor, config/project surfaces and palette routing, plus app
+and UI typechecks. The root integration independently passed 103 focused tests and app,
+render-actions and UI typechecks. Runtime/release proof belongs to the exact-SHA manual release
+gate; these local results do not predict it.
+
 ## Update, 2026-08-06 — the exact-SHA manual release gate is green again
 
 The manual release attempt from exact base `215307ac05ecf86728831da9429aac48d2bc03dd`
@@ -412,10 +439,9 @@ contract articles record the boundary and updated test inventory.
   real worlds and serves real HTTP routes, with 22 tests including a full end-to-end run of
   the built `dist/index.js`. `docker build -f design/packages/cli/Dockerfile .` produces an
   image that renders a mounted read-only world, serves it, and runs as a non-root user —
-  confirmed by actually running it, not just authoring it. What it still refuses to do, and
-  says so loudly rather than silently: mod-resource scanning, SQL storages, non-box render
-  masks, and `-u`/`--watch` (it renders once, then exits non-zero naming the still-unwired
-  `MapUpdateService`).
+  confirmed by actually running it, not just authoring it. At that checkpoint it still refused
+  mod-resource scanning, SQL storages, non-box render masks and `-u`/`--watch`; render-mask parity
+  and watch mode have since closed, while mod-resource scanning and SQL storages remain open.
 - **A render task queue can be saved to disk and resumed after a simulated crash.**
   `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` round-trip every task type
   through a BlueNBT-based format with an explicit version number. A dedicated test kills a
@@ -1417,12 +1443,11 @@ world, served a real hires tile/`index.html`/`settings.json` over its mapped por
 a real `POST /maps/{id}/update`, and runs as `uid=1000(node)` — confirmed with `docker exec
 ... id`, never root.
 
-**Deliberately deferred, and said so out loud wherever the CLI is asked for it, per its own
-"never exit 0 having done nothing" requirement:** `-n`/mod-resource scanning,
-`resourceExtensions.zip` parity, SQL storages (refused with a named reason), non-box render
-masks, and — the largest gap — `-u`/`--watch`: the CLI runs the one real render `-u`
-implies, then exits non-zero naming issue #40's `MapUpdateService` as the still-unwired
-piece, rather than pretending to watch.
+**Deferred at that checkpoint, and said so out loud wherever the CLI was asked for it, per its
+own "never exit 0 having done nothing" requirement:** `-n`/mod-resource scanning,
+`resourceExtensions.zip` parity, SQL storages, non-box render masks and `-u`/`--watch`. Watch
+mode and every render-mask form have since closed; mod-resource scanning,
+`resourceExtensions.zip` parity and SQL storages remain open.
 
 ### Serializable render tasks and the resume-after-crash proof (issue #30)
 

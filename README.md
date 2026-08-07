@@ -62,7 +62,8 @@ parity, live blockstate resolution, 1.12.2 legacy-jar loading) all passed on 202
 (`MapUpdateService`), full HTTP routes with SSE, and a standalone server CLI plus Dockerfile are
 all ported, and the CLI's own `--watch` flag is now wired to `MapUpdateService` too (issue #40's
 CLI half, closed 2026-08-06); what remains open in Phase E is `-n`/mod-resource scanning,
-`resourceExtensions.zip` parity, SQL storages in the CLI, and non-box render masks. F
+`resourceExtensions.zip` parity and SQL storages in the CLI. Every render-mask shape, ordered
+combination and subtraction now has matching local, standalone-CLI and GitHub Actions semantics. F
 is reachable and in use. G is pending; H is part done (SQL storages proven against real
 MySQL/MariaDB/PostgreSQL, cross-verified against upstream's own Java engine, and the command
 palette shipped early); I is part done (the update checker and packaging shipped early). See
@@ -80,6 +81,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Remote BlueMap servers** | Browses a map somebody else's server already rendered, through a token-gated proxy | — |
 | **Projects** | A project is the document you edit: its maps, its storages, its settings. Its nested tabs are pointer- and keyboard-operable, and the wizard is the quick way to make one | [`docs/project-editor.md`](docs/project-editor.md) |
 | **The map wizard** | Makes a map in steps, starting from the worlds already on this computer | [`docs/finding-worlds.md`](docs/finding-worlds.md) |
+| **Render-mask drawing** | Draws every BlueMap mask shape over measured region bounds and the real overworld spawn, with identical local, CLI and Actions semantics | [`docs/render-mask-drawing.md`](docs/render-mask-drawing.md) |
 | **The options editor** | Eight tabs over every BlueMap configuration file, with a search across all of them | — |
 | **Local version history** | An append-only git history per config folder and per project, kept beside the app's data — never inside your folder | [`docs/config-history.md`](docs/config-history.md) |
 | **The render console** | Annotated engine output rather than a raw log | [`docs/render-console.md`](docs/render-console.md) |
@@ -571,7 +573,7 @@ carries the reasoning behind every "part done" below.
 | C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, `textures.json`) | **Done.** Exit criteria run 2026-08-05 (issue #31, closed): textures.json parity, live blockstate resolution and 1.12.2 legacy-jar loading all pass |
 | J | Java render path (toolchain discovery and provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving) | Built; driven by hand on one Windows machine |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed** — both engines produced identical output on a 1000x1000 world |
-| E | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile | **Part done.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), and the standalone CLI plus Dockerfile (issue #42) are ported, and `RenderDriver` now drives a real `RenderManager` end to end. The CLI's own `--watch` flag is wired to `MapUpdateService` too, closed 2026-08-06 (issue #40's CLI half); still open in this phase: `-n`/mod-resource scanning, `resourceExtensions.zip` parity, SQL storages in the CLI, and non-box render masks |
+| E | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile | **Part done.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), and the standalone CLI plus Dockerfile (issue #42) are ported, and `RenderDriver` now drives a real `RenderManager` end to end. The CLI's own `--watch` flag is wired to `MapUpdateService` too, closed 2026-08-06 (issue #40's CLI half); every render-mask shape and ordered/subtracted combination is now ported with local/CLI/Actions parity; still open in this phase: `-n`/mod-resource scanning, `resourceExtensions.zip` parity and SQL storages in the CLI |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | Reachable and in use; eight tabs over BlueMap's own configuration |
 | G | Docker hosting GUI (dockerode instance manager) | Pending. Rendering *in* a container landed separately — see [`docs/docker-and-local.md`](docs/docker-and-local.md) |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed); the command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending |
