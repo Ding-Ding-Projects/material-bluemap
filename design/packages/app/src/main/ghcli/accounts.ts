@@ -121,8 +121,8 @@ export interface GhCliRunOptions {
 
 const NOT_INSTALLED =
     "The GitHub command-line tool (gh) is not on this computer's PATH, so its own accounts" +
-    " cannot be listed. This application's own sign-in above is unaffected either way -" +
-    " install gh from cli.github.com if you also want to use it from a terminal.";
+    " cannot be listed. Use the install-and-sign-in action in this section; it shows the" +
+    " package route and any administrator permission before installing anything.";
 
 function firstLine(text: string): string {
     return (text.split(/\r?\n/)[0] ?? "").trim();
@@ -362,8 +362,8 @@ export async function listGhCliAccounts(options: GhCliRunOptions): Promise<GhCli
         source: null,
         message:
             `${GH_COMMAND} answered "${GH_COMMAND} auth status" in a format this application does not` +
-            ` recognise, so its accounts cannot be listed safely. Run \`${GH_COMMAND} auth status\` in a` +
-            " terminal to see them yourself.",
+            " recognise, so its accounts cannot be listed safely. Update GitHub CLI, then use Check" +
+            " again here; no account is assumed while this format is unknown.",
     };
 }
 

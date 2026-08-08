@@ -45,6 +45,31 @@ for a token kind that does not carry a scope list at all), how it was signed in 
 `keyring`, a plain file, and so on — never the credential itself), its git protocol, and whether
 `gh`'s own per-account health check reported anything other than success.
 
+### Install GitHub CLI and sign in from the same screen
+
+When the account probe says `gh` is missing, the account section uses the existing system-dependency
+bridge instead of sending somebody elsewhere or printing a command. It loads the dependency preview,
+selects only the registry entry `githubCli`, and shows its resolved package-manager route (currently
+`winget` package `GitHub.cli`) plus the registry's exact administrator-permission disclosure before
+the button is enabled.
+
+**Install GitHub CLI and sign in** is one guarded chain with one operation in flight:
+
+1. Run `installSysdeps(["githubCli"])`, never the other selected dependencies from the full System
+   dependencies screen.
+2. Render the install event's real stage, message, and determinate percentage when one exists. A
+   phase-only event remains indeterminate; the interface never invents a percentage.
+3. Accept only an `installed` or `already-installed` outcome that the dependency engine verified.
+   If the preview already verified an installed `gh`, skip package-manager mutation entirely.
+4. Re-read the real `gh` account state. If `gh` is still unavailable on the app's PATH, stop and
+   say so; never pretend the installation made the next stage possible.
+5. Start the existing GUI device flow only after that re-probe proves `gh` is available.
+
+Cancellation follows the stage that owns the work. During installation it calls the existing
+`cancelSysdepInstall()` bridge and does not fall through to sign-in. Once device approval starts,
+the existing **Cancel sign-in** action calls `ghCliCancelLogin()`. A cancellation between stages is
+remembered and prevents the next stage from beginning.
+
 ### GUI sign-in and scope repair
 
 The account section completes `gh` sign-in without asking somebody to run a terminal command. The
@@ -157,24 +182,30 @@ backup) can call into; it does not itself decide when any particular screen shou
 There is nothing to configure. The section appears automatically inside Settings → GitHub whenever
 the preload can list accounts. GUI login is enabled only when the preload exposes the complete
 `ghCliStartLogin`, `ghCliCancelLogin`, and `onGhCliLoginState` trio, so an older shell never renders
-a half-working sign-in button.
+a half-working sign-in button. The one-click installation path is enabled only when the preload also
+exposes `sysdepsPreview`, `installSysdeps`, `cancelSysdepInstall`, and `onSysdepInstallEvent`; an older
+or browser-only shell retains the link to the full System dependencies screen instead of drawing a
+button that cannot run.
 
 ## Failure modes
 
-| Situation                                                                                            | What is shown                                                                                                                                                      |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `gh` is not on PATH at all                                                                           | "gh is not on this computer's PATH…", plus a note that the app's own sign-in above is unaffected, plus a button to the System dependencies settings.               |
-| `gh` is installed but nobody is signed in to it                                                      | An honest signed-out status plus **Sign in with gh**, which opens the GUI device flow.                                                                             |
-| `gh` answers a shape this build does not recognise (a very old or very new `gh`)                     | "gh answered … in a format this application does not recognise, so its accounts cannot be listed safely." Never reported as zero accounts.                         |
-| An account's token is short a scope this application needs                                           | A warning naming the missing scopes plus **Approve required permissions**, using the same GUI flow.                                                                |
-| Approval is pending or GitHub asks the client to slow down                                           | The code, URL, countdown, and current wait state remain visible; the polling interval only grows.                                                                  |
-| Approval is denied, expires, or is cancelled                                                         | A terminal state names exactly what happened. No `gh` command runs before approval.                                                                                |
-| `gh` stores the credential but status or API identity cannot be proved                               | The UI says storage may have happened but verification failed; it never reports a successful sign-in.                                                              |
-| `gh auth switch` reports success but the account did not actually become active                      | Reported as a failure, with `gh`'s own message — never a false "Active" chip.                                                                                      |
-| The selected account is signed in but inactive when a release operation begins                       | The app switches to it with the exact host and login, re-reads the account inventory, verifies the effective API identity, and leaves it active machine-wide.      |
-| The selected account is missing, unhealthy, the switch is refused, or the effective identity differs | The release command is not run. The upload panel names the account and host, says no release data changed, and offers **Open GitHub accounts** beside the failure. |
-| An enterprise host is selected                                                                       | Release commands use `--repo <host>/<owner>/<repository>`; no unsupported `--hostname` flag is added.                                                              |
-| A search matches nothing, while accounts exist                                                       | "Nothing here matches that search. Clearing it brings the whole list back." — distinct from either "installed and signed in as nobody" or "not installed".         |
+| Situation                                                                                            | What is shown                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gh` is not on PATH at all                                                                           | The resolved `GitHub.cli` installer route, administrator-permission disclosure, and **Install GitHub CLI and sign in**. Older shells fall back to the System dependencies link. |
+| The installer is cancelled                                                                           | Real cancellation progress followed by a stopped state. Account probing and device sign-in do not begin.                                                                        |
+| The package manager finishes but `gh` verification fails                                             | The real verification failure is shown. Account probing and device sign-in do not begin.                                                                                        |
+| The preview already verifies an installed `gh`                                                       | Package-manager mutation is skipped; the app re-probes accounts and proceeds to device sign-in.                                                                                 |
+| `gh` is installed but nobody is signed in to it                                                      | An honest signed-out status plus **Sign in with gh**, which opens the GUI device flow.                                                                                          |
+| `gh` answers a shape this build does not recognise (a very old or very new `gh`)                     | "gh answered … in a format this application does not recognise, so its accounts cannot be listed safely." Never reported as zero accounts.                                      |
+| An account's token is short a scope this application needs                                           | A warning naming the missing scopes plus **Approve required permissions**, using the same GUI flow.                                                                             |
+| Approval is pending or GitHub asks the client to slow down                                           | The code, URL, countdown, and current wait state remain visible; the polling interval only grows.                                                                               |
+| Approval is denied, expires, or is cancelled                                                         | A terminal state names exactly what happened. No `gh` command runs before approval.                                                                                             |
+| `gh` stores the credential but status or API identity cannot be proved                               | The UI says storage may have happened but verification failed; it never reports a successful sign-in.                                                                           |
+| `gh auth switch` reports success but the account did not actually become active                      | Reported as a failure, with `gh`'s own message — never a false "Active" chip.                                                                                                   |
+| The selected account is signed in but inactive when a release operation begins                       | The app switches to it with the exact host and login, re-reads the account inventory, verifies the effective API identity, and leaves it active machine-wide.                   |
+| The selected account is missing, unhealthy, the switch is refused, or the effective identity differs | The release command is not run. The upload panel names the account and host, says no release data changed, and offers **Open GitHub accounts** beside the failure.              |
+| An enterprise host is selected                                                                       | Release commands use `--repo <host>/<owner>/<repository>`; no unsupported `--hostname` flag is added.                                                                           |
+| A search matches nothing, while accounts exist                                                       | "Nothing here matches that search. Clearing it brings the whole list back." — distinct from either "installed and signed in as nobody" or "not installed".                      |
 
 ## Security considerations
 
@@ -205,7 +236,7 @@ a half-working sign-in button.
 
 ## Verification
 
-- `design/packages/app/src/main/ghcli/accounts.test.ts` — 23 tests over real captured
+- `design/packages/app/src/main/ghcli/accounts.test.ts` — 25 tests over real captured
   `gh auth status --json hosts` and plain-text output (multi-account, empty, the "not logged into
   any hosts" sentence, the legacy `Logged in to HOST as LOGIN` form, an unrecognised format, and the
   switch path re-reading rather than trusting the exit code), plus a `--show-token` never-appears
@@ -229,14 +260,16 @@ a half-working sign-in button.
   (five levels, both languages, no em-dashes, no token ever quoted), the funny-level slider actually
   changing the text, the FACTS pin never dropping the "whole computer" warning or the "gh"/"separate"
   two-stores distinction at any level.
-- `design/packages/ui/src/components/github/GhCliAccountsList.test.ts` — tests mounting the real
+- `design/packages/ui/src/components/github/GhCliAccountsList.test.ts` — 19 tests mounting the real
   component against a scripted bridge: every account's host, active chip and permissions render; the
   machine-wide warning is always shown once accounts exist; a missing-scope warning starts the same
   GUI approval flow; the code, URL, countdown, and cancellation render; an unhealthy account is
   marked; switching reports the machine-wide outcome by
   name; a switch that does not take is reported as a failure; all three honest empty/unavailable
-  states render their own distinct message (and the not-installed state's button reaches
-  `open-dependencies`); a search with no matches is distinguished from having no accounts at all; the
+  states render their own distinct message; the not-installed state previews the exact route and
+  elevation disclosure, selects only `githubCli`, renders real progress, cancels without starting
+  login, and skips installation when the preview already verifies `gh`; older shells still reach
+  `open-dependencies`; a search with no matches is distinguished from having no accounts at all; the
   two-stores explainer is always present; and nothing token-shaped ever renders.
 - `design/packages/app/src/main/cirender/transport.test.ts` — 32 tests, including the exact
   `gh release create` and `gh release upload` argument arrays on github.com and an enterprise host;

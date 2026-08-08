@@ -169,6 +169,24 @@ export const GHCLIACCOUNTS_VOICED = {
             "呢度拎一次性 code，browser 搞掂 GitHub 批准，gh 收好憑證；呢個程式唔會保存，更加唔會偷偷留張紀念品喺櫃桶。",
         ],
     },
+    /* The installer or post-install probe's real reason stays intact in {reason}; every
+     * level also says explicitly that device sign-in never began. */
+    "settings.github.ghCli.installFailed": {
+        en: [
+            "GitHub CLI is not ready, so sign-in did not start: {reason}",
+            "GitHub CLI is not ready, so sign-in did not start: {reason}",
+            "GitHub CLI is not ready yet, so sign-in stayed put: {reason}",
+            "GitHub CLI did not make it through setup, so sign-in never left the starting line: {reason}",
+            "GitHub CLI missed its entrance, so the sign-in curtain stayed closed: {reason}",
+        ],
+        yue: [
+            "GitHub CLI 仲未準備好，所以登入冇開始：{reason}",
+            "GitHub CLI 仲未準備好，所以登入冇開始：{reason}",
+            "GitHub CLI 仲未準備好，所以登入企喺原地：{reason}",
+            "GitHub CLI 未搞掂安裝，所以登入連起跑線都未離開：{reason}",
+            "GitHub CLI 今次甩咗個出場位，所以登入幕布都冇打開：{reason}",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const GHCLIACCOUNTS_FIXED = {
@@ -203,6 +221,98 @@ export const GHCLIACCOUNTS_FIXED = {
     "settings.github.ghCli.openDependencies": {
         en: "Open the System dependencies settings",
         yue: "打開「系統依賴」設定",
+    },
+    "settings.github.ghCli.installAndSignIn": {
+        en: "Install GitHub CLI and sign in",
+        yue: "安裝 GitHub CLI 再登入",
+    },
+    "settings.github.ghCli.continueToSignIn": {
+        en: "Continue to gh sign-in",
+        yue: "繼續用 gh 登入",
+    },
+    "settings.github.ghCli.installCancel": {
+        en: "Cancel installation",
+        yue: "取消安裝",
+    },
+    "settings.github.ghCli.installCancelling": {
+        en: "Cancelling installation…",
+        yue: "取消緊安裝…",
+    },
+    "settings.github.ghCli.installStopBeforeSignIn": {
+        en: "Stop before sign-in",
+        yue: "喺登入之前停低",
+    },
+    "settings.github.ghCli.installPreviewProgress": {
+        en: "Checking how GitHub CLI can be installed",
+        yue: "檢查緊可以點樣安裝 GitHub CLI",
+    },
+    "settings.github.ghCli.installProgressLabel": {
+        en: "GitHub CLI installation progress",
+        yue: "GitHub CLI 安裝進度",
+    },
+    "settings.github.ghCli.installUnsupported": {
+        en: "This build cannot install GitHub CLI from this screen. Open System dependencies for the available routes.",
+        yue: "呢個版本唔可以喺呢個畫面安裝 GitHub CLI。打開「系統依賴」睇可用路線。",
+    },
+    "settings.github.ghCli.installPreviewFailed": {
+        en: "The GitHub CLI installer preview could not be loaded: {reason}",
+        yue: "GitHub CLI 安裝預覽載入唔到：{reason}",
+    },
+    "settings.github.ghCli.installMissingFromRegistry": {
+        en: "This build's dependency registry does not include GitHub CLI, so nothing was installed.",
+        yue: "呢個版本嘅依賴清單冇 GitHub CLI，所以乜都冇安裝。",
+    },
+    "settings.github.ghCli.installMissingFromRegistryReason": {
+        en: "the dependency registry has no GitHub CLI entry",
+        yue: "依賴清單冇 GitHub CLI 項目",
+    },
+    "settings.github.ghCli.installAlreadyInstalled": {
+        en: "Already installed",
+        yue: "已經安裝",
+    },
+    "settings.github.ghCli.installAlreadyInstalledVersion": {
+        en: "Already installed ({version})",
+        yue: "已經安裝（{version}）",
+    },
+    "settings.github.ghCli.installNoOutcome": {
+        en: "the installer returned no GitHub CLI result",
+        yue: "安裝程式冇交返 GitHub CLI 結果",
+    },
+    "settings.github.ghCli.installVerificationFailed": {
+        en: "the package manager finished, but gh could not be verified afterwards",
+        yue: "套件管理器完成咗，但之後驗證唔到 gh",
+    },
+    "settings.github.ghCli.installElevationDeclined": {
+        en: "administrator permission was declined",
+        yue: "管理員權限被拒絕",
+    },
+    "settings.github.ghCli.installPackageNotFound": {
+        en: "{manager} could not find {package}",
+        yue: "{manager} 搵唔到 {package}",
+    },
+    "settings.github.ghCli.installCancelledReason": {
+        en: "the installation was cancelled",
+        yue: "安裝已取消",
+    },
+    "settings.github.ghCli.installStopped": {
+        en: "Installation and sign-in stopped. The account check did not start.",
+        yue: "安裝同登入停咗，帳戶檢查冇開始。",
+    },
+    "settings.github.ghCli.installStoppedAfterCheck": {
+        en: "Setup stopped after checking gh. Sign-in did not start.",
+        yue: "檢查完 gh 之後設定停咗，登入冇開始。",
+    },
+    "settings.github.ghCli.installStoppedBeforeNextStage": {
+        en: "Setup stopped before the next stage began.",
+        yue: "下一階段開始之前設定已停低。",
+    },
+    "settings.github.ghCli.installCheckNoAnswer": {
+        en: "the account check returned no result",
+        yue: "帳戶檢查冇交返結果",
+    },
+    "settings.github.ghCli.installStillMissing": {
+        en: "the installer finished, but gh is still not available on this application's PATH",
+        yue: "安裝程式完成咗，但呢個程式嘅 PATH 仍然搵唔到 gh",
     },
     "settings.github.ghCli.signInAction": { en: "Sign in with gh", yue: "用 gh 登入" },
     "settings.github.ghCli.repairScopesAction": {
@@ -261,6 +371,10 @@ export const GHCLIACCOUNTS_FACTS = {
     "settings.github.ghCli.loginExplainer": {
         en: ["gh", "browser", "does not keep"],
         yue: ["gh", "browser", "唔會保存"],
+    },
+    "settings.github.ghCli.installFailed": {
+        en: ["GitHub CLI", "sign-in", "{reason}"],
+        yue: ["GitHub CLI", "登入", "{reason}"],
     },
 } as const satisfies Record<
     keyof typeof GHCLIACCOUNTS_VOICED,

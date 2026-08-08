@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAccountKey,
@@ -7,6 +7,7 @@ import {
     mdiCancel,
     mdiCheckCircle,
     mdiContentCopy,
+    mdiDownload,
     mdiLogin,
     mdiOpenInNew,
     mdiRefresh,
@@ -15,6 +16,9 @@ import {
 import { VAlert, VBtn, VChip, VIcon, VProgressLinear } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { createDependencyInstaller, type DependencyRow } from "../settings/dependencyInstaller.js";
+import type { DependencyInstallerBridge, SysdepOutcome } from "../settings/dependencyBridge.js";
+import { dependencyRouteLabel, dependencyStageLabel } from "../settings/dependencyModel.js";
 import { canWriteClipboard, resolveGitHubBridge } from "./githubBridge.js";
 import { ghCliAccountSearchText, type GhCliAccountsStoreState } from "./ghCliAccountsStore.js";
 import type { GhCliAccountReadout } from "./ghCliBridge.js";
@@ -36,9 +40,16 @@ import type { GhCliAccountReadout } from "./ghCliBridge.js";
  * and URL here, and hands the approved token directly to `gh auth login --with-token` over
  * stdin. The token never reaches this component, its store, IPC, a file, or an argument.
  * Adding an account and repairing scopes therefore use the same visible browser-approval
- * flow rather than copying a terminal command that the application cannot monitor.
+ * flow rather than copying a terminal command that the application cannot monitor. When
+ * `gh` is absent, this originating surface first composes the existing system-dependency
+ * installer, re-probes the command after verified installation, and only then starts that
+ * same device flow.
  */
-const props = defineProps<{ list: GhCliAccountsStoreState }>();
+const props = defineProps<{
+    list: GhCliAccountsStoreState;
+    /** Injected only by focused tests. Production resolves the existing preload bridge. */
+    dependencyBridge?: DependencyInstallerBridge | null;
+}>();
 
 const emit = defineEmits<{
     "open-dependencies": [];
@@ -47,6 +58,300 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const state = props.list;
+
+/* -------------------------------------------------------------------------- */
+/* One-click install, re-probe, then GUI sign-in                              */
+/* -------------------------------------------------------------------------- */
+
+const GH_CLI_DEPENDENCY_ID = "githubCli";
+type InstallChainStage = "idle" | "preparing" | "installing" | "cancelling" | "checking";
+
+const installer = createDependencyInstaller(
+    props.dependencyBridge === undefined ? {} : { bridge: props.dependencyBridge },
+);
+const installChainStage = ref<InstallChainStage>("idle");
+const installFailure = ref<string | null>(null);
+const installStopped = ref<string | null>(null);
+let installChainGeneration = 0;
+let componentDisposed = false;
+let previewPromise: Promise<void> | null = null;
+
+const ghInstallRow = computed<DependencyRow | null>(
+    () => installer.rows.value.find((row) => row.id === GH_CLI_DEPENDENCY_ID) ?? null,
+);
+
+const installChainBusy = computed(() => installChainStage.value !== "idle");
+
+function isCurrentInstallChain(generation: number): boolean {
+    return !componentDisposed && generation === installChainGeneration;
+}
+
+const installCancelText = computed(() => {
+    if (installer.runState.value === "cancelling") {
+        return t("settings.github.ghCli.installCancelling", "Cancelling installation…");
+    }
+    if (installChainStage.value === "installing") {
+        return t("settings.github.ghCli.installCancel", "Cancel installation");
+    }
+    return t("settings.github.ghCli.installStopBeforeSignIn", "Stop before sign-in");
+});
+
+const ghInstallCanProceed = computed(() => {
+    const row = ghInstallRow.value;
+    if (row === null) return false;
+    return row.preview.alreadyInstalled || row.preview.route.kind === "package-manager";
+});
+
+const installActionText = computed(() =>
+    ghInstallRow.value?.preview.alreadyInstalled === true
+        ? t("settings.github.ghCli.continueToSignIn", "Continue to gh sign-in")
+        : t("settings.github.ghCli.installAndSignIn", "Install GitHub CLI and sign in"),
+);
+
+const ghInstallRouteText = computed(() => {
+    const row = ghInstallRow.value;
+    if (row === null) return null;
+    return dependencyRouteLabel(row.preview.route, t);
+});
+
+const ghInstallStageText = computed(() => {
+    const row = ghInstallRow.value;
+    if (row === null || row.stage === "idle") return null;
+    return dependencyStageLabel(row.stage, t);
+});
+
+const ghInstallPreviewIssue = computed(() => {
+    if (installer.previewState.value === "unsupported") {
+        return t(
+            "settings.github.ghCli.installUnsupported",
+            "This build cannot install GitHub CLI from this screen. Open System dependencies for the available routes.",
+        );
+    }
+    if (installer.previewState.value === "failed") {
+        return t(
+            "settings.github.ghCli.installPreviewFailed",
+            { reason: installer.previewFailure.value ?? "" },
+            "The GitHub CLI installer preview could not be loaded: {reason}",
+        );
+    }
+    if (installer.previewState.value !== "ready") return null;
+    const row = ghInstallRow.value;
+    if (row === null) {
+        return t(
+            "settings.github.ghCli.installMissingFromRegistry",
+            "This build's dependency registry does not include GitHub CLI, so nothing was installed.",
+        );
+    }
+    if (!row.preview.alreadyInstalled && row.preview.route.kind !== "package-manager") {
+        return row.preview.route.reason;
+    }
+    return null;
+});
+
+function progressPercent(row: DependencyRow): number {
+    return row.progress.kind === "determinate" ? row.progress.percent : 0;
+}
+
+function progressValueNow(row: DependencyRow): number | undefined {
+    return row.progress.kind === "determinate" ? row.progress.percent : undefined;
+}
+
+function describeInstallFailure(reason: string): string {
+    return t(
+        "settings.github.ghCli.installFailed",
+        { reason },
+        "GitHub CLI is not ready, so sign-in did not start: {reason}",
+    );
+}
+
+function outcomeFailureReason(outcome: SysdepOutcome | undefined): string {
+    if (outcome === undefined) {
+        return t(
+            "settings.github.ghCli.installNoOutcome",
+            "the installer returned no GitHub CLI result",
+        );
+    }
+    switch (outcome.kind) {
+        case "installed":
+        case "already-installed":
+            return t(
+                "settings.github.ghCli.installVerificationFailed",
+                "the package manager finished, but gh could not be verified afterwards",
+            );
+        case "declined-elevation":
+            return t(
+                "settings.github.ghCli.installElevationDeclined",
+                "administrator permission was declined",
+            );
+        case "not-found":
+            return t(
+                "settings.github.ghCli.installPackageNotFound",
+                { manager: outcome.manager, package: outcome.packageId },
+                "{manager} could not find {package}",
+            );
+        case "network-failure":
+        case "verification-failed":
+        case "failed":
+            return outcome.message;
+        case "cancelled":
+            return t(
+                "settings.github.ghCli.installCancelledReason",
+                "the installation was cancelled",
+            );
+        case "unsupported":
+            return outcome.message;
+    }
+}
+
+async function ensureGhInstallPreview(): Promise<void> {
+    if (!installer.supported || installer.previewState.value === "ready") return;
+    if (previewPromise !== null) return previewPromise;
+    previewPromise = installer.loadPreview().finally(() => {
+        previewPromise = null;
+    });
+    return previewPromise;
+}
+
+watch(
+    () => state.availability.value,
+    (availability) => {
+        if (availability === "not-installed") void ensureGhInstallPreview();
+    },
+    { immediate: true },
+);
+
+async function installGhAndLogin(): Promise<void> {
+    if (installChainBusy.value || state.loginBusy.value) return;
+
+    const generation = ++installChainGeneration;
+    installFailure.value = null;
+    installStopped.value = null;
+    installChainStage.value = "preparing";
+
+    try {
+        await ensureGhInstallPreview();
+        if (!isCurrentInstallChain(generation)) return;
+
+        const row = ghInstallRow.value;
+        if (row === null) {
+            installFailure.value = describeInstallFailure(
+                t(
+                    "settings.github.ghCli.installMissingFromRegistryReason",
+                    "the dependency registry has no GitHub CLI entry",
+                ),
+            );
+            return;
+        }
+
+        if (!row.preview.alreadyInstalled) {
+            if (row.preview.route.kind !== "package-manager") {
+                installFailure.value = describeInstallFailure(row.preview.route.reason);
+                return;
+            }
+
+            installer.selectNone();
+            installer.toggle(GH_CLI_DEPENDENCY_ID);
+            installChainStage.value = "installing";
+            await installer.run();
+            if (!isCurrentInstallChain(generation)) return;
+
+            const outcome = installer.lastResult.value?.outcomes.find(
+                (candidate) => candidate.dependency === GH_CLI_DEPENDENCY_ID,
+            );
+            if (installer.lastResult.value?.cancelled === true) {
+                installStopped.value = t(
+                    "settings.github.ghCli.installStopped",
+                    "Installation and sign-in stopped. The account check did not start.",
+                );
+                return;
+            }
+            const verified =
+                (outcome?.kind === "installed" || outcome?.kind === "already-installed") &&
+                outcome.verified;
+            if (!verified) {
+                installFailure.value = describeInstallFailure(outcomeFailureReason(outcome));
+                return;
+            }
+        }
+
+        installChainStage.value = "checking";
+        await state.load();
+        if (!isCurrentInstallChain(generation)) return;
+        if (state.listFailure.value !== null || state.availability.value === null) {
+            installFailure.value = describeInstallFailure(
+                state.listFailure.value ??
+                    t(
+                        "settings.github.ghCli.installCheckNoAnswer",
+                        "the account check returned no result",
+                    ),
+            );
+            return;
+        }
+        if (state.availability.value === "not-installed") {
+            installFailure.value = describeInstallFailure(
+                t(
+                    "settings.github.ghCli.installStillMissing",
+                    "the installer finished, but gh is still not available on this application's PATH",
+                ),
+            );
+            return;
+        }
+
+        installChainStage.value = "idle";
+        if (!isCurrentInstallChain(generation)) return;
+        await startLogin();
+    } catch (error) {
+        installFailure.value = describeInstallFailure(
+            error instanceof Error ? error.message : String(error),
+        );
+    } finally {
+        if (isCurrentInstallChain(generation)) {
+            installChainStage.value = "idle";
+        }
+    }
+}
+
+async function cancelInstallChain(): Promise<void> {
+    if (!installChainBusy.value) return;
+    const cancelledStage = installChainStage.value;
+    installChainGeneration += 1;
+    if (installer.runState.value !== "idle") {
+        installChainStage.value = "cancelling";
+        installStopped.value = t(
+            "settings.github.ghCli.installStopped",
+            "Installation and sign-in stopped. The account check did not start.",
+        );
+        try {
+            await installer.cancel();
+        } catch (error) {
+            installFailure.value = describeInstallFailure(
+                error instanceof Error ? error.message : String(error),
+            );
+        } finally {
+            if (!componentDisposed && installChainStage.value === "cancelling") {
+                installChainStage.value = "idle";
+            }
+        }
+        return;
+    }
+    installStopped.value =
+        cancelledStage === "checking"
+            ? t(
+                  "settings.github.ghCli.installStoppedAfterCheck",
+                  "Setup stopped after checking gh. Sign-in did not start.",
+              )
+            : t(
+                  "settings.github.ghCli.installStoppedBeforeNextStage",
+                  "Setup stopped before the next stage began.",
+              );
+    installChainStage.value = "idle";
+}
+
+onBeforeUnmount(() => {
+    componentDisposed = true;
+    installChainGeneration += 1;
+    if (state.loginBusy.value) void state.cancelLogin();
+});
 
 /* -------------------------------------------------------------------------- */
 /* Finding one among many                                                     */
@@ -227,6 +532,8 @@ async function cancelLogin(): Promise<void> {
 }
 
 async function checkAgain(): Promise<void> {
+    installFailure.value = null;
+    installStopped.value = null;
     await state.checkAgain();
 }
 </script>
@@ -284,6 +591,26 @@ async function checkAgain(): Promise<void> {
         >
             {{ state.actionFailure.value }}
         </v-alert>
+
+        <v-alert
+            v-if="installFailure !== null"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            role="alert"
+            class="mb-ghcli__alert"
+        >
+            {{ installFailure }}
+        </v-alert>
+
+        <p
+            v-if="installStopped !== null"
+            class="mb-ghcli__note mb-ghcli__status"
+            role="status"
+            aria-live="polite"
+        >
+            {{ installStopped }}
+        </p>
 
         <v-alert
             v-if="state.loginState.value !== null"
@@ -359,7 +686,7 @@ async function checkAgain(): Promise<void> {
             </div>
         </v-alert>
 
-        <!-- Not installed: say so, name what still works, and point at the installer. -->
+        <!-- Not installed: preview the exact installer route before the one-click chain starts. -->
         <template v-if="state.availability.value === 'not-installed'">
             <v-alert
                 type="info"
@@ -370,7 +697,127 @@ async function checkAgain(): Promise<void> {
             >
                 {{ statusLineText }}
             </v-alert>
+
+            <v-progress-linear
+                v-if="installer.previewState.value === 'loading'"
+                indeterminate
+                color="primary"
+                class="mb-ghcli__installBar"
+                :aria-label="
+                    t(
+                        'settings.github.ghCli.installPreviewProgress',
+                        'Checking how GitHub CLI can be installed',
+                    )
+                "
+            />
+
+            <v-alert
+                v-if="ghInstallPreviewIssue !== null"
+                :type="installer.previewState.value === 'failed' ? 'error' : 'warning'"
+                variant="tonal"
+                density="comfortable"
+                :role="installer.previewState.value === 'failed' ? 'alert' : 'status'"
+                class="mb-ghcli__alert"
+            >
+                {{ ghInstallPreviewIssue }}
+            </v-alert>
+
+            <div
+                v-if="installer.previewState.value === 'ready' && ghInstallRow !== null"
+                class="mb-ghcli__installCard"
+            >
+                <div class="mb-ghcli__installHead">
+                    <span class="mb-ghcli__installName">{{ ghInstallRow.displayName }}</span>
+                    <v-chip size="small" variant="tonal">{{ ghInstallRouteText }}</v-chip>
+                    <v-chip
+                        v-if="ghInstallRow.preview.alreadyInstalled"
+                        size="small"
+                        variant="outlined"
+                    >
+                        {{
+                            ghInstallRow.preview.installedVersion === null
+                                ? t(
+                                      "settings.github.ghCli.installAlreadyInstalled",
+                                      "Already installed",
+                                  )
+                                : t(
+                                      "settings.github.ghCli.installAlreadyInstalledVersion",
+                                      { version: ghInstallRow.preview.installedVersion },
+                                      "Already installed ({version})",
+                                  )
+                        }}
+                    </v-chip>
+                </div>
+
+                <v-alert
+                    v-if="
+                        !ghInstallRow.preview.alreadyInstalled &&
+                        ghInstallRow.preview.elevation !== 'none'
+                    "
+                    type="warning"
+                    variant="tonal"
+                    density="comfortable"
+                    role="status"
+                    class="mb-ghcli__installDisclosure"
+                >
+                    {{ ghInstallRow.preview.elevationDisclosure }}
+                </v-alert>
+
+                <div
+                    v-if="ghInstallStageText !== null || ghInstallRow.message !== ''"
+                    class="mb-ghcli__installProgress"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <strong v-if="ghInstallStageText !== null">{{ ghInstallStageText }}</strong>
+                    <span v-if="ghInstallRow.message !== ''">{{ ghInstallRow.message }}</span>
+                </div>
+
+                <v-progress-linear
+                    v-if="ghInstallRow.progress.kind !== 'none'"
+                    :model-value="progressPercent(ghInstallRow)"
+                    :indeterminate="ghInstallRow.progress.kind === 'indeterminate'"
+                    :aria-label="
+                        t(
+                            'settings.github.ghCli.installProgressLabel',
+                            'GitHub CLI installation progress',
+                        )
+                    "
+                    :aria-valuenow="progressValueNow(ghInstallRow)"
+                    color="primary"
+                    height="6"
+                    rounded
+                    class="mb-ghcli__installBar"
+                />
+
+                <div class="mb-ghcli__installActions">
+                    <v-btn
+                        :prepend-icon="mdiDownload"
+                        variant="tonal"
+                        size="small"
+                        :loading="installChainBusy"
+                        :disabled="
+                            !ghInstallCanProceed || installChainBusy || state.loginBusy.value
+                        "
+                        @click="installGhAndLogin"
+                    >
+                        {{ installActionText }}
+                    </v-btn>
+                    <v-btn
+                        v-if="installChainBusy"
+                        :prepend-icon="mdiCancel"
+                        variant="text"
+                        size="small"
+                        :disabled="installer.runState.value === 'cancelling'"
+                        @click="cancelInstallChain"
+                    >
+                        {{ installCancelText }}
+                    </v-btn>
+                </div>
+            </div>
+
             <v-btn
+                v-if="installer.previewState.value !== 'loading' && !ghInstallCanProceed"
                 class="mb-ghcli__openDeps"
                 :append-icon="mdiOpenInNew"
                 variant="tonal"
@@ -742,6 +1189,45 @@ async function checkAgain(): Promise<void> {
     gap: 4px;
     max-width: 100%;
     overflow-wrap: anywhere;
+}
+
+.mb-ghcli__installCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+    border-radius: 12px;
+    background: rgb(var(--v-theme-surface));
+}
+
+.mb-ghcli__installHead,
+.mb-ghcli__installActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.mb-ghcli__installName {
+    font-weight: 600;
+}
+
+.mb-ghcli__installDisclosure {
+    overflow-wrap: anywhere;
+}
+
+.mb-ghcli__installProgress {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.mb-ghcli__installBar {
+    flex: 0 0 auto;
 }
 
 .mb-ghcli__list {
