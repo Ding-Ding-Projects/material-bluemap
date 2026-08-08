@@ -116,3 +116,25 @@ describe("a search result row's label", () => {
         expect(button.text()).toContain("Settings");
     });
 });
+
+describe("a search result row's tab-group chip", () => {
+    /**
+     * jsdom does not load an SFC's stylesheet for this suite, so asserting a computed
+     * value would exercise its empty test stylesheet rather than the shipped component.
+     * Read the component as Vite's raw asset and keep the regression tied to the exact
+     * selector that owns the user-authored group name.
+     */
+    it("wraps a long group name rather than inheriting Vuetify's hard single-line clip", async () => {
+        const source = (await import("./TabResultList.vue?raw")).default as string;
+        const chipRule =
+            /\.mb-tabs-results__group-name\.v-chip\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
+        const contentRule =
+            /\.mb-tabs-results__group-name\s+\.v-chip__content\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
+
+        expect(chipRule).toContain("min-width: 0");
+        expect(chipRule).toContain("max-width: 100%");
+        expect(chipRule).toContain("height: auto");
+        expect(contentRule).toContain("white-space: normal");
+        expect(contentRule).toContain("overflow-wrap: anywhere");
+    });
+});

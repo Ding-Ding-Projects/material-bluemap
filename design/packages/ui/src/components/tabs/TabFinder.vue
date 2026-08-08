@@ -295,7 +295,14 @@ function isOpen(key: string): boolean {
                             {{ hit.name }}
                         </v-btn>
                         <div class="mb-tabs-finder__group-meta">
-                            <v-chip size="x-small" :color="hit.color" variant="tonal">{{ hit.name }}</v-chip>
+                            <v-chip
+                                class="mb-tabs-finder__group-name"
+                                size="x-small"
+                                :color="hit.color"
+                                variant="tonal"
+                            >
+                                {{ hit.name }}
+                            </v-chip>
                             <v-chip size="x-small" variant="outlined">
                                 {{ t("tabs.find.groupCount", { count: hit.tabCount }, "{count} tabs") }}
                             </v-chip>
@@ -398,6 +405,21 @@ function isOpen(key: string): boolean {
     gap: 4px;
     padding-inline: 8px;
     padding-block-end: 4px;
+}
+
+/* A group name is user-authored. Vuetify chips default to a single clipped line,
+   which turns a narrow finder into a silent character cutter. Keep the compact
+   chip, but let its full accessible text wrap inside the available row width. */
+.mb-tabs-finder__group-name.v-chip {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.mb-tabs-finder__group-name .v-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding-block: 2px;
 }
 
 .mb-tabs-finder__empty {
