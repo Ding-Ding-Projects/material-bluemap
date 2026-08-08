@@ -1,7 +1,7 @@
 {
     "version": 1,
     "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-    "expectedTargetCount": 135,
+    "expectedTargetCount": 150,
     "evidenceRoots": [
         "docs/screenshots",
         "design/docs/assets/issues",
@@ -13,8 +13,13 @@
             "authority": "design/packages/app/test/screenshots.spec.ts",
             "command": "cd design && pnpm build && pnpm --filter @worldlens/app screenshots",
             "reproducibility": "current-build-with-local-map-fixture",
-            "expectedCount": 66,
+            "expectedCount": 81,
             "targets": [
+                "docs/screenshots/appearance-context-menu.png",
+                "docs/screenshots/appearance-surface.png",
+                "docs/screenshots/appearance-typography.png",
+                "docs/screenshots/backups.png",
+                "docs/screenshots/changelog-viewer.png",
                 "docs/screenshots/chrome-control-bar.png",
                 "docs/screenshots/chrome-shell-buttons.png",
                 "docs/screenshots/chrome-titlebar-window-buttons.png",
@@ -37,7 +42,10 @@
                 "docs/screenshots/firstrun-1-welcome-window.png",
                 "docs/screenshots/firstrun-1-welcome.png",
                 "docs/screenshots/firstrun-2-consent.png",
+                "docs/screenshots/firstrun-2-eula.png",
                 "docs/screenshots/firstrun-3-storage.png",
+                "docs/screenshots/infinite-colour-picker.png",
+                "docs/screenshots/issue-105-popup-edge.png",
                 "docs/screenshots/menu-info.png",
                 "docs/screenshots/menu-maps.png",
                 "docs/screenshots/menu-markers.png",
@@ -48,6 +56,8 @@
                 "docs/screenshots/notifications-corner.png",
                 "docs/screenshots/notifications-history.png",
                 "docs/screenshots/notifications-toast.png",
+                "docs/screenshots/palette-search.png",
+                "docs/screenshots/palette.png",
                 "docs/screenshots/pages-publishing-screen.png",
                 "docs/screenshots/profiles-manager.png",
                 "docs/screenshots/projects-screen.png",
@@ -72,6 +82,10 @@
                 "docs/screenshots/super-confirm-armed.png",
                 "docs/screenshots/super-confirm-one-key.png",
                 "docs/screenshots/super-confirm-untouched.png",
+                "docs/screenshots/tab-bulk-close-preview.png",
+                "docs/screenshots/tab-context-menu.png",
+                "docs/screenshots/tab-finder.png",
+                "docs/screenshots/tab-strip.png",
                 "docs/screenshots/theme-dark.png",
                 "docs/screenshots/theme-light.png",
                 "docs/screenshots/wizard-1-world-read.png",
@@ -81,6 +95,8 @@
                 "docs/screenshots/wizard-4-where-it-goes.png",
                 "docs/screenshots/wizard-5-review.png",
                 "docs/screenshots/wizard-release-downloads.png"
+                ,
+                "docs/screenshots/wizard-ssh-world-source.png"
             ]
         },
         {
