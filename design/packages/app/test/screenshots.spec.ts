@@ -1041,6 +1041,80 @@ test("captures the shell at every supported display scale", async () => {
     });
 });
 
+test("captures the map popup retained at the lower-right viewport edge", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    if (target.profile === null) {
+        skip("Map popup at the viewport edge", "this run has no rendered map to click");
+        return;
+    }
+
+    await ensureMapTab();
+    await page.setViewportSize({ width: 800, height: 600 });
+    await page.waitForTimeout(500);
+
+    const canvas = page.locator("#map-container canvas").first();
+    await canvas.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    const canvasBox = await canvas.boundingBox();
+    expect(canvasBox, "the live viewer canvas had no measurable bounds").not.toBeNull();
+
+    const popup = page.locator(".bm-marker-popup").first();
+    const edgeOffsets = [24, 48, 80, 120, 160];
+    let opened = false;
+    for (const bottom of edgeOffsets) {
+        for (const right of edgeOffsets) {
+            await page.mouse.click(
+                canvasBox!.x + canvasBox!.width - right,
+                canvasBox!.y + canvasBox!.height - bottom,
+            );
+            await page.waitForTimeout(250);
+            if (await popup.isVisible()) {
+                opened = true;
+                break;
+            }
+        }
+        if (opened) break;
+    }
+
+    expect(opened, "no rendered block near the lower-right canvas edge opened the popup").toBe(
+        true,
+    );
+
+    const geometry = await popup.evaluate((element) => {
+        const wrapper = element.parentElement;
+        const container = wrapper?.parentElement;
+        if (!wrapper || !container) return null;
+        const rect = wrapper.getBoundingClientRect();
+        const bounds = container.getBoundingClientRect();
+        return {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            boundsLeft: bounds.left,
+            boundsTop: bounds.top,
+            boundsRight: bounds.right,
+            boundsBottom: bounds.bottom,
+        };
+    });
+
+    expect(geometry, "the popup had no CSS2D wrapper and container").not.toBeNull();
+    expect(geometry!.left).toBeGreaterThanOrEqual(geometry!.boundsLeft - 1);
+    expect(geometry!.top).toBeGreaterThanOrEqual(geometry!.boundsTop - 1);
+    expect(geometry!.right).toBeLessThanOrEqual(geometry!.boundsRight + 1);
+    expect(geometry!.bottom).toBeLessThanOrEqual(geometry!.boundsBottom + 1);
+
+    await shoot(
+        "issue-105-popup-edge",
+        "The block-coordinate popup opened from a real map click near the lower-right viewport edge, with every coordinate row retained inside the map",
+        {
+            note: `Measured popup ${Math.round(geometry!.right - geometry!.left)}×${Math.round(geometry!.bottom - geometry!.top)} pixels inside CSS2D bounds ${Math.round(geometry!.boundsRight - geometry!.boundsLeft)}×${Math.round(geometry!.boundsBottom - geometry!.boundsTop)} pixels.`,
+        },
+    );
+
+    await page.setViewportSize(SURFACE_VIEWPORT);
+});
+
 test("captures each navigable page", async () => {
     const items = page.locator(".v-navigation-drawer .v-list-item");
     const count = await items.count();

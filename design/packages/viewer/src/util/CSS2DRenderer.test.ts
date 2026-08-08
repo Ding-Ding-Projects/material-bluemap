@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { PerspectiveCamera, Scene } from "three";
 import { CSS2DObject, CSS2DRenderer, clampRectToBounds } from "./CSS2DRenderer.js";
+import type { BoundsRect } from "./CSS2DRenderer.js";
 import { htmlToElement } from "./Utils.js";
 
 describe("clampRectToBounds", () => {
@@ -61,9 +62,20 @@ describe("clampRectToBounds", () => {
 });
 
 describe("CSS2DRenderer keepInBounds wiring", () => {
-    const render = (object: CSS2DObject) => {
+    const render = (
+        object: CSS2DObject,
+        measured?: {
+            container: BoundsRect;
+            element: BoundsRect;
+        },
+    ) => {
         const renderer = new CSS2DRenderer();
         renderer.setSize(800, 600);
+
+        if (measured) {
+            renderer.domElement.getBoundingClientRect = () => DOMRect.fromRect(measured.container);
+            object.element.getBoundingClientRect = () => DOMRect.fromRect(measured.element);
+        }
 
         const scene = new Scene();
         scene.add(object);
@@ -103,6 +115,23 @@ describe("CSS2DRenderer keepInBounds wiring", () => {
         const renderer = render(object);
 
         expect(object.element.style.transform).toContain("translate(");
+        expect(object.element.parentNode).toBe(renderer.domElement);
+    });
+
+    it("applies the measured right/bottom correction to the rendered transform", () => {
+        const object = new CSS2DObject(htmlToElement("<div>popup</div>"));
+        object.keepInBounds = true;
+        object.position.set(0, 0, 0);
+
+        const renderer = render(object, {
+            container: { x: 20, y: 30, width: 800, height: 600 },
+            element: { x: 780, y: 590, width: 100, height: 80 },
+        });
+
+        // The scene origin starts at translate(400px,300px). Relative to the container,
+        // the measured popup begins at (760,560), so it overflows by 60px right and 40px
+        // bottom. The renderer must apply exactly that correction to the real transform.
+        expect(object.element.style.transform).toBe("translate(340px,260px)");
         expect(object.element.parentNode).toBe(renderer.domElement);
     });
 });
