@@ -29,10 +29,10 @@ Two different things trigger here, and they are easy to conflate:
 - **A check** runs whenever `scheduled-render.yml`'s job executes. GitHub's `schedule:`
   trigger cannot read a repository variable to decide its own cron — a cron expression is
   fixed the moment this file is written — so the workflow always wakes up **hourly**, the
-  finest cadence this feature offers, and then asks a small pure function
+  finest supported interval, and then asks a small pure function
   (`design/packages/render-actions/src/schedule/cadence.ts`'s `isCadenceDue`) whether the
-  *configured* cadence says a check is actually due yet. Most hourly wake-ups, on a daily or
-  weekly configuration, do nothing at all beyond that question — no metadata is even
+  *configured* cadence says a check is actually due yet. Most hourly wake-ups, on a daily,
+  weekly, or custom multi-hour configuration, do nothing beyond that question — no metadata is even
   fetched.
 - **A render** — dispatching [`render-world.yml`](./render-in-actions.md), the workflow
   documented separately — only happens when a due check's comparison says the world
@@ -54,7 +54,7 @@ see [the app-side configuration surface](#the-app-side-configuration-surface) be
 | Variable | Meaning |
 |---|---|
 | `CIRENDER_SCHEDULE_ENABLED` | `"true"` to turn scheduled checking on at all. Anything else, including unset, means every hourly wake-up does nothing and says so in its run summary. |
-| `CIRENDER_SCHEDULE_CADENCE` | One of exactly four choices: `hourly`, `sixHourly`, `daily`, `weekly`. Never a cron expression — this project's guided-forms rule refuses to hand a cron string to somebody who does not already read cron, and the workflow could not honour an arbitrary one anyway (see above). |
+| `CIRENDER_SCHEDULE_CADENCE` | A guided preset (`hourly`, `sixHourly`, `daily`, `weekly`) or a custom whole-hour interval encoded as `hours:N`, where `N` is 1–168. Never a cron expression — the app presents a bounded number field and both the main process and workflow validate it. |
 | `CIRENDER_SCHEDULE_WORLD_SOURCE` | `repository`, `release-asset`, `url` or `git` — the same choices [`render-world.yml`](./render-in-actions.md) accepts. |
 | `CIRENDER_SCHEDULE_WORLD` | Same meaning as `render-world.yml`'s `world` input, **with one narrowing**: for `release-asset`, this must be one exact asset name (optionally `tag/name`), never a glob. A cheap check has to name a single asset to watch for changes; a glob that could resolve to a different asset next time is not something "did it change" can answer. For `git`, this is a branch (optionally `branch:subpath`). |
 | `CIRENDER_SCHEDULE_WORLD_REPOSITORY` | `release-asset` (blank means this repository) and `git` (always required — a git source always names one repository). |
@@ -64,8 +64,8 @@ see [the app-side configuration surface](#the-app-side-configuration-surface) be
 
 The desktop app's CI-render screen (`design/packages/ui/src/components/cirender/`) offers a
 **Scheduled re-rendering** section once a sync's repository is known: a switch for
-`CIRENDER_SCHEDULE_ENABLED`, a choice of the same four cadence names — never a free-text
-field — and a status line reading `CIRENDER_SCHEDULE_LAST_CHECK_AT`,
+`CIRENDER_SCHEDULE_ENABLED`, a preset or a custom 1–168 hour interval — never a free-text
+cron field — and a status line reading `CIRENDER_SCHEDULE_LAST_CHECK_AT`,
 `_LAST_CHECK_RESULT` and `_LAST_RENDER_AT` back. It writes through the same two GitHub
 credential routes (the application's own sign-in, or the `gh` command-line tool) the rest of
 the CI-render feature already uses — see
@@ -132,7 +132,8 @@ Checking is cheap **regardless of cadence** — every check reads a small amount
 expensive the more often it runs. `describeCadenceCost` in
 `design/packages/render-actions/src/schedule/cadence.ts` reports the one number this feature
 can state honestly: exactly how many times a month a cadence wakes the check up (720 for
-hourly, 120 for six-hourly, 30 for daily, 4 for weekly) — never a fabricated runner-minute
+hourly, 120 for six-hourly, 30 for daily, 4 for weekly, or the computed count for a custom
+whole-hour interval) — never a fabricated runner-minute
 estimate, because a check job's real duration depends on the world's source and this project
 does not invent numbers it has not measured.
 

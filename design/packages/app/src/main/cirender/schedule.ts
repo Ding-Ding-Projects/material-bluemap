@@ -7,9 +7,9 @@
  *
  * ## Guided, never a cron expression
  *
- * The cadence is one of exactly four names - `CI_SCHEDULE_CADENCES`, re-exported from
- * `@worldlens/render-actions` so the app and the workflow can never disagree about
- * what "daily" means in milliseconds. Nothing here accepts free text for it.
+ * The cadence is one of four guided presets or a validated custom whole-hour interval,
+ * re-exported from `@worldlens/render-actions` so the app and the workflow can never
+ * disagree about what a stored value means. Nothing here accepts cron or arbitrary text.
  *
  * ## What "configuring" actually writes
  *
@@ -52,7 +52,12 @@ export const CI_SCHEDULE_VARIABLES = {
 
 export type CiScheduleCheckResultName = "changed" | "unchanged" | "unknown" | "error";
 
-const CHECK_RESULT_NAMES: readonly CiScheduleCheckResultName[] = ["changed", "unchanged", "unknown", "error"];
+const CHECK_RESULT_NAMES: readonly CiScheduleCheckResultName[] = [
+    "changed",
+    "unchanged",
+    "unknown",
+    "error",
+];
 
 function isCheckResultName(value: string): value is CiScheduleCheckResultName {
     return (CHECK_RESULT_NAMES as readonly string[]).includes(value);
@@ -88,7 +93,8 @@ export interface CiScheduleWriteFailure {
     readonly message: string;
 }
 
-export type CiScheduleWriteResult = { readonly ok: true } | { readonly ok: false; readonly failure: CiScheduleWriteFailure };
+export type CiScheduleWriteResult =
+    { readonly ok: true } | { readonly ok: false; readonly failure: CiScheduleWriteFailure };
 
 /**
  * Reads the current schedule status for one repository, straight from its variables.
@@ -97,13 +103,33 @@ export type CiScheduleWriteResult = { readonly ok: true } | { readonly ok: false
  * called from a settings screen a person is looking at, not from a hot loop - there is no
  * reason to race six requests against the same rate limit for a screen that opens once.
  */
-export async function readCiSchedule(transport: CiTransport, owner: string, repo: string): Promise<CiScheduleStatus> {
+export async function readCiSchedule(
+    transport: CiTransport,
+    owner: string,
+    repo: string,
+): Promise<CiScheduleStatus> {
     const enabledRaw = await transport.readVariable(owner, repo, CI_SCHEDULE_VARIABLES.enabled);
     const cadenceRaw = await transport.readVariable(owner, repo, CI_SCHEDULE_VARIABLES.cadence);
-    const lastCheckAt = await transport.readVariable(owner, repo, CI_SCHEDULE_VARIABLES.lastCheckAt);
-    const lastCheckResultRaw = await transport.readVariable(owner, repo, CI_SCHEDULE_VARIABLES.lastCheckResult);
-    const lastCheckReason = await transport.readVariable(owner, repo, CI_SCHEDULE_VARIABLES.lastCheckReason);
-    const lastRenderAt = await transport.readVariable(owner, repo, CI_SCHEDULE_VARIABLES.lastRenderAt);
+    const lastCheckAt = await transport.readVariable(
+        owner,
+        repo,
+        CI_SCHEDULE_VARIABLES.lastCheckAt,
+    );
+    const lastCheckResultRaw = await transport.readVariable(
+        owner,
+        repo,
+        CI_SCHEDULE_VARIABLES.lastCheckResult,
+    );
+    const lastCheckReason = await transport.readVariable(
+        owner,
+        repo,
+        CI_SCHEDULE_VARIABLES.lastCheckReason,
+    );
+    const lastRenderAt = await transport.readVariable(
+        owner,
+        repo,
+        CI_SCHEDULE_VARIABLES.lastRenderAt,
+    );
 
     return parseCiSchedule({
         enabled: enabledRaw,
@@ -133,7 +159,9 @@ export function parseCiSchedule(raw: {
     const enabled = raw.enabled === "true";
     const cadence = raw.cadence !== null && isCiScheduleCadence(raw.cadence) ? raw.cadence : null;
     const lastCheckResult =
-        raw.lastCheckResult !== null && isCheckResultName(raw.lastCheckResult) ? raw.lastCheckResult : null;
+        raw.lastCheckResult !== null && isCheckResultName(raw.lastCheckResult)
+            ? raw.lastCheckResult
+            : null;
 
     const due = cadence === null ? null : isCadenceDue(cadence, raw.lastCheckAt, new Date());
     const cost = cadence === null ? null : describeCadenceCost(cadence);
@@ -179,26 +207,50 @@ export async function writeCiSchedule(
 
     const owner = state.owner;
     const repo = state.repo;
-    await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.enabled, settings.enabled ? "true" : "false");
+    if (!settings.enabled) {
+        // Disable first. If the following cadence refresh is refused, the workflow stays
+        // safely off rather than running a half-written configuration.
+        await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.enabled, "false");
+        await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.cadence, settings.cadence);
+        return { ok: true };
+    }
+
+    // The enable bit is the commit point. Turn it off before replacing the fields and put
+    // it back only after every value has landed. A failed network request can therefore
+    // leave scheduling disabled, but can never leave it enabled with a mixture of old and
+    // new world coordinates.
+    await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.enabled, "false");
     await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.cadence, settings.cadence);
 
-    if (settings.enabled) {
+    {
         // Only written while turning scheduling on (or refreshing it): a world that is
         // never scheduled has no reason to publish its release tag and map settings as
         // repository variables, and turning it off leaves the last-known configuration in
         // place rather than blanking it, so re-enabling does not need it typed again.
-        await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.worldSource, "release-asset");
+        await transport.writeVariable(
+            owner,
+            repo,
+            CI_SCHEDULE_VARIABLES.worldSource,
+            "release-asset",
+        );
         await transport.writeVariable(
             owner,
             repo,
             CI_SCHEDULE_VARIABLES.world,
             `${state.releaseTag as string}/${state.assetName as string}`,
         );
-        await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.dimension, state.dimension);
+        await transport.writeVariable(
+            owner,
+            repo,
+            CI_SCHEDULE_VARIABLES.dimension,
+            state.dimension,
+        );
         await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.mapId, state.mapId);
         await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.mapName, state.mapName);
         await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.output, "artifact");
     }
+
+    await transport.writeVariable(owner, repo, CI_SCHEDULE_VARIABLES.enabled, "true");
 
     return { ok: true };
 }

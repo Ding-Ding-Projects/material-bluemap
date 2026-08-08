@@ -2226,6 +2226,27 @@ describe("scheduled re-rendering, on a row that knows its own repository", () =>
         expect(wrapper.find('[data-test="schedule-lastCheck"]').text()).toContain("not changed");
     });
 
+    it("offers a bounded custom interval and writes its canonical whole-hour value", async () => {
+        const { wrapper, bridge } = await rowWithRepository();
+        await wrapper.find('[data-test="schedule-toggle"]').trigger("click");
+        await flushPromises();
+
+        const cadence = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.attributes("data-test") === "schedule-cadence");
+        expect(cadence).toBeDefined();
+        cadence?.vm.$emit("update:modelValue", "custom");
+        await flushPromises();
+
+        const custom = wrapper.find('[data-test="schedule-custom-hours"] input');
+        expect(custom.exists()).toBe(true);
+        await custom.setValue("37");
+        await custom.trigger("change");
+        await flushPromises();
+
+        expect(bridge.ciRenderScheduleWrite).toHaveBeenCalledWith("s", true, "hours:37", undefined);
+    });
+
     it("surfaces a write refusal - a world that was never uploaded - without pretending it saved", async () => {
         const { bridge: base, emit } = eventBridge(preflight());
         const bridge: CiRenderBridge = {

@@ -164,6 +164,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
     };
     const sync = new CiRenderSync(syncOptions);
+    const scheduleWrites = new Set<string>();
 
     options.ipcMain.handle(
         "cirender:preflight",
@@ -389,13 +390,22 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 return {
                     ok: false,
                     message:
-                        "A sync id and a cadence - hourly, sixHourly, daily or weekly - are required.",
+                        "A sync id and a cadence - hourly, sixHourly, daily, weekly or hours:N from 1 to 168 - are required.",
                 };
             }
             const state = await sync.readState(syncId);
             if (state === null) {
                 return { ok: false, message: `There is no CI render recorded under ${syncId}.` };
             }
+            const operationKey = `${state.owner.toLowerCase()}/${state.repo.toLowerCase()}/${syncId}`;
+            if (scheduleWrites.has(operationKey)) {
+                return {
+                    ok: false,
+                    message:
+                        "This schedule is already being saved. Wait for that save to finish before trying again.",
+                };
+            }
+            scheduleWrites.add(operationKey);
             try {
                 const routed = await resolveScheduleTransport(
                     state.owner,
@@ -408,6 +418,8 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 return { ok: true, value: result };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
+            } finally {
+                scheduleWrites.delete(operationKey);
             }
         },
     );
