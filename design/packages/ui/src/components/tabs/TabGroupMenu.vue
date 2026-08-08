@@ -275,7 +275,11 @@ function choose(id: string): void {
 
 <style>
 .mb-tabs-group-menu {
-    min-width: 320px;
+    /* Stay within the same narrow viewport clamp as the tab sheet rather than
+       forcing the parent wider with a desktop-only intrinsic minimum. */
+    box-sizing: border-box;
+    width: min(320px, calc(100vw - 16px));
+    min-width: 0;
     max-width: 440px;
     padding-block: 8px;
 }

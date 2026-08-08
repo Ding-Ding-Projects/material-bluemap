@@ -1,5 +1,15 @@
 # Handoff
 
+## 2026-08-08 — #116 tab finder and group-menu viewport clamp
+
+`TabFinder` and `TabGroupMenu` previously imposed desktop intrinsic minimum widths (340px and
+320px) even when their containing tab sheet was constrained to `calc(100vw - 16px)`. Both now use
+that same bounded width expression with `box-sizing: border-box` and `min-width: 0`, so the inner
+panels cannot force the tab sheet beyond a narrow viewport. `tabMenuSizing.test.ts` pins the two
+rules; the focused pair of tab tests passes (3 assertions), the UI dependency closure builds, and
+the UI typecheck passes. The issue remains open until an issue-specific real narrow-viewport capture
+and exact-main CI proof are available.
+
 ## 2026-08-08 — Display and ease of use, the complete MD3 colour system, and the clipping sweep's continuation
 
 Branch `claude/interface-usability-clipping-k4to32`, three concerns in separate commits:
