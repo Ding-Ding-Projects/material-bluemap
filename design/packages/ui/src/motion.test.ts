@@ -273,8 +273,9 @@ describe("prefers-reduced-motion: reduce removes all of it", () => {
         // The scrim rule is therefore inside `no-preference`, exactly as Vuetify writes its
         // own: under `reduce` the declaration is not overridden, it is not there.
         const noPreference =
-            /@media \(prefers-reduced-motion: no-preference\)\s*\{([\s\S]*?)\n\}/.exec(rules)?.[1] ??
-            "";
+            /@media \(prefers-reduced-motion: no-preference\)\s*\{([\s\S]*?)\n\}/.exec(
+                rules,
+            )?.[1] ?? "";
         expect(noPreference).toContain(".v-overlay__scrim");
         const scrimRules = [...rules.matchAll(/\.v-overlay__scrim[^{]*\{[^}]*\}/g)];
         expect(scrimRules).toHaveLength(2);
@@ -375,8 +376,9 @@ describe("the surfaces that spend it", () => {
 
         // Same for the notification stack, which is the other `<Transition>` in the tree.
         const stack =
-            /<TransitionGroup\b[\s\S]*?>/.exec(read("./components/config/ConfigNotifications.vue"))?.[0] ??
-            "";
+            /<TransitionGroup\b[\s\S]*?>/.exec(
+                read("./components/config/ConfigNotifications.vue"),
+            )?.[0] ?? "";
         expect(stack).not.toBe("");
         expect(stack).not.toMatch(/:css|[@:](?:before-)?(?:enter|leave)\b/);
     });

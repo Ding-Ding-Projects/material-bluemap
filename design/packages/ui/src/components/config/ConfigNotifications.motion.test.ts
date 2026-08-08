@@ -91,7 +91,10 @@ function open(): VueWrapper<InstanceType<typeof ConfigNotifications>> {
         // off: with them on, the group renders as a `transition-group-stub` that skips every
         // enter, leave and move, and every assertion below would pass without exercising a
         // single thing the change actually made.
-        global: { plugins: [vuetify, i18n], stubs: { transition: false, "transition-group": false } },
+        global: {
+            plugins: [vuetify, i18n],
+            stubs: { transition: false, "transition-group": false },
+        },
         attachTo: document.body,
     });
     return wrapper;

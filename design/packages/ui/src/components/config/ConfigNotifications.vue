@@ -67,7 +67,7 @@ function close(id: number): void {
         <!--
             The stack is the same element it always was - `TransitionGroup` renders the
             `tag` it is given, so the class, the live region and the scroll behaviour are
-            unchanged - and the toasts inside it now arrive, leave and reflow through
+            unchanged - and the toasts inside it now arrive and leave through
             `styles/motion.scss`'s `mb-notice` class family rather than blinking in and out.
 
             A group rather than a plain `Transition` because the stack is a list: several

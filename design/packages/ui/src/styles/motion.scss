@@ -1,5 +1,5 @@
 /*
- * Motion: the four moments that carry meaning, spending the tokens and nothing else.
+ * Motion: the moments that carry meaning, spending the tokens and nothing else.
  *
  * `md3.scss` publishes MD3 Expressive's easing set and duration ladder, and `global.scss`
  * spends them on the *reactions* - a button tinting, a field focusing, a card settling.
@@ -32,7 +32,7 @@
  * so that alone already reaches all of it. It is not relied on alone, for two reasons:
  *
  *  - it zeroes durations but not *delays*, and the staggered list entry below has a delay.
- *    A 0.01ms animation with a 200ms delay and `animation-fill-mode: both` is content held
+ *    A 0.01ms animation with a 200ms delay and a backwards fill is content held
  *    invisible for a fifth of a second - motion removed, and a new defect in its place. The
  *    block at the end of this file sets `animation: none` and `transition: none`, which
  *    resets the delay as well as the duration, so nothing is ever held in a from-state;
@@ -120,10 +120,19 @@
     }
 }
 
+/*
+ * `backwards` rather than `both`: the backwards half is what holds a staggered row at
+ * `opacity: 0` through its delay instead of letting it paint, blink out and fade back in.
+ * The forwards half would additionally leave the animation's final `transform: none`
+ * applied for good - and an animation's fill outranks every ordinary declaration in the
+ * cascade, so any hover lift or drag transform a card grows later would silently stop
+ * working. The `to` frame is the element's normal state anyway, so there is nothing for the
+ * forwards half to hold.
+ */
 .mb-motion-enter,
 .mb-motion-stagger > * {
     animation: mb-motion-rise var(--md-sys-motion-duration-medium1)
-        var(--md-sys-motion-easing-emphasized-decelerate) both;
+        var(--md-sys-motion-easing-emphasized-decelerate) backwards;
 }
 
 /*
@@ -153,9 +162,11 @@
 /* ---------------------------------------------------------------------------
  * The notification corner: a toast arriving, and a toast leaving.
  *
- * A toast joins at the bottom of the stack, so it rises into place; it leaves toward the
- * edge it is anchored to, on the accelerate curve, which is what "this is going away" looks
- * like in the M3 motion set.
+ * A toast joins at the bottom of the stack, so it rises into place, and sinks back the way it
+ * came on the accelerate curve - out fast, which is what "this is going away" looks like in
+ * the M3 motion set. Along the block axis rather than toward the corner it is anchored to,
+ * because `translateX` has no logical form: a sideways exit tuned for the bottom-right corner
+ * would send the toast *into* the page rather than off it under `dir="rtl"`.
  *
  * `pointer-events: none` on the way out is not decoration. For the 150ms of its exit the
  * toast is still painted, still holds its place in the stack, and still has a dismiss button
@@ -198,7 +209,7 @@
 
 .mb-notice-leave-to {
     opacity: 0;
-    transform: translateX(24px);
+    transform: translateY(12px);
 }
 
 /* ---------------------------------------------------------------------------
