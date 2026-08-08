@@ -56,6 +56,47 @@ export interface HomeCapability {
     readonly remedyAction: (() => void) | null;
 }
 
+/**
+ * One collapsible block of the Home page: a stable id the user's open/closed choice is
+ * remembered under, the heading a person actually reads, and the cards inside it.
+ *
+ * The id is deliberately not the heading. A heading is translated and moves with the funny
+ * level, so a preference keyed by it would be forgotten the moment somebody changed
+ * language; the id is an ASCII constant `HomeScreen.vue` declares once beside the heading.
+ */
+export interface HomeSection {
+    readonly id: string;
+    readonly heading: string;
+    readonly items: readonly HomeCapability[];
+}
+
+/** A section as declared, before its cards are known. */
+export interface HomeSectionDefinition {
+    readonly id: string;
+    readonly heading: string;
+}
+
+/**
+ * Files each capability under the section whose heading it names, in the declared section
+ * order, dropping any section that has nothing in it this launch.
+ *
+ * An empty section is dropped rather than rendered as a heading with "(0)" beside it: "The
+ * open map" with no map open is not an honest count of anything, it is a control wired to
+ * nothing, which is exactly what the command palette's own rule refuses to ship.
+ */
+export function groupCapabilities(
+    capabilities: readonly HomeCapability[],
+    definitions: readonly HomeSectionDefinition[],
+): readonly HomeSection[] {
+    return definitions
+        .map((definition) => ({
+            id: definition.id,
+            heading: definition.heading,
+            items: capabilities.filter((capability) => capability.group === definition.heading),
+        }))
+        .filter((section) => section.items.length > 0);
+}
+
 /** Everything a search matches against, for one card. */
 export function capabilityHaystack(capability: HomeCapability): string {
     return [

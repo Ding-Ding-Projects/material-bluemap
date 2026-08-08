@@ -1,0 +1,242 @@
+/*
+ * The Material Design 3 token set, minus colour.
+ *
+ * `vuetify.ts` carries the complete M3 *colour* role set and Vuetify republishes it as
+ * `--v-theme-*`; `markers.scss` maps the slice of it the raw-DOM marker layer needs onto
+ * `--md-sys-color-*`. Colour was the only axis that ever got that treatment. Everything
+ * else an M3 design is made of - shape, the type scale, elevation, state layers, motion -
+ * was either Vuetify's stock value or a number somebody typed into one component, which is
+ * why an app built entirely from M3 colours still read as a generic Vuetify app: 134
+ * hand-written `border-radius` declarations and 493 hand-written `font-size` declarations
+ * across the component tree, no two of them agreeing on what "a rounded card" or "a section
+ * heading" is.
+ *
+ * This sheet is the missing half. It publishes the rest of the system as custom properties
+ * on `:root` so there is one place to read a value from and one place to change it, and
+ * `global.scss` then points Vuetify's own shape and elevation vocabulary at these tokens so
+ * the change reaches every screen without a single component being edited.
+ *
+ * ## Why this is a separate sheet and not more of `global.scss`
+ *
+ * `global.scss` is *rules* - the map/chrome stacking contract, pointer-events, focus rings -
+ * and every one of them is load-bearing for something you can break by looking at it wrong.
+ * This file declares no rules at all. Keeping the vocabulary apart from the rules that use it
+ * means a token can be retuned without going anywhere near `#map-container`'s z-index.
+ *
+ * ## Overlap with `markers.scss` is deliberate and must stay value-identical
+ *
+ * `markers.scss` declares its own subset of these names on the same `:root, .v-theme--*`
+ * selector and is imported *after* this file, so for any name both sheets carry, the marker
+ * sheet's value is the one that lands. That is fine while the values agree, and they do -
+ * every duplicate below (`shape-corner-extra-small/small/medium` as the equivalents of
+ * xs/sm/md, the two state-layer opacities, `motion-easing-standard`, `motion-duration-short4`
+ * and `medium2`, and the four typescale ramps it uses) is spelled here with exactly the value
+ * it has there. Change one and change both, or the marker layer and the chrome quietly stop
+ * being the same design.
+ *
+ * The one name deliberately NOT reused is `--md-sys-elevation-levelN`: the marker sheet owns
+ * that name for a `filter: drop-shadow(...)` chain, because a marker popup's CSS-triangle
+ * pointer has to cast one continuous shadow with its card. A `box-shadow` value published
+ * under the same name would be overwritten by that filter chain on import order, and
+ * `box-shadow: drop-shadow(...)` is not a shadow - it is an invalid declaration that drops
+ * silently and leaves every elevated surface in the app flat. The box-shadow ladder below is
+ * therefore `--md-sys-elevation-shadow-levelN`, and the two forms coexist by name.
+ */
+:root,
+.v-theme--dark,
+.v-theme--light,
+.v-theme--contrast {
+    /* ---------------------------------------------------------------------------
+     * Shape.
+     *
+     * The M3 corner scale, in the spec's own steps. `full` is the pill: 9999px rather than
+     * 50%, because 50% on a non-square box is an ellipse and every "pill" in the app is a
+     * button that is wider than it is tall.
+     *
+     * These are what `global.scss` re-points Vuetify's `.rounded-*` utilities at. Vuetify's
+     * own radius scale is 0/2/4/8/24px, which is Material 2 arithmetic with M3 names on it;
+     * left alone, `rounded="lg"` means 8px and the app reads as tight and generic no matter
+     * which components get it.
+     * ------------------------------------------------------------------------- */
+    --md-sys-shape-corner-none: 0px;
+    --md-sys-shape-corner-xs: 4px;
+    --md-sys-shape-corner-sm: 8px;
+    --md-sys-shape-corner-md: 12px;
+    --md-sys-shape-corner-lg: 16px;
+    --md-sys-shape-corner-xl: 28px;
+    --md-sys-shape-corner-full: 9999px;
+
+    /* ---------------------------------------------------------------------------
+     * Type scale.
+     *
+     * Fifteen ramps, each with a size, a line height, a weight and a tracking, because a
+     * type scale that publishes only sizes is the thing that produced the current mess:
+     * a component picks `font-size: 1.5rem`, inherits Vuetify's 1.5 line height instead of
+     * M3's 2rem, and the heading sits too tight against its own body copy.
+     *
+     * In `rem`, never `px`. `uiSizeSetting.ts` scales the entire interface through Chromium's
+     * `webFrame.setZoomFactor` (or the CSS `zoom` property in a browser tab), and both of
+     * those scale the root font size, so rem-based type follows the dial and px-based type
+     * would only follow it on the CSS-zoom path. Nothing in this file sets a root font size:
+     * that is the dial's, and a second thing writing it is how the two end up fighting.
+     *
+     * Tracking is in rem for the same reason. The rem values are the spec's px figures over
+     * 16: 0.25px tracking is 0.0156rem, 0.5px is 0.03125rem, 0.1px is 0.00625rem.
+     * ------------------------------------------------------------------------- */
+    --md-sys-typescale-display-large-size: 3.5625rem;
+    --md-sys-typescale-display-large-line-height: 4rem;
+    --md-sys-typescale-display-large-weight: 400;
+    --md-sys-typescale-display-large-tracking: -0.015625rem;
+    --md-sys-typescale-display-medium-size: 2.8125rem;
+    --md-sys-typescale-display-medium-line-height: 3.25rem;
+    --md-sys-typescale-display-medium-weight: 400;
+    --md-sys-typescale-display-medium-tracking: 0rem;
+    --md-sys-typescale-display-small-size: 2.25rem;
+    --md-sys-typescale-display-small-line-height: 2.75rem;
+    --md-sys-typescale-display-small-weight: 400;
+    --md-sys-typescale-display-small-tracking: 0rem;
+
+    --md-sys-typescale-headline-large-size: 2rem;
+    --md-sys-typescale-headline-large-line-height: 2.5rem;
+    --md-sys-typescale-headline-large-weight: 400;
+    --md-sys-typescale-headline-large-tracking: 0rem;
+    --md-sys-typescale-headline-medium-size: 1.75rem;
+    --md-sys-typescale-headline-medium-line-height: 2.25rem;
+    --md-sys-typescale-headline-medium-weight: 400;
+    --md-sys-typescale-headline-medium-tracking: 0rem;
+    --md-sys-typescale-headline-small-size: 1.5rem;
+    --md-sys-typescale-headline-small-line-height: 2rem;
+    --md-sys-typescale-headline-small-weight: 400;
+    --md-sys-typescale-headline-small-tracking: 0rem;
+
+    --md-sys-typescale-title-large-size: 1.375rem;
+    --md-sys-typescale-title-large-line-height: 1.75rem;
+    --md-sys-typescale-title-large-weight: 400;
+    --md-sys-typescale-title-large-tracking: 0rem;
+    --md-sys-typescale-title-medium-size: 1rem;
+    --md-sys-typescale-title-medium-line-height: 1.5rem;
+    --md-sys-typescale-title-medium-weight: 500;
+    --md-sys-typescale-title-medium-tracking: 0.009375rem;
+    --md-sys-typescale-title-small-size: 0.875rem;
+    --md-sys-typescale-title-small-line-height: 1.25rem;
+    --md-sys-typescale-title-small-weight: 500;
+    --md-sys-typescale-title-small-tracking: 0.00625rem;
+
+    --md-sys-typescale-body-large-size: 1rem;
+    --md-sys-typescale-body-large-line-height: 1.5rem;
+    --md-sys-typescale-body-large-weight: 400;
+    --md-sys-typescale-body-large-tracking: 0.03125rem;
+    /* The next two ramps and both label ramps are also declared by `markers.scss`; the
+       values here are identical to the ones there, deliberately. See the file header. */
+    --md-sys-typescale-body-medium-size: 0.875rem;
+    --md-sys-typescale-body-medium-line-height: 1.25rem;
+    --md-sys-typescale-body-medium-weight: 400;
+    --md-sys-typescale-body-medium-tracking: 0.0156rem;
+    --md-sys-typescale-body-small-size: 0.75rem;
+    --md-sys-typescale-body-small-line-height: 1rem;
+    --md-sys-typescale-body-small-weight: 400;
+    --md-sys-typescale-body-small-tracking: 0.025rem;
+
+    --md-sys-typescale-label-large-size: 0.875rem;
+    --md-sys-typescale-label-large-line-height: 1.25rem;
+    --md-sys-typescale-label-large-weight: 500;
+    --md-sys-typescale-label-large-tracking: 0.00625rem;
+    --md-sys-typescale-label-medium-size: 0.75rem;
+    --md-sys-typescale-label-medium-line-height: 1rem;
+    --md-sys-typescale-label-medium-weight: 500;
+    --md-sys-typescale-label-medium-tracking: 0.03125rem;
+    --md-sys-typescale-label-small-size: 0.6875rem;
+    --md-sys-typescale-label-small-line-height: 1rem;
+    --md-sys-typescale-label-small-weight: 500;
+    --md-sys-typescale-label-small-tracking: 0.03125rem;
+
+    /*
+     * The face every ramp above is drawn in. Same value `markers.scss` publishes and same
+     * value Vuetify's `$body-font-family` compiles to, so the chrome, the marker layer and
+     * Vuetify's own components resolve to one font rather than to three near-misses on a
+     * host that has none of them. `main.ts` bundles Roboto through @fontsource precisely so
+     * this name resolves to something on Windows.
+     */
+    --md-ref-typeface-plain: Roboto, sans-serif;
+
+    /* ---------------------------------------------------------------------------
+     * Elevation, as real box-shadows.
+     *
+     * The M3 two-shadow ladder - a tight key shadow plus a wider ambient one - not Material
+     * 2's umbra/penumbra/ambient triple, which is what Vuetify's `.elevation-N` utilities
+     * still emit and what makes an "elevated" Vuetify card look heavier and muddier than an
+     * M3 one at the same nominal level. `global.scss` re-points those utilities here.
+     *
+     * Tinted from the theme's own `shadow` role rather than from a literal black, so the
+     * contrast theme (which answers every role at maximum) is not silently given the same
+     * soft grey haze as the light one. The `rgba(triple, alpha)` form is what
+     * `--v-theme-*` publishes and what `global.scss` already uses for `--theme-bg-light`.
+     *
+     * Level 0 is `none`, not a zero-radius shadow: `box-shadow: none` is what a surface
+     * needs in order to have *no* compositing layer promoted for it, and it is also what a
+     * component asking for `elevation="0"` means.
+     * ------------------------------------------------------------------------- */
+    --md-sys-elevation-shadow-level0: none;
+    --md-sys-elevation-shadow-level1:
+        0 1px 2px 0 rgba(var(--v-theme-shadow), 0.3), 0 1px 3px 1px rgba(var(--v-theme-shadow), 0.15);
+    --md-sys-elevation-shadow-level2:
+        0 1px 2px 0 rgba(var(--v-theme-shadow), 0.3), 0 2px 6px 2px rgba(var(--v-theme-shadow), 0.15);
+    --md-sys-elevation-shadow-level3:
+        0 1px 3px 0 rgba(var(--v-theme-shadow), 0.3), 0 4px 8px 3px rgba(var(--v-theme-shadow), 0.15);
+    --md-sys-elevation-shadow-level4:
+        0 2px 3px 0 rgba(var(--v-theme-shadow), 0.3), 0 6px 10px 4px rgba(var(--v-theme-shadow), 0.15);
+    --md-sys-elevation-shadow-level5:
+        0 4px 4px 0 rgba(var(--v-theme-shadow), 0.3), 0 8px 12px 6px rgba(var(--v-theme-shadow), 0.15);
+
+    /* ---------------------------------------------------------------------------
+     * State layers.
+     *
+     * The four opacities M3 defines for the tint an interactive surface paints over itself.
+     * `hover` and `pressed` are already published by `markers.scss` at these same values;
+     * `focus` and `dragged` were missing entirely, which is why nothing in the chrome could
+     * express a focus tint without inventing a percentage.
+     *
+     * Percentages rather than unit-less numbers, because every consumer of these is a
+     * `color-mix(in srgb, <colour> <pct>, transparent)`, which needs the unit.
+     * ------------------------------------------------------------------------- */
+    --md-sys-state-hover-opacity: 8%;
+    --md-sys-state-focus-opacity: 10%;
+    --md-sys-state-pressed-opacity: 10%;
+    --md-sys-state-dragged-opacity: 16%;
+
+    /* ---------------------------------------------------------------------------
+     * Motion.
+     *
+     * MD3 Expressive's easing set and duration ladder. The point of the emphasized curves is
+     * that they leave and arrive at very different speeds, which is what makes a transition
+     * read as deliberate rather than as a linear slide; `standard` is the same shape and is
+     * what a small state change (a hover tint, a ripple) should use.
+     *
+     * Publishing durations as tokens rather than typing `0.2s` into each component is what
+     * lets the whole app slow down or speed up as one decision. It does NOT weaken the
+     * reduced-motion kill switch at the bottom of `global.scss`: that block sets
+     * `transition-duration` and `animation-duration` to 0.01ms with `!important` on `#app *`,
+     * and an `!important` declaration beats any normal one no matter which token fed it. A
+     * token here can never become a way to sneak motion past somebody who asked for none.
+     * ------------------------------------------------------------------------- */
+    --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+    --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+    --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+    --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+    --md-sys-motion-easing-linear: cubic-bezier(0, 0, 1, 1);
+
+    --md-sys-motion-duration-short1: 50ms;
+    --md-sys-motion-duration-short2: 100ms;
+    --md-sys-motion-duration-short3: 150ms;
+    --md-sys-motion-duration-short4: 200ms;
+    --md-sys-motion-duration-medium1: 250ms;
+    --md-sys-motion-duration-medium2: 300ms;
+    --md-sys-motion-duration-medium3: 350ms;
+    --md-sys-motion-duration-medium4: 400ms;
+    --md-sys-motion-duration-long1: 450ms;
+    --md-sys-motion-duration-long2: 500ms;
+    --md-sys-motion-duration-long3: 550ms;
+    --md-sys-motion-duration-long4: 600ms;
+}

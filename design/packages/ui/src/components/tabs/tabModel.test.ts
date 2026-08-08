@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vitest";
 import {
     addTab,
+    applyGroupSeeds,
     assignTabToGroup,
     closeTabs,
     createGroup,
@@ -29,6 +30,7 @@ import {
     pinnedTabs,
     regionOfTab,
     removeGroup,
+    seedTabOrder,
     setGroupAppearance,
     setGroupCollapsed,
     setTabAppearance,
@@ -36,6 +38,8 @@ import {
     stripSegments,
     tabOrder,
     unpinTab,
+    type TabGroupSeed,
+    type TabPage,
     type TabStripState,
 } from "./tabModel.js";
 

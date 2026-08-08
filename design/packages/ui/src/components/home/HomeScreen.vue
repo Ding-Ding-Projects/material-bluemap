@@ -5,6 +5,8 @@ import {
     mdiAccountGroupOutline,
     mdiBellOutline,
     mdiCameraOutline,
+    mdiChevronDown,
+    mdiChevronRight,
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCogOutline,
@@ -26,6 +28,8 @@ import {
     mdiProgressClock,
     mdiServerNetwork,
     mdiTabSearch,
+    mdiUnfoldLessHorizontal,
+    mdiUnfoldMoreHorizontal,
     mdiWeb,
 } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VIcon } from "vuetify/components";
@@ -40,8 +44,13 @@ import { requestTutorialLaunch } from "../tutorial/index.js";
 import { useSetupI18n } from "../setup/setupI18n.js";
 import { isLocalProfile, profilesStore } from "../../stores/profiles.js";
 import { blueMapApp } from "../../stores/bluemap.js";
-import { filterCapabilities, homeSampleText, type HomeCapability } from "./homeCatalog.js";
-import { homeIntroCollapsed, setHomeIntroCollapsed } from "./homeState.js";
+import { filterCapabilities, groupCapabilities, homeSampleText, type HomeCapability } from "./homeCatalog.js";
+import {
+    homeExpandedSections,
+    homeIntroCollapsed,
+    setHomeIntroCollapsed,
+    setHomeSectionExpanded,
+} from "./homeState.js";
 
 /**
  * The landing tab: every capability this app has, weighted so a newcomer sees the one thing
@@ -616,25 +625,95 @@ const capabilities = computed<HomeCapability[]>(() => {
     return items;
 });
 
-const heroItems = computed(() => capabilities.value.filter((item) => item.group === t("home.section.getStarted", "Get started")));
+/* -------------------------------------------------------------------------- */
+/* The one obvious next step, given real weight rather than a slot in a grid   */
+/* -------------------------------------------------------------------------- */
 
-interface HomeSection {
-    readonly heading: string;
-    readonly items: readonly HomeCapability[];
+/**
+ * The single `primary` capability - "Make a map". Rendered as a full-width hero above
+ * everything else rather than as one tile among two dozen equals, because a grid of equally
+ * sized cards is a grid with no answer in it to "where do I start", which is the exact
+ * complaint this page exists to fix. There is deliberately only one: a page with two primary
+ * actions has none.
+ */
+const heroCapability = computed(() => capabilities.value.find((item) => item.primary) ?? null);
+
+/** The rest of "Get started" - the explanation panel and the tour - beneath the hero. */
+const gettingStartedItems = computed(() =>
+    capabilities.value.filter(
+        (item) => item.group === t("home.section.getStarted", "Get started") && !item.primary,
+    ),
+);
+
+/* -------------------------------------------------------------------------- */
+/* Everything else: the same sections, the same cards, disclosed on request    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The five secondary sections, in the order they are read, each with a stable ASCII id.
+ *
+ * The id is what a person's open/closed choice is remembered under, and it is deliberately
+ * not the heading: a heading is translated and moves with the funny level, so a preference
+ * keyed by it would be silently forgotten the first time somebody switched language. The
+ * headings themselves stay literal `t()` calls so `catalogueCoverage.test.ts`'s scanner can
+ * still see every key this file renders.
+ */
+const sectionDefinitions = computed(() => [
+    { id: "make-and-manage", heading: t("home.section.makeAndManage", "Make and manage maps") },
+    { id: "share", heading: t("home.section.share", "Share and back up") },
+    { id: "learn", heading: t("home.section.learn", "Learn") },
+    { id: "settings", heading: t("home.section.settings", "Settings and tools") },
+    { id: "viewer", heading: t("home.section.viewer", "The open map") },
+]);
+
+const disclosureSections = computed(() =>
+    groupCapabilities(capabilities.value, sectionDefinitions.value),
+);
+
+/**
+ * Which sections are open. Seeded from storage at mount and written back on every toggle,
+ * so the choice survives a restart; nothing is defaulted open, which is what makes a
+ * newcomer's first view short. Held as a `Set` in a `ref` rather than a reactive `Set`
+ * because every write replaces it wholesale, which is the cheapest thing to make reactive.
+ */
+const expandedSections = ref<ReadonlySet<string>>(new Set(homeExpandedSections()));
+
+function sectionExpanded(id: string): boolean {
+    return expandedSections.value.has(id);
 }
 
-const sections = computed<HomeSection[]>(() => {
-    const order = [
-        t("home.section.makeAndManage", "Make and manage maps"),
-        t("home.section.share", "Share and back up"),
-        t("home.section.learn", "Learn"),
-        t("home.section.settings", "Settings and tools"),
-        t("home.section.viewer", "The open map"),
-    ];
-    return order
-        .map((heading) => ({ heading, items: capabilities.value.filter((item) => item.group === heading) }))
-        .filter((section) => section.items.length > 0);
-});
+function toggleSection(id: string): void {
+    const next = new Set(expandedSections.value);
+    const expanded = !next.has(id);
+    if (expanded) next.add(id);
+    else next.delete(id);
+    expandedSections.value = next;
+    setHomeSectionExpanded(id, expanded);
+}
+
+/** True only when every section on screen this launch is open. */
+const allSectionsExpanded = computed(
+    () =>
+        disclosureSections.value.length > 0 &&
+        disclosureSections.value.every((section) => expandedSections.value.has(section.id)),
+);
+
+/** One control for "show me everything", so nobody has to press five headings in turn. */
+function toggleAllSections(): void {
+    const expand = !allSectionsExpanded.value;
+    const next = new Set(expandedSections.value);
+    for (const section of disclosureSections.value) {
+        if (expand) next.add(section.id);
+        else next.delete(section.id);
+        setHomeSectionExpanded(section.id, expand);
+    }
+    expandedSections.value = next;
+}
+
+/** The panel a section's own disclosure button controls, named for `aria-controls`. */
+function sectionPanelId(id: string): string {
+    return `mb-home-panel-${id}`;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Search                                                                     */
@@ -747,8 +826,9 @@ function clearSearch(): void {
                             v-for="item in searchResults"
                             :key="item.id"
                             class="mb-home__card mb-interactive"
-                            variant="outlined"
+                            variant="flat"
                             role="listitem"
+                            :data-capability="item.id"
                         >
                             <VCardText>
                                 <div class="mb-home__card-head">
@@ -813,26 +893,72 @@ function clearSearch(): void {
                         <h3 id="mb-home-started" class="mb-home__section-title">
                             {{ t("home.section.getStarted", "Get started") }}
                         </h3>
-                        <div class="mb-home__grid" role="list">
+
+                        <!--
+                            The hero. One capability, full width, on primary-container, with the
+                            page's only large button: the answer to "where do I start" has to be
+                            the biggest thing on the page or it is not an answer. It is never a
+                            disabled card - "Make a map" is the remedy every gated capability
+                            below points at, so there is nothing for it to be waiting on.
+                        -->
+                        <article
+                            v-if="heroCapability"
+                            class="mb-home__hero"
+                            :data-capability="heroCapability.id"
+                            data-hero="true"
+                        >
+                            <p class="mb-home__hero-eyebrow">{{ setupI18n.t("action.startHere") }}</p>
+                            <div class="mb-home__hero-body">
+                                <VIcon
+                                    :icon="heroCapability.icon"
+                                    size="32"
+                                    aria-hidden="true"
+                                    class="mb-home__hero-icon"
+                                />
+                                <div class="mb-home__hero-words">
+                                    <h4 class="mb-home__hero-title">{{ heroCapability.title }}</h4>
+                                    <p class="mb-home__hero-desc">{{ heroCapability.description }}</p>
+                                </div>
+                            </div>
+                            <div class="mb-home__hero-actions">
+                                <VBtn
+                                    class="mb-interactive"
+                                    variant="flat"
+                                    color="primary"
+                                    size="large"
+                                    :aria-label="
+                                        t(
+                                            'home.tile.openNamed',
+                                            { title: heroCapability.title },
+                                            'Open {title}',
+                                        )
+                                    "
+                                    @click="heroCapability.action()"
+                                >
+                                    {{ heroCapability.actionLabel }}
+                                </VBtn>
+                            </div>
+                        </article>
+
+                        <div class="mb-home__grid mb-home__grid--support" role="list">
                             <VCard
-                                v-for="item in heroItems"
+                                v-for="item in gettingStartedItems"
                                 :key="item.id"
-                                class="mb-home__card mb-home__card--hero mb-interactive"
-                                :variant="item.primary ? 'tonal' : 'outlined'"
-                                :color="item.primary ? 'primary' : undefined"
+                                class="mb-home__card mb-home__card--support mb-interactive"
+                                variant="flat"
                                 role="listitem"
+                                :data-capability="item.id"
                             >
                                 <VCardText>
                                     <div class="mb-home__card-head">
                                         <VIcon :icon="item.icon" size="20" aria-hidden="true" />
-                                        <h3 class="mb-home__card-title">{{ item.title }}</h3>
+                                        <h4 class="mb-home__card-title">{{ item.title }}</h4>
                                     </div>
                                     <p class="mb-home__card-desc">{{ item.description }}</p>
                                     <div class="mb-home__card-actions">
                                         <VBtn
                                             class="mb-interactive"
-                                            :variant="item.primary ? 'flat' : 'tonal'"
-                                            :color="item.primary ? 'primary' : undefined"
+                                            variant="tonal"
                                             size="small"
                                             :aria-label="t('home.tile.openNamed', { title: item.title }, 'Open {title}')"
                                             @click="item.action()"
@@ -850,80 +976,150 @@ function clearSearch(): void {
                         :label="t('home.title', 'Home') + ' - capabilities'"
                         as="div"
                     >
-                        <div>
-                            <section
-                                v-for="section in sections"
-                                :key="section.heading"
-                                class="mb-home__section"
-                                :aria-label="section.heading"
-                            >
-                                <h3 class="mb-home__section-title">{{ section.heading }}</h3>
-                                <div class="mb-home__grid" role="list">
-                                    <VCard
-                                        v-for="item in section.items"
-                                        :key="item.id"
-                                        class="mb-home__card mb-interactive"
-                                        variant="outlined"
-                                        role="listitem"
+                        <section class="mb-home__section" aria-labelledby="mb-home-more">
+                            <div class="mb-home__more-head">
+                                <h3 id="mb-home-more" class="mb-home__section-title">
+                                    {{ t("home.section.everythingElse", "Everything else") }}
+                                </h3>
+                                <VBtn
+                                    class="mb-interactive"
+                                    variant="text"
+                                    size="small"
+                                    :prepend-icon="
+                                        allSectionsExpanded ? mdiUnfoldLessHorizontal : mdiUnfoldMoreHorizontal
+                                    "
+                                    @click="toggleAllSections"
+                                >
+                                    {{
+                                        allSectionsExpanded
+                                            ? t("home.sections.hideAll", "Hide every section")
+                                            : t("home.sections.showAll", "Show every section")
+                                    }}
+                                </VBtn>
+                            </div>
+
+                            <div class="mb-home__sections">
+                                <!--
+                                    One disclosure per section. The heading is a real heading with
+                                    a real button inside it, so a screen reader reads the level and
+                                    the state together, and the count is part of the visible label
+                                    rather than a tooltip: a closed section says what it holds and
+                                    how much of it, so nothing here is hidden without being named.
+                                -->
+                                <section
+                                    v-for="section in disclosureSections"
+                                    :key="section.id"
+                                    class="mb-home__disclosure"
+                                    :data-section="section.id"
+                                >
+                                    <h4 class="mb-home__disclosure-heading">
+                                        <button
+                                            type="button"
+                                            class="mb-home__disclosure-button mb-interactive"
+                                            :aria-expanded="sectionExpanded(section.id) ? 'true' : 'false'"
+                                            :aria-controls="sectionPanelId(section.id)"
+                                            @click="toggleSection(section.id)"
+                                        >
+                                            <VIcon
+                                                :icon="sectionExpanded(section.id) ? mdiChevronDown : mdiChevronRight"
+                                                size="20"
+                                                aria-hidden="true"
+                                            />
+                                            <span class="mb-home__disclosure-label">
+                                                {{
+                                                    t(
+                                                        "home.section.count",
+                                                        { title: section.heading, count: section.items.length },
+                                                        "{title} ({count})",
+                                                    )
+                                                }}
+                                            </span>
+                                        </button>
+                                    </h4>
+
+                                    <div
+                                        v-show="sectionExpanded(section.id)"
+                                        :id="sectionPanelId(section.id)"
+                                        class="mb-home__panel"
+                                        :class="{ 'mb-home__panel--open': sectionExpanded(section.id) }"
                                     >
-                                        <VCardText>
-                                            <div class="mb-home__card-head">
-                                                <VIcon :icon="item.icon" size="20" aria-hidden="true" />
-                                                <h3 class="mb-home__card-title">{{ item.title }}</h3>
-                                            </div>
-                                            <p class="mb-home__card-desc">{{ item.description }}</p>
-
-                                            <VAlert
-                                                v-if="item.disabledReason"
-                                                type="info"
-                                                variant="tonal"
-                                                density="compact"
-                                                class="mb-home__card-blocked"
+                                        <div class="mb-home__grid" role="list">
+                                            <VCard
+                                                v-for="item in section.items"
+                                                :key="item.id"
+                                                class="mb-home__card mb-interactive"
+                                                variant="flat"
+                                                role="listitem"
+                                                :data-capability="item.id"
                                             >
-                                                {{ item.disabledReason }}
-                                            </VAlert>
+                                                <VCardText>
+                                                    <div class="mb-home__card-head">
+                                                        <VIcon :icon="item.icon" size="20" aria-hidden="true" />
+                                                        <h5 class="mb-home__card-title">{{ item.title }}</h5>
+                                                    </div>
+                                                    <p class="mb-home__card-desc">{{ item.description }}</p>
 
-                                            <div class="mb-home__card-actions">
-                                                <VBtn
-                                                    v-if="!item.disabledReason"
-                                                    class="mb-interactive"
-                                                    variant="tonal"
-                                                    size="small"
-                                                    :aria-label="
-                                                        t('home.tile.openNamed', { title: item.title }, 'Open {title}')
-                                                    "
-                                                    @click="item.action()"
-                                                >
-                                                    {{ item.actionLabel }}
-                                                </VBtn>
-                                                <VBtn
-                                                    v-if="item.disabledReason"
-                                                    class="mb-interactive"
-                                                    variant="tonal"
-                                                    size="small"
-                                                    disabled
-                                                    :aria-label="
-                                                        t('home.tile.openNamed', { title: item.title }, 'Open {title}')
-                                                    "
-                                                >
-                                                    {{ item.actionLabel }}
-                                                </VBtn>
-                                                <VBtn
-                                                    v-if="item.remedyAction"
-                                                    class="mb-interactive"
-                                                    variant="tonal"
-                                                    color="primary"
-                                                    size="small"
-                                                    @click="item.remedyAction()"
-                                                >
-                                                    {{ item.remedyLabel }}
-                                                </VBtn>
-                                            </div>
-                                        </VCardText>
-                                    </VCard>
-                                </div>
-                            </section>
-                        </div>
+                                                    <VAlert
+                                                        v-if="item.disabledReason"
+                                                        type="info"
+                                                        variant="tonal"
+                                                        density="compact"
+                                                        class="mb-home__card-blocked"
+                                                    >
+                                                        {{ item.disabledReason }}
+                                                    </VAlert>
+
+                                                    <div class="mb-home__card-actions">
+                                                        <VBtn
+                                                            v-if="!item.disabledReason"
+                                                            class="mb-interactive"
+                                                            variant="tonal"
+                                                            size="small"
+                                                            :aria-label="
+                                                                t(
+                                                                    'home.tile.openNamed',
+                                                                    { title: item.title },
+                                                                    'Open {title}',
+                                                                )
+                                                            "
+                                                            @click="item.action()"
+                                                        >
+                                                            {{ item.actionLabel }}
+                                                        </VBtn>
+                                                        <VBtn
+                                                            v-if="item.disabledReason"
+                                                            class="mb-interactive"
+                                                            variant="tonal"
+                                                            size="small"
+                                                            disabled
+                                                            :aria-label="
+                                                                t(
+                                                                    'home.tile.openNamed',
+                                                                    { title: item.title },
+                                                                    'Open {title}',
+                                                                )
+                                                            "
+                                                        >
+                                                            {{ item.actionLabel }}
+                                                        </VBtn>
+                                                        <VBtn
+                                                            v-if="item.remedyAction"
+                                                            class="mb-interactive"
+                                                            variant="tonal"
+                                                            color="primary"
+                                                            size="small"
+                                                            @click="item.remedyAction()"
+                                                        >
+                                                            {{ item.remedyLabel }}
+                                                        </VBtn>
+                                                    </div>
+                                                </VCardText>
+                                            </VCard>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </section>
                     </AppearanceTarget>
                 </template>
             </div>
@@ -1009,9 +1205,179 @@ function clearSearch(): void {
     gap: 12px;
 }
 
+/* The two orientation cards under the hero are supporting acts, not competitors: a
+   narrower track, so they read as a row beneath the primary surface rather than as two
+   more equals in the same grid. */
+.mb-home__grid--support {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+}
+
+/* -------------------------------------------------------------------------- */
+/* The hero: the page's one primary surface                                    */
+/* -------------------------------------------------------------------------- */
+
+/* Material's own weighting, in tone rather than in a border: primary-container is the one
+   filled surface on the page, so "Make a map" is the thing the eye lands on before it has
+   read a word. Every colour here is a theme role - the palette lives in `vuetify.ts`, and
+   a hard-coded hex would be a second, silently drifting copy of it. */
+.mb-home__hero {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    border-radius: 16px;
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+.mb-home__hero-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0;
+    opacity: 0.8;
+}
+
+.mb-home__hero-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.mb-home__hero-icon {
+    margin-block-start: 2px;
+    flex: none;
+}
+
+.mb-home__hero-words {
+    min-width: 0;
+}
+
+.mb-home__hero-title {
+    font-size: 1.375rem;
+    font-weight: 500;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.mb-home__hero-desc {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    max-width: 46rem;
+    margin-block: 6px 0;
+}
+
+.mb-home__hero-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Everything else: one disclosure per section                                 */
+/* -------------------------------------------------------------------------- */
+
+.mb-home__more-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mb-home__sections {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mb-home__disclosure {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* A real heading wrapping a real button: the heading carries the level, the button carries
+   the state. Neither the font size nor the weight comes from the heading element, so the
+   document outline can be corrected without restyling the control. */
+.mb-home__disclosure-heading {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.mb-home__disclosure-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: rgb(var(--v-theme-surface-container));
+    color: rgb(var(--v-theme-on-surface));
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: start;
+    cursor: pointer;
+}
+
+.mb-home__disclosure-button:hover {
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+/* A native button gets none of `global.scss`'s `.v-btn:focus-visible` treatment, so it
+   states its own. Focus has to be visible on a control that is the only way into a
+   collapsed section. */
+.mb-home__disclosure-button:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.mb-home__disclosure-label {
+    min-width: 0;
+}
+
+.mb-home__panel--open {
+    animation: mb-home-panel-open 160ms ease both;
+}
+
+@keyframes mb-home-panel-open {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Somebody who asked their system for less motion gets the section, not the reveal. */
+@media (prefers-reduced-motion: reduce) {
+    .mb-home__panel--open {
+        animation: none;
+    }
+}
+
 .mb-home__card {
     display: flex;
     flex-direction: column;
+}
+
+/* Tonal elevation rather than an outline on all twenty-five cards at once: a page of
+   outlined boxes is the wall this layout exists to undo. Two class names' worth of
+   specificity, so this wins over Vuetify's own flat-variant background rule. */
+.mb-home .mb-home__card {
+    background: rgb(var(--v-theme-surface-container-low));
+    border-radius: 12px;
+}
+
+.mb-home .mb-home__card--support {
+    background: rgb(var(--v-theme-surface-container-high));
 }
 
 .mb-home__card-head {

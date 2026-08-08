@@ -52,7 +52,7 @@ import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import type { PaletteConfigTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
-import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
+import { TabbedNavigation, type TabGroupSeed, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
@@ -145,9 +145,11 @@ const pages = computed<TabPage[]>(() => [
     { id: PAGE_HOME, label: t("tabs.page.home", "Home"), icon: mdiHomeOutline },
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
-    // Next to the guide rather than at the end of the strip, because they are the two ends
-    // of one job: the guide asks five questions and writes a project, and this is where
-    // every other setting that project can carry actually lives.
+    // Declared next to the guide because they are the two ends of one job: the guide asks
+    // five questions and writes a project, and this is where every other setting that
+    // project can carry actually lives. On a fresh install it is seeded into the "Rendering"
+    // group rather than sitting beside the guide in the strip - see `initialGroups` below
+    // for why a newcomer meets the guide and not the settings behind it.
     { id: PAGE_PROJECTS, label: t("tabs.page.projects", "Projects"), icon: mdiFolderMultipleOutline },
     // The fourth answer to "where does this render run": GitHub's machines do the work and
     // this one only uploads and downloads. It is a page rather than a radio button on the
@@ -188,6 +190,73 @@ const pages = computed<TabPage[]>(() => [
     // changelog this is a browsable, searchable set of 25-odd articles that deserves the
     // same reach as every other destination in the strip.
     { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
+]);
+
+/**
+ * How a brand-new workspace is arranged, and why it is not twelve flat tabs.
+ *
+ * Twelve equal-weight destinations is what every one of the pages above deserves and not
+ * what a person meeting this application deserves: the two they need on the first day sit in
+ * a list with nine they will need later and one they need when stuck, all in the same
+ * typeface, all the same size, none of them explaining the others. That flat list is this
+ * shell's single biggest source of "cluttered", and the answer is not to delete a
+ * destination - every one of them is somebody's whole reason for opening the app - but to
+ * say out loud which ones belong together, which is what the tab strip's own groups are for.
+ *
+ * So a fresh install seeds three collapsed groups and leaves four things in front of them:
+ *
+ *  - **Home**, pinned by `pinned-page-ids` below and therefore outside every group, because
+ *    the pinned region is what keeps the landing page at the front of the strip.
+ *  - **Map** and **Make a map**, loose. They are the two things a newcomer actually does -
+ *    look at a map, or make one - and putting either behind a disclosure would be answering
+ *    "too much on screen" by hiding the part that is not too much.
+ *  - **Docs**, loose. It is the destination somebody reaches for precisely when the rest of
+ *    the strip has stopped making sense, and it is one tab: a group holding a single tab is
+ *    a header that hides exactly one thing and saves exactly one row, which is an
+ *    indirection charging rent it does not pay.
+ *
+ * The three groups are named for the job their members share, taken from what each page is
+ * for rather than from where it happens to sit in the list above:
+ *
+ *  - **Rendering** - Projects, GitHub runners, Renders. Everything that decides how a render
+ *    is set up and shows what it is doing: the settings a project carries, the fourth answer
+ *    to "where does this render run", and the count of what is in flight.
+ *  - **Finished maps** - Maps and servers, Publish to Pages, Watch it live. A map that
+ *    already exists, and the three places it can be looked at: this application's own list
+ *    of local and remote maps, somebody else's static host, and this computer serving it
+ *    straight off its own disk.
+ *  - **Keeping a copy** - Backups, World repository. The two ways a world or a render is put
+ *    somewhere that is not this one machine: a versioned upload to GitHub, and a git
+ *    repository a second computer can adopt.
+ *
+ * This is a default rather than a structure. Every group here can be renamed, recoloured,
+ * reordered, emptied or ungrouped from the moment the strip is drawn, and that choice is what
+ * gets persisted; nothing re-applies this list to a workspace that already exists, which is
+ * the whole reason it is passed as a seed rather than enforced on every mount. A returning
+ * user's strip is exactly the one they arranged, groups and all.
+ */
+const initialGroups = computed<TabGroupSeed[]>(() => [
+    {
+        id: "seed-rendering",
+        name: t("tabs.group.seed.rendering", "Rendering"),
+        color: "primary",
+        collapsed: true,
+        pageIds: [PAGE_PROJECTS, PAGE_CIRENDER, PAGE_RENDERS],
+    },
+    {
+        id: "seed-finished",
+        name: t("tabs.group.seed.finished", "Finished maps"),
+        color: "tertiary",
+        collapsed: true,
+        pageIds: [PAGE_SERVERS, PAGE_PAGES, PAGE_PREVIEW],
+    },
+    {
+        id: "seed-copies",
+        name: t("tabs.group.seed.copies", "Keeping a copy"),
+        color: "secondary",
+        collapsed: true,
+        pageIds: [PAGE_BACKUPS, PAGE_WORLDREPO],
+    },
 ]);
 
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
@@ -760,6 +829,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         panel-pass-through
                         :pages="pages"
                         :pinned-page-ids="[PAGE_HOME]"
+                        :initial-groups="initialGroups"
                     >
                         <!--
                             Home draws no canvas and owns no shell-level state, so its page

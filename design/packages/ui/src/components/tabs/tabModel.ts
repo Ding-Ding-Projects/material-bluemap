@@ -788,6 +788,111 @@ export function createGroup(
     });
 }
 
+/**
+ * One group a host wants a *fresh* workspace seeded into, named by page rather than by tab.
+ *
+ * A host declares pages, not tabs: it has no way of knowing which tab id a page will get,
+ * because ids are handed out as the tabs are created. So a seed names page ids and
+ * {@link applyGroupSeeds} resolves them once the tabs exist, which is also what makes a seed
+ * safe to declare for a page this build might not ship - an unknown id is skipped rather
+ * than producing an empty group with a name and nothing under it.
+ *
+ * This describes a *default*, not a structure. Everything a seeded group has - its name, its
+ * colour, whether it is collapsed, what is in it, whether it exists at all - is editable
+ * afterwards through the ordinary group commands, and the edit is what gets persisted. The
+ * seed is consulted exactly once, on a workspace that has never been saved.
+ */
+export interface TabGroupSeed {
+    /** Fixed rather than generated when a host wants a stable id in its own tests. */
+    readonly id?: string;
+    readonly name: string;
+    readonly color?: string;
+    /**
+     * Defaults to collapsed, because that is the whole point of seeding groups: a fresh
+     * install shows a short strip of names instead of one row per destination. A seed that
+     * wants its members visible from the first launch says `false` explicitly.
+     */
+    readonly collapsed?: boolean;
+    /** In the order they should sit inside the group. */
+    readonly pageIds: readonly string[];
+}
+
+/**
+ * The order tabs are created in on a fresh install, given the groups they are being seeded
+ * into: every ungrouped page first, in the host's declared order, then each group's pages in
+ * the order that group names them.
+ *
+ * This exists because {@link createGroup} takes the position of the first member it is given,
+ * measured against the slots that are left after the members are lifted out. Creating three
+ * groups out of pages interleaved with ungrouped ones therefore lands the second and third
+ * groups at positions that are arithmetically correct and impossible to predict by reading
+ * the page list, which is a poor thing to hand somebody as a default layout. Seeding the
+ * ungrouped pages first makes each group's members a contiguous run at the end, so the groups
+ * come out in the order they were declared, after the loose tabs, every time.
+ *
+ * A page named by two seeds belongs to the first that names it, matching
+ * {@link normalizeStrip}'s own "first mention wins" repair. A page named by no seed keeps its
+ * declared position among the other ungrouped pages.
+ */
+export function seedTabOrder(
+    pages: readonly TabPage[],
+    seeds: readonly TabGroupSeed[],
+): readonly TabPage[] {
+    const byId = new Map(pages.map((page) => [page.id, page]));
+    const claimed = new Set<string>();
+    const grouped: TabPage[] = [];
+    for (const seed of seeds) {
+        for (const pageId of seed.pageIds) {
+            const page = byId.get(pageId);
+            if (page === undefined || claimed.has(pageId)) continue;
+            claimed.add(pageId);
+            grouped.push(page);
+        }
+    }
+    return [...pages.filter((page) => !claimed.has(page.id)), ...grouped];
+}
+
+/**
+ * Creates one group per seed out of the tabs already showing those pages.
+ *
+ * Deliberately narrow, and every exclusion here is load-bearing:
+ *
+ *  - a **pinned** tab is skipped rather than pulled into the group, because
+ *    {@link createGroup} unpins what it takes (see the module note) and a host that asks for
+ *    a page to be both pinned and grouped means the pin - the pinned region is the promise
+ *    that a landing tab stays at the front of the strip.
+ *  - a page with **no tab** is skipped, which is what makes a seed for a page this build
+ *    does not ship a no-op instead of an empty group.
+ *  - a seed left with **no members at all** creates nothing, because a name with nothing
+ *    under it is a row that does nothing when clicked.
+ *
+ * Collapsed is written through {@link setGroupCollapsed} rather than baked into
+ * {@link createGroup}, so the one function that owns that preference stays the one function
+ * that writes it.
+ */
+export function applyGroupSeeds(
+    strip: TabStripState,
+    seeds: readonly TabGroupSeed[],
+): TabStripState {
+    return seeds.reduce<TabStripState>((state, seed) => {
+        const pinned = new Set(state.pinnedOrder);
+        const members = seed.pageIds
+            .map((pageId) => state.tabs.find((tab) => tab.pageId === pageId))
+            .filter((tab): tab is TabRecord => tab !== undefined && !pinned.has(tab.id))
+            .map((tab) => tab.id);
+        if (members.length === 0) return state;
+
+        const id =
+            seed.id ??
+            nextId(
+                state.groups.map((group) => group.id),
+                "group",
+            );
+        const grouped = createGroup(state, { id, name: seed.name, color: seed.color }, members);
+        return seed.collapsed === false ? grouped : setGroupCollapsed(grouped, id, true);
+    }, strip);
+}
+
 export function renameGroup(strip: TabStripState, groupId: string, name: string): TabStripState {
     return {
         ...strip,

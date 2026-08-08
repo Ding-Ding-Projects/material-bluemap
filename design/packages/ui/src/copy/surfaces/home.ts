@@ -271,12 +271,28 @@ export const HOME_FIXED = {
     "home.search.clear": { en: "Clear the search", yue: "清走搜尋條件" },
 
     "home.section.continue": { en: "Continue", yue: "繼續" },
+    /*
+     * The heading above the collapsed sections. Everything under it is still on this page and
+     * still one click away; the word is "else", not "advanced", because nothing here was
+     * demoted, only folded.
+     */
+    "home.section.everythingElse": { en: "Everything else", yue: "其餘功能" },
     "home.section.getStarted": { en: "Get started", yue: "開始" },
     "home.section.makeAndManage": { en: "Make and manage maps", yue: "製作同管理地圖" },
     "home.section.share": { en: "Share and back up", yue: "分享同備份" },
     "home.section.learn": { en: "Learn", yue: "學習" },
     "home.section.settings": { en: "Settings and tools", yue: "設定同工具" },
     "home.section.viewer": { en: "The open map", yue: "打開緊嘅地圖" },
+
+    /*
+     * A collapsed section's own label: what it holds, and how many of them. The count is
+     * part of the visible heading rather than a tooltip or a badge, because a section that
+     * folds its cards away without saying how many it took with it is hiding them rather
+     * than tidying them.
+     */
+    "home.section.count": { en: "{title} ({count})", yue: "{title}（{count}）" },
+    "home.sections.showAll": { en: "Show every section", yue: "全部展開" },
+    "home.sections.hideAll": { en: "Hide every section", yue: "全部收埋" },
 
     "home.continue.open": { en: "Open {name}", yue: "打開 {name}" },
 

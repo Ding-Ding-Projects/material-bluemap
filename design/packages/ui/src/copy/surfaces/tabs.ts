@@ -614,6 +614,25 @@ export const TABS_FIXED = {
     "tabs.group.name": { en: "Group name", yue: "群組名" },
     "tabs.group.color": { en: "Group colour", yue: "群組顏色" },
     "tabs.group.colorNamed": { en: "Colour this group {color}", yue: "將呢個群組設做 {color}" },
+    /*
+     * The three group names a brand-new workspace is seeded with, declared beside `pages` in
+     * `App.vue` and applied once, on an install with nothing saved yet.
+     *
+     * FIXED for two reasons. They are names on a strip rather than sentences: there is
+     * nothing here for a funny level to be funny about without making a two-word label into
+     * a joke somebody has to read every day. And the group search matches on the group's own
+     * name, so a name that reworded itself per level would stop answering the word the
+     * person can see on the header.
+     *
+     * Each says what its members have in common rather than what they are called, because a
+     * group named after its first tab tells a reader nothing the tab did not already tell
+     * them. They are also only defaults: the moment the strip is drawn any of them can be
+     * renamed, and the rename is what is persisted.
+     */
+    "tabs.group.seed.rendering": { en: "Rendering", yue: "Render 過程" },
+    "tabs.group.seed.finished": { en: "Finished maps", yue: "整好咗嘅地圖" },
+    "tabs.group.seed.copies": { en: "Keeping a copy", yue: "保存副本" },
+
     "tabs.group.searchTitle": { en: "Search inside {group}", yue: "喺 {group} 入面搵" },
     "tabs.group.searchLabel": { en: "Search the tabs in {group}", yue: "搜尋 {group} 入面嘅分頁" },
     "tabs.group.searchSummary": {

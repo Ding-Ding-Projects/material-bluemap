@@ -7,6 +7,7 @@ import TabStrip from "./TabStrip.vue";
 import { applyClosePlan, type TabClosePlan } from "./closePlans.js";
 import {
     addTab,
+    applyGroupSeeds,
     assignTabToGroup,
     closeTabs,
     createGroup,
@@ -17,11 +18,13 @@ import {
     removeGroup,
     renameGroup,
     renameTab,
+    seedTabOrder,
     setActiveTab,
     setGroupCollapsed,
     setGroupColor,
     setTabPlacement,
     unpinTab,
+    type TabGroupSeed,
     type TabPage,
     type TabStripState,
     type TabWorkspaceState,
@@ -55,6 +58,24 @@ import { DEFAULT_TAB_STORAGE_KEY, readTabWorkspace, writeTabWorkspace } from "./
  * page. That is a deliberate choice over restoring half a layout, because half
  * a layout is indistinguishable from a bug and a fresh one is obviously a fresh
  * one.
+ *
+ * ### Seeding a default that is not a wall of tabs
+ *
+ * "One tab per declared page" is honest and, for a shell with twelve
+ * destinations, unreadable: a newcomer meets twelve flat, equal-weight names
+ * and has no way to tell the two they need from the nine they will need later.
+ * {@link initialGroups} lets the host say which pages belong together and under
+ * what name, and {@link seedStrip} builds that shape once - a short strip of
+ * loose tabs and named, collapsed groups, with every destination one disclosure
+ * away rather than removed.
+ *
+ * This changes nothing about a workspace that already exists. `seedStrip` runs
+ * only where `readTabWorkspace` returned null, which is the same condition it
+ * always ran under, so a returning user's own order, pins, groups and collapse
+ * states are restored exactly as they left them and never re-shaped to match a
+ * default they never saw. A seeded group is also an ordinary group from the
+ * moment it exists: renaming, recolouring, reordering, ungrouping and deleting
+ * it all work, and the result is what gets persisted.
  *
  * ### Revealing without un-collapsing
  *
@@ -91,6 +112,24 @@ const props = withDefaults(
          */
         pinnedPageIds?: readonly string[];
         /**
+         * The groups a **genuinely fresh** workspace is seeded into, named by page id.
+         *
+         * A host that declares more destinations than a person can read at a glance uses
+         * this to hand a newcomer a short strip instead of a flat list: pages a seed names
+         * are created inside that group, everything else stays a loose tab in declared
+         * order, and the groups sit after the loose tabs in the order they are declared
+         * here. Left empty - the default - the strip seeds exactly as it always has, one
+         * loose tab per page.
+         *
+         * Consulted only when there is no saved workspace to restore. It is a default
+         * layout, not a structure this component maintains: nothing re-applies a seed to a
+         * workspace that already exists, no later mount repairs a group the user renamed,
+         * emptied or deleted, and {@link ensurePage} adds its tab outside every group
+         * because a page that arrives after somebody's layout was saved has no business
+         * being filed into a group they may have taken apart months ago.
+         */
+        initialGroups?: readonly TabGroupSeed[];
+        /**
          * Lets a map-owning shell pass pointer input through this one panel to the canvas
          * behind it. Nested tab sets stay interactive because false is the default; the
          * empty state is explicitly interactive so its reopen buttons remain usable.
@@ -102,6 +141,7 @@ const props = withDefaults(
         stripLabel: "",
         storageKey: DEFAULT_TAB_STORAGE_KEY,
         pinnedPageIds: () => [],
+        initialGroups: () => [],
         panelPassThrough: false,
     },
 );
@@ -129,22 +169,30 @@ function seedStrip(): TabStripState {
         slots: [],
         activeTabId: null,
     };
-    const seeded = props.pages.reduce<TabStripState>(
+    // Ungrouped pages first, then each group's pages: `seedTabOrder`'s own doc comment says
+    // why the creation order is what decides where the groups land.
+    const seeded = seedTabOrder(props.pages, props.initialGroups).reduce<TabStripState>(
         (state, page) => addTab(state, { pageId: page.id, label: page.label, icon: page.icon }),
         empty,
     );
-    // Pinned before the active tab is chosen: pinning never touches `activeTabId`, so the
-    // order makes no difference to which tab ends up in front, but doing it first keeps
-    // this function reading top-to-bottom as "build the tabs, plant the pins, then choose
-    // what is in front" rather than interleaving the two concerns.
+    // Pinned before the groups are made and before the active tab is chosen: pinning never
+    // touches `activeTabId`, so the order makes no difference to which tab ends up in front,
+    // but doing it first keeps this function reading top-to-bottom as "build the tabs, plant
+    // the pins, gather the rest into their groups, then choose what is in front" rather than
+    // interleaving the concerns - and it is what lets `applyGroupSeeds` leave a pinned tab
+    // alone rather than quietly unpinning a landing tab a seed also named.
     const pinned = props.pinnedPageIds.reduce<TabStripState>((state, pageId) => {
         const tab = state.tabs.find((candidate) => candidate.pageId === pageId);
         return tab === undefined ? state : pinTab(state, tab.id);
     }, seeded);
-    // The first page rather than the last one opened, which is what a fresh
-    // install should land on.
-    const first = pinned.tabs[0];
-    return first === undefined ? pinned : setActiveTab(pinned, first.id);
+    const grouped = applyGroupSeeds(pinned, props.initialGroups);
+    // The first *declared* page rather than the last one opened, which is what a fresh
+    // install should land on. Read off `props.pages` rather than off the strip, because the
+    // strip's own creation order is the seeding order above: the first tab created is the
+    // first ungrouped page, which is only the same thing while no seed names page one.
+    const landing =
+        grouped.tabs.find((tab) => tab.pageId === props.pages[0]?.id) ?? grouped.tabs[0];
+    return landing === undefined ? grouped : setActiveTab(grouped, landing.id);
 }
 
 const workspace = ref<TabWorkspaceState>(

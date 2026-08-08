@@ -127,6 +127,10 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     // this mirror is the settings-history copy of it, recorded by the one module that
     // writes on the shell's behalf.
     { key: "theme", owner: "components/settings/themeSetting.ts" },
+    // Home's own two preferences - whether the newcomer explanation is folded away, and
+    // which of its secondary sections the user has opened - recorded together under the one
+    // key that surface is known by, because they are read and written by the one module.
+    { key: "home", owner: "components/home/homeState.ts" },
     // tabStorage.ts backs four independent tab strips through one module, each keyed by
     // its own `localStorage` key (see `DEFAULT_TAB_STORAGE_KEY` and each `storage-key`
     // prop) - `writeTabWorkspace` records under `tabs.<that key>` so the four cannot
