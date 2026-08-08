@@ -1,5 +1,39 @@
 # Handoff
 
+## 2026-08-08 — Display and ease of use, the complete MD3 colour system, and the clipping sweep's continuation
+
+Branch `claude/interface-usability-clipping-k4to32`, three concerns in separate commits:
+
+**Display and ease of use (`9826916`).** A new `display` settings section - declared in
+`SETTINGS_SECTIONS`, so the settings search, tab strip and command palette all picked it up with
+no per-surface wiring - carrying two controls that existed nowhere reachable before: an
+interface-size dial (five stops, 100/125/150/175/200%, `uiSizeSetting.ts` + `UiSizeRow.vue`,
+persisted under `worldlens.display.uiSize`, mirrored into settings history as `uiSize`, applied
+before the first frame by `installUiSize()` in `main.ts`) and the theme choice without an open
+map (`themeSetting.ts` + `ThemeRow.vue`, reading and writing the viewer's own `bluemap-theme`
+record byte-compatibly, with a module watcher keeping the two writers convergent both ways -
+including pushing the stored choice into a new viewer app, because a map whose `settings.json`
+never opts into `useCookies` loads no stored settings of its own). The size dial goes through
+the preload's new `setUiZoom` (`webFrame.setZoomFactor`) in the desktop shell and standard CSS
+`zoom` on the document root in a browser tab, feature-detected per call. `useBlueMapTheme` now
+falls back to the stored choice when no app runs. Home carries a card for the section directly
+after Settings. Copy voiced at all five levels in both languages with facts pinned
+("double"/"兩倍", "remembered"/"記住", "low vision"/"低視力"). Article:
+`docs/display-and-ease-of-use.md`, indexed in `docs/README.md` and `APPLICATION_ORDER`.
+
+**The full MD3 colour system (`dfcc492`).** Each theme named five colours and Vuetify's grey
+reference palette answered for every other role. All three themes now carry the complete M3 role
+set, generated from the blue seed's tonal palettes (#00639B = tone 40, #8FCDFF = tone 80, both
+pinned by test so the scheme cannot be silently regenerated from a different seed); the contrast
+theme answers the same roles with deliberate maximal-contrast values. `markers.scss` reads real
+tokens instead of deriving approximations with `color-mix`. `vuetify.test.ts` asserts role
+completeness per theme, WCAG AA (4.5:1) on every on-X/X reading pair by real contrast
+arithmetic, and the contrast theme's 21:1.
+
+Local verification for both: ui `vue-tsc` and app `tsc` typechecks, eslint on every touched
+file, and the full ui vitest suite - 267 files, 4134 passed, 2 pre-existing skips (one
+vitest-worker `onTaskUpdate` RPC timeout in the run's teardown, not a test failure). CI has not
+run against these commits yet.
 ## Pages rewrite update, 2026-08-07 — explicit M3 shell and twelve action walkthroughs
 
 Issue #107's Pages rewrite was integrated into `main` at `de324d7`. The start checkpoint `e5ff0d5`

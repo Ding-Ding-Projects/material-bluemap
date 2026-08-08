@@ -17,19 +17,15 @@
  * M3 token layer.
  *
  * Vuetify emits the active theme as `--v-theme-<role>` RGB triples on :root (and one class
- * per theme), refreshed whenever the theme changes. It publishes a single `surface` role,
- * so the M3 roles this layer needs are derived from it here:
+ * per theme), refreshed whenever the theme changes. The themes in `vuetify.ts` carry the
+ * complete M3 role set now - containers, outlines, the inverse roles - generated from the
+ * app's own tonal palettes, so this layer reads each role straight off the theme rather
+ * than approximating it from `surface` and `on-surface` with colour arithmetic. The old
+ * `color-mix` derivations existed only because the theme published five roles; a derived
+ * token that shadows a real one is the kind of second answer that drifts.
  *
- *   - container tones are a neutral tonal step toward `on-surface` (what N98 -> N90 is in
- *     a light scheme and N6 -> N24 in a dark one) plus the M3 surface tint, so a raised
- *     surface reads as raised in either scheme;
- *   - `outline` / `outline-variant` are the same step taken further, giving a mid-tone
- *     hairline that survives being drawn over snow *and* over night terrain;
- *   - `inverse-surface` lands near N20 in a light scheme and N90 in a dark one, which is
- *     what M3 asks of a plain tooltip.
- *
- * Everything below consumes these; no literal colour appears past this block. `shadow` is
- * the one exception, because M3 defines that role as neutral-0 in every scheme.
+ * `shadow` stays a literal because M3 defines that role as neutral-0 in every scheme, and
+ * the drop-shadow filters below mix it against transparency rather than against a surface.
  * ------------------------------------------------------------------------- */
 :root,
 .v-theme--dark,
@@ -38,57 +34,19 @@
     --md-sys-color-surface: rgb(var(--v-theme-surface));
     --md-sys-color-on-surface: rgb(var(--v-theme-on-surface));
     --md-sys-color-primary: rgb(var(--v-theme-primary));
-    --md-sys-color-surface-tint: var(--md-sys-color-primary);
+    --md-sys-color-surface-tint: rgb(var(--v-theme-surface-tint));
     --md-sys-color-shadow: rgb(0 0 0);
 
-    --md-sys-color-on-surface-variant: color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) 74%,
-        var(--md-sys-color-surface)
-    );
-    /*
-     * Pushed past M3's mid-tone N-V50 on purpose. This hairline is the edge of a card drawn
-     * on top of terrain, and a mid grey is exactly the tone that grass and water already
-     * are; leaning it away from the scheme's own surface is what keeps a dark popup legible
-     * against dark water and a light one against snow.
-     */
-    --md-sys-color-outline: color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) 60%,
-        var(--md-sys-color-surface)
-    );
-    --md-sys-color-outline-variant: color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) 22%,
-        var(--md-sys-color-surface)
-    );
+    --md-sys-color-on-surface-variant: rgb(var(--v-theme-on-surface-variant));
+    --md-sys-color-outline: rgb(var(--v-theme-outline));
+    --md-sys-color-outline-variant: rgb(var(--v-theme-outline-variant));
 
-    --md-sys-color-surface-container: color-mix(
-        in srgb,
-        var(--md-sys-color-surface-tint) 3%,
-        color-mix(in srgb, var(--md-sys-color-on-surface) 4%, var(--md-sys-color-surface))
-    );
-    --md-sys-color-surface-container-high: color-mix(
-        in srgb,
-        var(--md-sys-color-surface-tint) 4%,
-        color-mix(in srgb, var(--md-sys-color-on-surface) 6%, var(--md-sys-color-surface))
-    );
-    --md-sys-color-surface-container-highest: color-mix(
-        in srgb,
-        var(--md-sys-color-surface-tint) 5%,
-        color-mix(in srgb, var(--md-sys-color-on-surface) 9%, var(--md-sys-color-surface))
-    );
+    --md-sys-color-surface-container: rgb(var(--v-theme-surface-container));
+    --md-sys-color-surface-container-high: rgb(var(--v-theme-surface-container-high));
+    --md-sys-color-surface-container-highest: rgb(var(--v-theme-surface-container-highest));
 
-    --md-sys-color-inverse-surface: color-mix(
-        in srgb,
-        var(--md-sys-color-on-surface) 88%,
-        var(--md-sys-color-surface)
-    );
-    --md-sys-color-inverse-on-surface: color-mix(
-        in srgb,
-        var(--md-sys-color-surface) 92%,
-        var(--md-sys-color-on-surface)
-    );
+    --md-sys-color-inverse-surface: rgb(var(--v-theme-inverse-surface));
+    --md-sys-color-inverse-on-surface: rgb(var(--v-theme-inverse-on-surface));
 
     /*
      * Elevation is expressed as `filter: drop-shadow(...)` rather than `box-shadow`, because
