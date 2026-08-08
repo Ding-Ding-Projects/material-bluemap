@@ -144,6 +144,13 @@ const props = withDefaults(
          * Whether this strip publishes its left-edge inset as `--mb-tabs-strip-inline-size`,
          * for the shell chrome that floats over it. True for the shell's own strip and no
          * other: the document has one custom property, and this application draws four.
+         *
+         * Forwarded to `TabStrip` as `publishesInset === true` rather than bare. It has a
+         * default here, but `vue-tsc` types a template reference to an optional prop from
+         * its *declared* type, so the bare name is `boolean | undefined` at the binding -
+         * and under this workspace's `exactOptionalPropertyTypes` that is not assignable to
+         * the receiving `?: boolean`. The other optional booleans on this component are only
+         * ever coerced in the template, which is why this is the one that trips it.
          */
         publishesInset?: boolean;
     }>(),
@@ -469,7 +476,7 @@ function applyPlan(
             :panel-id="panelId"
             :id-prefix="idPrefix"
             :pages="pages"
-            :publishes-inset="publishesInset"
+            :publishes-inset="publishesInset === true"
             @set-placement="update(setTabPlacement(strip, $event))"
             @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
             @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"

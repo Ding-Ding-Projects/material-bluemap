@@ -80,7 +80,19 @@ a third party is a behaviour decision that does not belong in a look-and-feel ch
 
 Verification: `pnpm lint`, `pnpm build` and per-package typechecks clean; the full workspace
 vitest run green; every wave verified before its own push; the harness green apart from the
-network guard described above. CI has not run against these commits.
+network guard described above.
+
+**CI was red for most of this branch's life, and the reason is worth recording.** `pnpm
+typecheck` at the workspace root runs `vue-tsc`/`tsc` across all thirteen packages; the
+per-package checks run during the work only covered `ui` and `app`, so a `ui` failure
+introduced after that check went unnoticed locally while every push went red. The failure
+itself: an optional `publishesInset?: boolean` forwarded bare from `TabbedNavigation` to
+`TabStrip`. `vue-tsc` types a template reference to an optional prop from its *declared*
+type rather than its `withDefaults` value, so the binding is `boolean | undefined`, and this
+workspace's `exactOptionalPropertyTypes` refuses that against a receiving `?: boolean`. The
+component's other optional booleans are only ever coerced in the template, which is why this
+was the one that tripped. Run `pnpm typecheck` from `design/`, not per package - that is
+what CI runs.
 
 ## 2026-08-08 — Display and ease of use, the complete MD3 colour system, and the clipping sweep's continuation
 
