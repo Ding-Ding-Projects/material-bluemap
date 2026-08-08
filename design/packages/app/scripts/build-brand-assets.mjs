@@ -67,17 +67,62 @@ async function ensureSource() {
 
 async function writeOrCheck(path, expected) {
     if (check) {
-        let actual;
         try {
-            actual = await readFile(path);
-        } catch {
+            if (!(await hasSameRaster(path, expected))) {
+                throw new Error(`Brand asset is stale: ${path}`);
+            }
+        } catch (error) {
+            if (error instanceof Error && error.message.startsWith("Brand asset is stale:")) throw error;
             throw new Error(`Brand asset is missing or unreadable: ${path}`);
         }
-        if (!actual.equals(expected)) throw new Error(`Brand asset is stale: ${path}`);
         return;
     }
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, expected);
+}
+
+async function raster(input) {
+    return sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+}
+
+async function hasSameRaster(actualPath, expected) {
+    const [actual, expectedRaster] = await Promise.all([raster(actualPath), raster(expected)]);
+    return (
+        actual.info.width === expectedRaster.info.width &&
+        actual.info.height === expectedRaster.info.height &&
+        actual.info.channels === expectedRaster.info.channels &&
+        actual.data.equals(expectedRaster.data)
+    );
+}
+
+function readIcoImages(bytes) {
+    if (bytes.length < 6 || bytes.readUInt16LE(0) !== 0 || bytes.readUInt16LE(2) !== 1) return [];
+    const count = bytes.readUInt16LE(4);
+    if (bytes.length < 6 + count * 16) return [];
+    const images = [];
+    for (let index = 0; index < count; index += 1) {
+        const entry = 6 + index * 16;
+        const length = bytes.readUInt32LE(entry + 8);
+        const offset = bytes.readUInt32LE(entry + 12);
+        if (offset + length > bytes.length) return [];
+        images.push(bytes.subarray(offset, offset + length));
+    }
+    return images;
+}
+
+async function hasCurrentIco(expectedImages) {
+    let current;
+    try {
+        current = await readFile(icoPath);
+    } catch {
+        return false;
+    }
+    const actualImages = readIcoImages(current);
+    if (actualImages.length !== expectedImages.length) return false;
+    for (let index = 0; index < actualImages.length; index += 1) {
+        if (!(await hasSameRaster(actualImages[index], expectedImages[index].bytes))) return false;
+    }
+    return true;
 }
 
 await ensureSource();
@@ -88,7 +133,12 @@ for (const [path, size] of outputs) {
 
 const icoImages = [];
 for (const size of icoSizes) icoImages.push({ size, bytes: await resizedPng(size) });
-await writeOrCheck(icoPath, makeIco(icoImages));
+if (check) {
+    if (!(await hasCurrentIco(icoImages))) throw new Error(`Brand asset is stale: ${icoPath}`);
+} else {
+    await mkdir(dirname(icoPath), { recursive: true });
+    await writeFile(icoPath, makeIco(icoImages));
+}
 
 console.log(
     check
