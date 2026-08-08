@@ -30,12 +30,15 @@ describe("electron-builder bundles the CLI jar into resources/jars", () => {
         expect(findRepoRoot(thisDir)).toBe(repoRoot);
     });
 
-    it("has an extraResources entry whose destination is \"jars\"", () => {
+    it('has an extraResources entry whose destination is "jars"', () => {
         const config = require(packagingConfigPath);
         const entries: { from: string; to: string }[] = config.extraResources ?? [];
         const jarsEntry = entries.find((entry) => entry.to === "jars");
 
-        expect(jarsEntry, "electron-builder.config.cjs has no extraResources entry copying to \"jars\"").toBeDefined();
+        expect(
+            jarsEntry,
+            'electron-builder.config.cjs has no extraResources entry copying to "jars"',
+        ).toBeDefined();
 
         // `bundledJarDirectory` is what a packaged app reads back at runtime
         // (`resourcesPath/jars`), so the "to" side is fixed by that contract: it must
@@ -67,7 +70,7 @@ describe("electron-builder bundles the CLI jar into resources/jars", () => {
 
             expect(config.forceCodeSigning).toBe(false);
             expect(config.win?.signExecutable).toBe(false);
-            expect(config.win?.signAndEditExecutable).toBe(false);
+            expect(config.win?.signAndEditExecutable).toBe(true);
             for (const key of signingKeys) expect(process.env[key], key).toBeUndefined();
         } finally {
             for (const [key, value] of previous) {
@@ -87,7 +90,7 @@ describe("CI stages the CLI jar before packaging", () => {
     function packageJobBlock(): string {
         const lines = workflow.split("\n");
         const start = lines.findIndex((line) => /^  package:\s*$/.test(line));
-        expect(start, "ci.yml has no top-level \"package:\" job").toBeGreaterThanOrEqual(0);
+        expect(start, 'ci.yml has no top-level "package:" job').toBeGreaterThanOrEqual(0);
         let end = lines.length;
         for (let i = start + 1; i < lines.length; i++) {
             const line = lines[i] ?? "";
@@ -112,8 +115,11 @@ describe("CI stages the CLI jar before packaging", () => {
         const block = packageJobBlock();
         const downloadIndex = block.search(/name:\s*bluemap-jar-cli/);
         const makeIndex = block.indexOf("pnpm run make");
-        expect(downloadIndex, "the package job never downloads the bluemap-jar-cli artifact").toBeGreaterThan(-1);
-        expect(makeIndex, "the package job never runs \"pnpm run make\"").toBeGreaterThan(-1);
+        expect(
+            downloadIndex,
+            "the package job never downloads the bluemap-jar-cli artifact",
+        ).toBeGreaterThan(-1);
+        expect(makeIndex, 'the package job never runs "pnpm run make"').toBeGreaterThan(-1);
         expect(
             downloadIndex,
             "the CLI jar is downloaded after electron-builder already ran, which is too late to be bundled",

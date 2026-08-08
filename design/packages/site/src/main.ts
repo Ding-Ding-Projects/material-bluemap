@@ -20,6 +20,7 @@ import "./settings/settings.css";
 import "./search/search.css";
 import "./dimsum/dimsum.css";
 import "./content/content.css";
+import "./walkthroughs/walkthroughs.css";
 
 import { AppearanceController } from "./appearance/index.js";
 import {
@@ -63,7 +64,6 @@ import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
 import { RegexBuilderSlot } from "./platform/RegexBuilderSlot.js";
 import { ShortcutRegistry } from "./platform/shortcuts.js";
-import { icon } from "./platform/dom.js";
 import { confirmDestructive, createSettingsPage } from "./settings/index.js";
 import { appendInlineContent, renderBlocks } from "./shell/renderBlocks.js";
 import { TabModel } from "./tabs/TabModel.js";
@@ -71,7 +71,9 @@ import { TabsController } from "./tabs/index.js";
 import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
 import { articlePaletteCommands } from "./shell/articleCommands.js";
-import { applySidebarNavigation, SidebarNavigation } from "./shell/SidebarNavigation.js";
+import { SidebarNavigation } from "./shell/SidebarNavigation.js";
+import { ExpressiveSiteShell } from "./shell/ExpressiveSiteShell.js";
+import { createWalkthroughGallery } from "./walkthroughs/Gallery.js";
 import {
     installRovingAppearanceFocus,
     registerAppearanceTarget,
@@ -592,6 +594,12 @@ function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): 
     // real, running application, not a mockup -- so it renders immediately after the hero
     // instead of waiting for a reader to scroll past three sections of numbers first.
     renderShowcase(root, navigation);
+    root.appendChild(
+        createWalkthroughGallery({
+            i18n,
+            openArticle: navigation.openArticle,
+        }),
+    );
     renderGettingStarted(root, navigation, i18n);
 
     const intro = el("div", "mb-prose");
@@ -799,9 +807,6 @@ function renderScreenshots(host: HTMLElement, i18n: I18n): void {
 
 /** The mount point index.html provides. */
 const ROOT_ID = "site-root";
-
-/** The id the skip link jumps to, and the id the main landmark carries. */
-const MAIN_CONTENT_ID = "mb-main-content";
 
 /**
  * Renders the failure instead of leaving a blank page.
@@ -1277,137 +1282,39 @@ function boot(): void {
         },
     });
 
-    // The first focusable thing on the page: a real jump past the tab strip straight to the
-    // page content, for keyboard and screen-reader visitors alike. Invisible until focused.
-    const skipLink = el("a", "md-skip-link");
-    skipLink.href = `#${MAIN_CONTENT_ID}`;
-    i18n.bindText(skipLink, "shell.skipToContent");
-    root.appendChild(skipLink);
+    const palette = createShellPalette({
+        prefs,
+        tabs,
+        settingsView,
+        shortcuts,
+        i18n,
+        appearance,
+        openArticle: navigation.openArticle,
+    });
+    document.body.appendChild(palette.element);
 
-    // The strip exposes its bar and its panel host separately, so the shell decides
-    // the layout rather than the tab module dictating it. Wrapping the bar together with a
-    // brand mark in one sticky, elevated topbar is what makes the strip read as the site's
-    // own chrome rather than as one more row of content; the tab module's markup, classes
-    // and behaviour are untouched by the wrapper.
-    const topbar = el("div", "mb-shell-topbar");
-    topbar.appendChild(createBrand(i18n, appearance, () => tabs.reveal("home")));
-    tabs.strip.bar.id = "site-primary-navigation";
-    const sidebarToggle = el("button", "md-icon-button mb-sidebar-toggle");
-    sidebarToggle.type = "button";
-    sidebarToggle.setAttribute("aria-controls", tabs.strip.bar.id);
-    sidebarToggle.addEventListener("click", () => sidebar.toggle());
-    topbar.appendChild(sidebarToggle);
-    topbar.appendChild(tabs.strip.bar);
-    watchTopbarScrollShadow(topbar);
-
-    const main = el("main", "mb-main");
-    main.id = MAIN_CONTENT_ID;
-    main.appendChild(tabs.strip.panels);
-    const workspace = el("div", "mb-shell-workspace");
-    const syncPlacement = (): void => {
-        const placement = model.placement;
-        const applied = applySidebarNavigation(
-            { workspace, topbar, navigation: tabs.strip.bar, toggle: sidebarToggle },
-            placement,
-            sidebar.collapsed,
-            {
-                collapse: i18n.t("shell.collapseNavigation"),
-                expand: i18n.t("shell.expandNavigation"),
-            },
-        );
-        sidebarToggle.replaceChildren(
-            icon(applied.chevron === "right" ? "chevronRight" : "chevronLeft"),
-        );
-    };
-    syncPlacement();
-    model.subscribe(syncPlacement);
-    sidebar.subscribe(syncPlacement);
-    i18n.subscribe(syncPlacement);
-    workspace.append(topbar, main);
-    root.appendChild(workspace);
-
-    root.appendChild(createShellFooter(i18n, appearance));
-
-    document.body.appendChild(
-        createShellPalette({
-            prefs,
-            tabs,
-            settingsView,
-            shortcuts,
-            i18n,
-            appearance,
-            openArticle: navigation.openArticle,
-        }),
-    );
+    const shell = new ExpressiveSiteShell({
+        root,
+        i18n,
+        tabs: model,
+        sidebar,
+        tabBar: tabs.strip.bar,
+        panels: tabs.strip.panels,
+        footer: createShellFooter(i18n, appearance),
+        actions: {
+            home: () => tabs.reveal("home"),
+            search: () => tabs.reveal("search"),
+            settings: () => tabs.reveal("settings"),
+            notifications: () => tabs.reveal("notifications"),
+            palette: () => palette.open(),
+        },
+    });
+    decorateShell(shell.element, appearance);
     tabs.activate("home");
 
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
     // setting to switch it off.
     maybeShowDimSum({ i18n, host: document.body });
-}
-
-/**
- * Toggles `data-scrolled` on the sticky topbar once the page has actually scrolled, so
- * shell.css can fade the bar's elevation shadow and gradient rule in rather than showing
- * both on every load regardless of scroll position.
- *
- * Passive and rAF-throttled so it never competes with the scroll it is observing, and it
- * degrades to a no-op wherever `window` is unavailable (this module is imported by tests
- * that never mount a DOM). The visible effect is a plain CSS transition driven by
- * tokens.css's own duration tokens, so `prefers-reduced-motion` still collapses it for
- * free with no branch here.
- */
-function watchTopbarScrollShadow(topbar: HTMLElement): void {
-    if (typeof window === "undefined") return;
-    let queued = false;
-    const apply = (): void => {
-        queued = false;
-        topbar.dataset["scrolled"] = window.scrollY > 0 ? "true" : "false";
-    };
-    window.addEventListener(
-        "scroll",
-        () => {
-            if (queued) return;
-            queued = true;
-            window.requestAnimationFrame(apply);
-        },
-        { passive: true },
-    );
-    apply();
-}
-
-/**
- * The site's own brand mark.
- *
- * It is a real control, not a logo pasted into the corner: it always returns the visitor to
- * Home, carries a localised accessible name, and is itself an appearance target with the
- * usual context-menu and Shift+right-click editor, exactly like every other element on the
- * page.
- */
-function createBrand(
-    i18n: I18n,
-    appearance: AppearanceController,
-    goHome: () => void,
-): HTMLButtonElement {
-    const brand = el("button", "mb-brand");
-    brand.type = "button";
-
-    const mark = el("span", "mb-brand-mark", "M");
-    mark.setAttribute("aria-hidden", "true");
-    brand.appendChild(mark);
-
-    // The proper noun stays literal text; only the accessible label (below) is localised,
-    // matching how every other proper noun on the site is handled.
-    brand.appendChild(el("span", "mb-brand-word", "worldlens"));
-
-    i18n.bindAttr(brand, "aria-label", "site.brandAria");
-    brand.addEventListener("click", goHome);
-    registerAppearanceTarget(
-        brand,
-        { kind: "card", instance: "brand", instanceLabel: "Site brand mark" },
-        appearance,
-    );
-    return brand;
 }
 
 /**
@@ -1469,6 +1376,30 @@ function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceC
     installRovingAppearanceFocus(registered);
 }
 
+/** Register the rebuilt shell itself, not only whichever page is currently mounted. */
+function decorateShell(host: HTMLElement, appearance: AppearanceController): void {
+    const candidates = appearanceElements(host);
+    const registered: HTMLElement[] = [];
+    candidates.forEach((element, index) => {
+        if (element.closest(".tab-panels") !== null || element.dataset.mbKind !== undefined) return;
+        const readable =
+            element.getAttribute("aria-label") ??
+            element.textContent?.trim().replace(/\s+/g, " ").slice(0, 72) ??
+            `Shell element ${index + 1}`;
+        registerAppearanceTarget(
+            element,
+            {
+                kind: "card",
+                instance: `shell-${index}`,
+                instanceLabel: readable,
+            },
+            appearance,
+        );
+        registered.push(element);
+    });
+    installRovingAppearanceFocus(registered);
+}
+
 function createShellPalette(options: {
     readonly prefs: Preferences;
     readonly tabs: TabsController;
@@ -1477,7 +1408,7 @@ function createShellPalette(options: {
     readonly i18n: I18n;
     readonly appearance: AppearanceController;
     readonly openArticle: (articleRef: string) => void;
-}): HTMLElement {
+}): { readonly element: HTMLElement; readonly open: () => void } {
     const list = (): readonly PaletteCommand[] => [
         {
             id: "open-home",
@@ -1572,7 +1503,7 @@ function createShellPalette(options: {
         parts: ["Ctrl", "Shift", "F"],
         run: () => palette.open(),
     });
-    return palette.element;
+    return { element: palette.element, open: () => palette.open() };
 }
 
 function safeBoot(): void {

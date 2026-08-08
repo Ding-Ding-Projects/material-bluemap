@@ -329,8 +329,8 @@ describe("a publishing row's title is not silently clipped by a long owner/repo"
 
         // The template actually wires the class onto the title and the span, not just the
         // stylesheet declaring it in isolation.
-        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-pages-row__title"/);
-        expect(source).toMatch(/<span class="mb-pages-row__name">\{\{ rowTitle\(row\) \}\}<\/span>/);
+        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-pages-row__title mb-responsive-card-title"/);
+        expect(source).toMatch(/<span class="mb-pages-row__name mb-responsive-card-title__text">\{\{ rowTitle\(row\) \}\}<\/span>/);
     });
 });
 

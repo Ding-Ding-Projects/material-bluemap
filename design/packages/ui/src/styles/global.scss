@@ -104,6 +104,82 @@ body {
     pointer-events: auto;
 }
 
+/*
+ * Shared contract for card-title rows that contain a title plus status metadata or actions.
+ * Vuetify's ordinary card title is deliberately one line with hidden overflow. Once a title
+ * becomes a flex row, that default silently cuts content instead of drawing an ellipsis. The
+ * component-specific classes retain their typography and spacing; these classes own only the
+ * responsive, non-clipping geometry shared by every inventoried flexed card title.
+ */
+.v-card-title.mb-responsive-card-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
+.mb-responsive-card-title__text {
+    flex: 1 1 12rem;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.mb-responsive-card-title__meta.v-chip {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    block-size: auto;
+    white-space: normal;
+}
+
+.mb-responsive-card-title__meta.v-chip .v-chip__content {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.mb-responsive-card-title__actions {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    margin-inline-start: auto;
+}
+
+.mb-responsive-card-title__action.v-btn {
+    flex: 0 1 auto;
+    min-inline-size: 44px;
+    min-block-size: 44px;
+    max-inline-size: 100%;
+    block-size: auto;
+    white-space: normal;
+}
+
+.mb-responsive-card-title__action.v-btn .v-btn__content {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+@media (width <= 480px) {
+    .mb-responsive-card-title__actions {
+        flex-basis: 100%;
+        margin-inline-start: 0;
+    }
+}
+
 /* v-app paints the theme background colour by default, which would hide the map. */
 .mb-app,
 .mb-app > .v-application__wrap {

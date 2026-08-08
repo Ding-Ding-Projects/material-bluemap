@@ -128,9 +128,9 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
 <template>
     <v-dialog v-model="open" max-width="620" scrollable :persistent="guardDismissal">
         <v-card>
-            <v-card-title class="mb-config-apply__title">
+            <v-card-title class="mb-config-apply__title mb-responsive-card-title">
                 <v-icon :icon="mdiContentSaveOutline" size="22" aria-hidden="true" />
-                {{ t("config.apply.title", "Save the config folder") }}
+                <span class="mb-responsive-card-title__text">{{ t("config.apply.title", "Save the config folder") }}</span>
             </v-card-title>
 
             <v-divider />

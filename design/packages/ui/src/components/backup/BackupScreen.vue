@@ -1095,10 +1095,11 @@ defineExpose({
                         variant="tonal"
                         class="mb-backup__listing"
                     >
-                        <v-card-title class="mb-backup__listingTitle">
-                            <span>{{ listing.label }}</span>
+                        <v-card-title class="mb-backup__listingTitle mb-responsive-card-title">
+                            <span class="mb-responsive-card-title__text">{{ listing.label }}</span>
                             <v-chip
                                 v-if="!listing.complete"
+                                class="mb-responsive-card-title__meta"
                                 size="x-small"
                                 color="warning"
                                 variant="flat"

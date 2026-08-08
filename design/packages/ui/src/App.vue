@@ -31,6 +31,7 @@ import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/ind
 import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import { AppTitleBar } from "./components/shell/index.js";
+import { StartupRecoveryBanner } from "./components/startup/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
 import { onDocsArticleRequested } from "./components/docs/docsLink.js";
 import {
@@ -126,7 +127,9 @@ const PAGE_DOCS = "docs";
  * three routes through the same aggregator, so the count in the tab strip can never disagree
  * with the list it leads to.
  */
-const renderIndicator = createActiveRenders({ ciRenders: createCiRenders(resolveCiRenderBridge()) });
+const renderIndicator = createActiveRenders({
+    ciRenders: createCiRenders(resolveCiRenderBridge()),
+});
 onMounted(() => {
     void renderIndicator.reconcile();
 });
@@ -152,13 +155,21 @@ const pages = computed<TabPage[]>(() => [
     // Next to the guide rather than at the end of the strip, because they are the two ends
     // of one job: the guide asks five questions and writes a project, and this is where
     // every other setting that project can carry actually lives.
-    { id: PAGE_PROJECTS, label: t("tabs.page.projects", "Projects"), icon: mdiFolderMultipleOutline },
+    {
+        id: PAGE_PROJECTS,
+        label: t("tabs.page.projects", "Projects"),
+        icon: mdiFolderMultipleOutline,
+    },
     // The fourth answer to "where does this render run": GitHub's machines do the work and
     // this one only uploads and downloads. It is a page rather than a radio button on the
     // guide because it is a workflow - a repository, two consents, an upload, and a run
     // watched job by job - and the guide's "where it runs" card links straight to it, so all
     // four places are named in one list without four screens to discover separately.
-    { id: PAGE_CIRENDER, label: t("tabs.page.ciRender", "GitHub runners"), icon: mdiCloudSyncOutline },
+    {
+        id: PAGE_CIRENDER,
+        label: t("tabs.page.ciRender", "GitHub runners"),
+        icon: mdiCloudSyncOutline,
+    },
     // The label itself carries the count, which is what makes this the persistent,
     // unobtrusive indicator the contract asks for: it says something is going wherever the
     // tab strip is drawn, without a toast, a badge dot with no number, or a second surface
@@ -181,7 +192,11 @@ const pages = computed<TabPage[]>(() => [
     // A world, rather than a render, going the other direction: kept in a git repository so
     // it updates incrementally instead of being re-zipped whole, and recognised again on a
     // second computer that has never touched it - see WorldRepoScreen.vue's own doc comment.
-    { id: PAGE_WORLDREPO, label: t("tabs.page.worldRepo", "World repository"), icon: mdiSourceRepository },
+    {
+        id: PAGE_WORLDREPO,
+        label: t("tabs.page.worldRepo", "World repository"),
+        icon: mdiSourceRepository,
+    },
     // The local twin of the Pages tab above: that one puts a render on somebody else's
     // static host, this one serves it straight off this computer's own disk so it can be
     // watched in a browser while it is still being rendered. See `PreviewScreen.vue`'s own
@@ -325,7 +340,12 @@ function openInBrowser(url: string): void {
  * silently changes a screen the person is not looking at reads as a button that did
  * nothing.
  */
-function revealBackupRestore(where: { owner: string; repo: string; tag: string; asset: string }): void {
+function revealBackupRestore(where: {
+    owner: string;
+    repo: string;
+    tag: string;
+    asset: string;
+}): void {
     openSettings();
     raiseNotice(
         "info",
@@ -731,6 +751,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             @open-notes="openInBrowser"
         />
 
+        <!--
+            Startup failures are not a reason to erase the shell. This persistent,
+            non-modal surface names the unavailable path and keeps the complete local
+            diagnostics inspectable, copyable and exportable. The same errors are also
+            raised through the one notification queue mounted below, so they remain in
+            notification history after this fold is collapsed.
+        -->
+        <StartupRecoveryBanner />
+
         <v-main class="mb-main">
             <!--
                 The viewer, which renders into #map-container rather than into this tree, so
@@ -1055,10 +1084,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 it is a tab now, and a floating button that opens what a tab already opens is
                 two navigation models arguing in the same corner of the screen.
             -->
-            <div
-                class="mb-shell-fabs"
-                :class="{ 'mb-shell-fabs--lifted': showFreeFlightControls }"
-            >
+            <div class="mb-shell-fabs" :class="{ 'mb-shell-fabs--lifted': showFreeFlightControls }">
                 <v-tooltip :text="t('settings.title', 'Settings')" location="end">
                     <template #activator="{ props: tooltipProps }">
                         <v-btn

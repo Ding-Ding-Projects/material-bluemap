@@ -1,0 +1,127 @@
+.mb-walkthroughs {
+    container: walkthrough-gallery / inline-size;
+}
+
+.mb-walkthrough-motion-note {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--md-sys-min-touch-target);
+    margin: 0 0 var(--md-sys-spacing-4);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+}
+
+.mb-walkthrough-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+    gap: clamp(var(--md-sys-spacing-4), 2vw, var(--md-sys-spacing-6));
+    align-items: stretch;
+}
+
+.mb-walkthrough-card {
+    min-width: 0;
+    overflow: clip;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition:
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-walkthrough-card:hover,
+.mb-walkthrough-card:focus-within {
+    box-shadow: var(--md-sys-elevation-level3);
+    transform: translateY(-0.2rem);
+}
+
+.mb-walkthrough-figure {
+    display: flex;
+    height: 100%;
+    margin: 0;
+    flex-direction: column;
+}
+
+.mb-walkthrough-figure picture {
+    display: block;
+    aspect-ratio: 8 / 5;
+    overflow: hidden;
+    background: var(--md-sys-color-surface-container-highest);
+}
+
+.mb-walkthrough-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mb-walkthrough-caption {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--md-sys-spacing-5);
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+}
+
+.mb-walkthrough-title,
+.mb-walkthrough-description {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.mb-walkthrough-title {
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: var(--md-sys-typescale-title-large-line-height);
+}
+
+.mb-walkthrough-description {
+    flex: 1 1 auto;
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-body-medium-font);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.mb-walkthrough-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-walkthrough-actions > * {
+    min-width: min(100%, 8.5rem);
+}
+
+@container walkthrough-gallery (width < 30rem) {
+    .mb-walkthrough-caption {
+        padding: var(--md-sys-spacing-4);
+    }
+
+    .mb-walkthrough-actions {
+        flex-direction: column;
+    }
+
+    .mb-walkthrough-actions > * {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-walkthrough-card {
+        transition: none;
+    }
+
+    .mb-walkthrough-card:hover,
+    .mb-walkthrough-card:focus-within {
+        transform: none;
+    }
+}

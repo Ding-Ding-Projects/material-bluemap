@@ -7,11 +7,12 @@
     "author": "Worldlens contributors",
     "main": "./dist/main/index.js",
     "scripts": {
-        "build": "node build.mjs",
+        "brand:build": "node scripts/build-brand-assets.mjs",
+        "build": "node scripts/build-brand-assets.mjs --check && node build.mjs",
         "start": "electron .",
         "test": "vitest run",
-        "package": "node build.mjs && electron-builder --dir --config electron-builder.config.cjs",
-        "make": "node build.mjs && electron-builder --win --config electron-builder.config.cjs --publish never",
+        "package": "node scripts/build-brand-assets.mjs --check && node build.mjs && electron-builder --dir --config electron-builder.config.cjs",
+        "make": "node scripts/build-brand-assets.mjs --check && node build.mjs && electron-builder --win --config electron-builder.config.cjs --publish never",
         "screenshots": "playwright test --config playwright.config.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit"
     },
@@ -20,7 +21,8 @@
         "electron-builder": "^26.0.0",
         "esbuild": "^0.25.12",
         "@playwright/test": "^1.50.0",
-        "@bokuweb/zstd-wasm": "^0.0.27"
+        "@bokuweb/zstd-wasm": "^0.0.27",
+        "sharp": "0.35.3"
     },
     "dependencies": {
         "@worldlens/config": "workspace:*",

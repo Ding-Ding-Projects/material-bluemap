@@ -1,241 +1,78 @@
 /*
- * The site's own chrome: the sticky top bar that carries the brand mark and the tab strip,
- * and the footer every page ends on.
+ * Worldlens Pages application shell — Material Design 3 Expressive.
  *
- * The tab strip itself (`.tab-bar`, `.tab-strip`, every tab and group) is untouched here.
- * This file only wraps it, so every behaviour TabStrip.ts implements — overflow, drag
- * reorder, grouping, the four discovery searches, bulk close, the per-tab and per-group
- * appearance editors, keyboard operation — keeps working exactly as it did, and the wrapper
- * cannot regress any of it because it never touches the strip's own markup or classes.
- *
- * Nothing below declares a literal colour, and no size is pinned in px except the one
- * hairline this file adds. Colour, type, shape, elevation and motion all come from
- * tokens.css.
+ * This is intentionally a complete shell stylesheet, not a compatibility layer over the old
+ * topbar. The DOM it styles is owned by ExpressiveSiteShell.ts and has four explicit regions:
+ * top app bar, adaptive page navigation, content canvas and footer. Every value consumes the
+ * repository's M3 reference/system tokens; there is no second colour or type system hiding in
+ * this file.
  */
 
-/* ---- Top bar --------------------------------------------------------------------------- */
+:root {
+    --mb-app-bar-height: 4.5rem;
+    --mb-navigation-width: clamp(15.5rem, 22vw, 20rem);
+    --mb-navigation-collapsed-width: 4.5rem;
+    --mb-content-max-width: 92rem;
+}
 
-.mb-shell-workspace {
-    display: flex;
-    flex-direction: column;
-    max-width: 100%;
+.mb-app-shell {
     min-width: 0;
-    min-height: 100vh;
-    overflow-x: clip;
+    min-height: 100dvh;
+    background:
+        radial-gradient(
+            circle at 8% 4%,
+            color-mix(in srgb, var(--md-sys-color-primary-container) 38%, transparent) 0 10rem,
+            transparent 26rem
+        ),
+        radial-gradient(
+            circle at 96% 16%,
+            color-mix(in srgb, var(--md-sys-color-tertiary-container) 30%, transparent) 0 8rem,
+            transparent 24rem
+        ),
+        var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
 }
 
-.mb-shell-workspace[data-tab-placement="left"],
-.mb-shell-workspace[data-tab-placement="right"] {
-    flex-direction: row;
-    align-items: stretch;
-}
+/* ---- Top app bar ------------------------------------------------------------------- */
 
-html[dir="rtl"] .mb-shell-workspace[data-tab-placement="left"],
-html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] {
-    direction: ltr;
-}
-
-html[dir="rtl"] .mb-shell-workspace[data-tab-placement="left"] > *,
-html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
-    direction: rtl;
-}
-
-.mb-shell-workspace .mb-main {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-/*
- * A real M3 top app bar: a tonal, elevated surface rather than the flat hairline the tab
- * strip used to draw on its own. The strip keeps its own sticky rule for the rare case it is
- * used unwrapped (a future embed, a test harness); nested in here, that rule is neutralised
- * so the whole bar - brand and tabs together - lifts and sticks as one piece.
- */
-.mb-shell-topbar {
-    display: flex;
+.mb-app-bar {
+    display: grid;
     position: sticky;
-    z-index: 20;
+    z-index: 40;
     top: 0;
-    align-items: stretch;
-    background: var(--md-sys-color-surface-container);
-    /*
-     * Flat at rest, elevated once the page has actually scrolled under it. The shadow
-     * then reads as "this bar is floating over content" instead of decorating every
-     * load identically. `main.ts`'s `watchTopbarScrollShadow` toggles the attribute;
-     * this file only owns what the two states look like.
-     */
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: var(--mb-app-bar-height);
+    padding: var(--md-sys-spacing-2) clamp(var(--md-sys-spacing-3), 2vw, var(--md-sys-spacing-6));
+    border-bottom: 1px solid transparent;
+    background: color-mix(in srgb, var(--md-sys-color-surface) 92%, transparent);
     box-shadow: none;
-    transition: box-shadow var(--md-sys-motion-duration-short3)
-        var(--md-sys-motion-easing-standard-decelerate);
+    backdrop-filter: blur(18px) saturate(120%);
+    transition:
+        background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
-/*
- * Kept after the canonical topbar rule so source-level and runtime consumers meet the
- * complete motion/elevation contract before the edge-specific flex ordering override.
- */
-.mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar,
-.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
-    order: 2;
+.mb-app-bar[data-scrolled="true"] {
+    border-bottom-color: var(--md-sys-color-outline-variant);
+    background: color-mix(in srgb, var(--md-sys-color-surface-container) 94%, transparent);
+    box-shadow: var(--md-sys-elevation-level2);
 }
 
-.mb-shell-topbar[data-placement="left"],
-.mb-shell-topbar[data-placement="right"] {
-    flex: 0 0 clamp(14rem, 23vw, 21rem);
-    flex-direction: column;
-    height: 100vh;
-    min-width: 0;
-    min-height: 0;
-}
-
-.mb-shell-topbar[data-sidebar-collapsed="true"][data-placement="left"],
-.mb-shell-topbar[data-sidebar-collapsed="true"][data-placement="right"] {
-    flex-basis: calc(var(--md-sys-min-touch-target) + 2 * var(--md-sys-spacing-2));
-    min-width: calc(var(--md-sys-min-touch-target) + 2 * var(--md-sys-spacing-2));
-}
-
-.mb-shell-topbar[data-sidebar-collapsed="true"] .mb-brand {
-    justify-content: center;
-    padding-inline: var(--md-sys-spacing-2);
-}
-
-.mb-shell-topbar[data-sidebar-collapsed="true"] .mb-brand-word {
-    display: none;
-}
-
-.mb-sidebar-toggle {
-    align-self: center;
-    flex: none;
-    margin: var(--md-sys-spacing-1);
-}
-
-.mb-sidebar-toggle[hidden] {
-    display: none;
-}
-
-.mb-sidebar-toggle svg {
-    width: 20px;
-    height: 20px;
-}
-
-.mb-shell-topbar[data-placement="bottom"] {
-    top: auto;
-    bottom: 0;
-}
-
-.mb-shell-topbar[data-scrolled="true"] {
-    box-shadow: var(--md-sys-elevation-level1);
-}
-
-/*
- * The one recurring visual signature tying the top and bottom of every page back to the
- * same identity: a thin three-hue gradient rule, drawn from the site's own primary,
- * secondary and tertiary roles rather than a literal colour, so it re-derives automatically
- * under [data-theme="dark"] and under the live appearance editor's accent seed. It only
- * shows once the visitor has scrolled, in step with the shadow above.
- */
-.mb-shell-topbar::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 3px;
-    background: linear-gradient(
-        90deg,
-        var(--md-sys-color-primary),
-        var(--md-sys-color-secondary),
-        var(--md-sys-color-tertiary)
-    );
-    opacity: 0;
-    transition: opacity var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
-}
-
-.mb-shell-topbar[data-placement="left"]::after,
-.mb-shell-topbar[data-placement="right"]::after {
-    top: 0;
-    right: auto;
-    bottom: 0;
-    left: auto;
-    width: 3px;
-    height: auto;
-    background: linear-gradient(
-        180deg,
-        var(--md-sys-color-primary),
-        var(--md-sys-color-secondary),
-        var(--md-sys-color-tertiary)
-    );
-}
-
-.mb-shell-topbar[data-placement="left"]::after {
-    right: 0;
-}
-
-.mb-shell-topbar[data-placement="right"]::after {
-    left: 0;
-}
-
-.mb-shell-topbar[data-scrolled="true"]::after {
-    opacity: 1;
-}
-
-.mb-shell-topbar .tab-bar {
-    position: static;
-    z-index: auto;
-    flex: 1 1 auto;
-    min-width: 0;
-    background: transparent;
-    box-shadow: none;
-    border-bottom: none;
-}
-
-.mb-shell-topbar[data-placement="left"] .tab-bar,
-.mb-shell-topbar[data-placement="right"] .tab-bar {
-    flex: 1 1 auto;
-    width: 100%;
-    min-height: 0;
-}
-
-/*
- * The brand mark. It is a real control, not a logo pasted into the corner: it always
- * returns the visitor to Home, carries its own accessible name, keeps the same focus ring
- * and state-layer behaviour as every other control on the bar, and is itself an appearance
- * target with the usual context-menu and Shift+right-click editor.
- */
 .mb-brand {
-    display: flex;
-    flex: none;
+    display: inline-flex;
     align-items: center;
     gap: var(--md-sys-spacing-3);
-    padding: 0 var(--md-sys-spacing-4);
-    border: none;
-    border-right: 1px solid var(--md-sys-color-outline-variant);
+    min-width: 0;
+    min-height: var(--md-sys-min-touch-target);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3) var(--md-sys-spacing-1)
+        var(--md-sys-spacing-1);
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-full);
     background: transparent;
     color: var(--md-sys-color-on-surface);
     cursor: pointer;
-    transition: background-color var(--md-sys-motion-duration-short3)
-        var(--md-sys-motion-easing-standard);
-}
-
-.mb-shell-topbar[data-placement="left"] .mb-brand,
-.mb-shell-topbar[data-placement="right"] .mb-brand {
-    width: 100%;
-    min-height: var(--md-sys-min-touch-target);
-    padding-block: var(--md-sys-spacing-2);
-    border-right: none;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-}
-
-@media (width <= 640px) {
-    .mb-shell-topbar[data-placement="left"],
-    .mb-shell-topbar[data-placement="right"] {
-        flex-basis: clamp(7rem, 36vw, 10rem);
-        min-width: 7rem;
-    }
-
-    .mb-shell-topbar[data-placement="left"] .mb-brand,
-    .mb-shell-topbar[data-placement="right"] .mb-brand {
-        padding-inline: var(--md-sys-spacing-2);
-    }
 }
 
 .mb-brand:hover {
@@ -255,68 +92,244 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
 }
 
 .mb-brand-mark {
-    display: flex;
+    display: block;
     flex: none;
-    align-items: center;
-    justify-content: center;
     width: 32px;
     height: 32px;
-    /*
-     * Asymmetric on purpose: two corners rounded large, two barely rounded at all. The
-     * one deliberately un-uniform shape in the chrome, so the mark reads as a drawn
-     * badge rather than the same rounded square every other tile on the site uses.
-     */
-    border-radius: var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small)
-        var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small);
-    background: var(--md-sys-color-primary);
-    color: var(--md-sys-color-on-primary);
+    border-radius: 9px;
+    object-fit: cover;
     box-shadow: var(--md-sys-elevation-level1);
-    font-family: var(--md-sys-typescale-title-medium-font);
-    font-size: var(--md-sys-typescale-title-medium-size);
-    font-weight: 700;
 }
 
 .mb-brand-word {
-    display: none;
-    font-family: var(--md-sys-typescale-title-medium-font);
-    font-size: var(--md-sys-typescale-title-medium-size);
-    font-weight: var(--md-sys-typescale-title-medium-weight);
-    letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: 720;
+    letter-spacing: -0.025em;
     white-space: nowrap;
 }
 
-/* The wordmark only earns its keep once there is room; the mark alone still carries the
-   accessible name via aria-label, so nothing is lost at narrow widths. */
-@media (width >= 560px) {
-    .mb-brand-word {
-        display: inline;
-    }
+.mb-app-bar__copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding-inline: clamp(var(--md-sys-spacing-2), 2vw, var(--md-sys-spacing-6));
 }
 
-/* ---- Footer ----------------------------------------------------------------------------- */
+.mb-app-bar__context {
+    overflow: hidden;
+    color: var(--md-sys-color-primary);
+    font-family: var(--md-sys-typescale-label-medium-font);
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.mb-app-bar__tagline {
+    overflow: hidden;
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-body-small-font);
+    font-size: var(--md-sys-typescale-body-small-size);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mb-app-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-1);
+}
+
+.mb-app-bar__action {
+    flex: none;
+}
+
+.mb-app-bar__palette-action {
+    width: auto;
+    min-width: var(--md-sys-min-touch-target);
+    padding-inline: var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+/* ---- Adaptive navigation and content ---------------------------------------------- */
+
+.mb-shell-workspace {
+    display: flex;
+    max-width: 100%;
+    min-width: 0;
+    min-height: calc(100dvh - var(--mb-app-bar-height));
+    align-items: stretch;
+}
+
+.mb-shell-workspace[data-tab-placement="right"] {
+    flex-direction: row-reverse;
+}
+
+.mb-shell-workspace[data-tab-placement="top"],
+.mb-shell-workspace[data-tab-placement="bottom"] {
+    flex-direction: column;
+}
+
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
+    order: 2;
+}
+
+.mb-shell-topbar {
+    display: flex;
+    position: sticky;
+    z-index: 30;
+    top: var(--mb-app-bar-height);
+    flex: 0 0 var(--mb-navigation-width);
+    flex-direction: column;
+    align-self: flex-start;
+    width: var(--mb-navigation-width);
+    max-height: calc(100dvh - var(--mb-app-bar-height));
+    min-width: 0;
+    min-height: calc(100dvh - var(--mb-app-bar-height));
+    padding: var(--md-sys-spacing-2);
+    overflow: hidden;
+    border-right: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 0 var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0;
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition:
+        flex-basis var(--md-sys-motion-duration-medium2)
+            var(--md-sys-motion-easing-standard-decelerate),
+        width var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard-decelerate);
+}
+
+.mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar {
+    border-right: 0;
+    border-left: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large) 0 0 var(--md-sys-shape-corner-extra-large);
+}
+
+.mb-shell-workspace[data-sidebar-collapsed="true"] .mb-shell-topbar {
+    flex-basis: var(--mb-navigation-collapsed-width);
+    width: var(--mb-navigation-collapsed-width);
+}
+
+.mb-sidebar-toggle {
+    align-self: center;
+    flex: none;
+    margin: var(--md-sys-spacing-1) 0 var(--md-sys-spacing-2);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-sidebar-toggle[hidden] {
+    display: none;
+}
+
+.mb-sidebar-toggle svg,
+.mb-app-bar__action svg {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.mb-shell-topbar > .tab-bar {
+    position: static;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.mb-shell-workspace[data-tab-placement="top"] .mb-shell-topbar,
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
+    position: sticky;
+    top: var(--mb-app-bar-height);
+    flex: none;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
+    max-height: none;
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3);
+    border: 0;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 0;
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
+    top: auto;
+    bottom: 0;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    border-bottom: 0;
+}
+
+.mb-shell-workspace[data-tab-placement="top"] .mb-shell-topbar > .tab-bar,
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar > .tab-bar {
+    overflow: visible;
+}
+
+.mb-main {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    padding: clamp(var(--md-sys-spacing-3), 2.5vw, var(--md-sys-spacing-8));
+}
+
+.mb-main > .tab-panels {
+    width: min(100%, var(--mb-content-max-width));
+    min-width: 0;
+    margin-inline: auto;
+}
+
+.mb-navigation-scrim {
+    display: none;
+    position: fixed;
+    z-index: 25;
+    inset: var(--mb-app-bar-height) 0 0;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: color-mix(in srgb, var(--md-sys-color-scrim) 36%, transparent);
+    cursor: pointer;
+}
+
+.mb-navigation-scrim[hidden] {
+    display: none;
+}
+
+/* ---- Footer ------------------------------------------------------------------------ */
 
 .mb-shell-footer {
-    display: flex;
+    display: grid;
     position: relative;
-    justify-content: center;
-    padding: var(--md-sys-spacing-8) var(--md-sys-spacing-4) var(--md-sys-spacing-12);
-    background: var(--md-sys-color-surface-container-low);
+    min-height: 7rem;
+    place-items: center;
+    padding: var(--md-sys-spacing-8) max(var(--md-sys-spacing-4), env(safe-area-inset-right))
+        max(var(--md-sys-spacing-8), env(safe-area-inset-bottom))
+        max(var(--md-sys-spacing-4), env(safe-area-inset-left));
+    overflow: hidden;
     border-top: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-low);
 }
 
-/* The topbar's gradient signature, reversed, bookending the page. */
 .mb-shell-footer::before {
     content: "";
     position: absolute;
-    top: -1px;
-    right: 0;
-    left: 0;
-    height: 3px;
+    inset: 0 0 auto;
+    height: 0.25rem;
     background: linear-gradient(
         90deg,
-        var(--md-sys-color-tertiary),
+        var(--md-sys-color-primary),
         var(--md-sys-color-secondary),
-        var(--md-sys-color-primary)
+        var(--md-sys-color-tertiary)
     );
 }
 
@@ -328,4 +341,137 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: var(--md-sys-typescale-body-small-line-height);
     text-align: center;
+}
+
+/* ---- Compact layouts --------------------------------------------------------------- */
+
+@media (width <= 720px) {
+    :root {
+        --mb-app-bar-height: 4rem;
+        --mb-navigation-width: min(19rem, calc(100vw - 3rem));
+        --mb-navigation-collapsed-width: 4rem;
+    }
+
+    .mb-app-bar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding-inline: var(--md-sys-spacing-2);
+    }
+
+    .mb-app-bar__copy {
+        display: none;
+    }
+
+    .mb-brand {
+        justify-self: start;
+    }
+
+    .mb-brand-word {
+        max-width: 8.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mb-app-bar__actions .mb-app-bar__action:not(.mb-app-bar__palette-action) {
+        display: none;
+    }
+
+    .mb-app-bar__palette-action {
+        width: var(--md-sys-min-touch-target);
+        padding: 0;
+    }
+
+    .mb-shell-workspace[data-tab-placement="left"],
+    .mb-shell-workspace[data-tab-placement="right"] {
+        display: block;
+    }
+
+    .mb-shell-workspace[data-tab-placement="left"] .mb-shell-topbar,
+    .mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar {
+        position: fixed;
+        z-index: 35;
+        top: var(--mb-app-bar-height);
+        bottom: 0;
+        width: var(--mb-navigation-width);
+        max-height: none;
+        min-height: 0;
+        border-radius: 0 var(--md-sys-shape-corner-extra-large)
+            var(--md-sys-shape-corner-extra-large) 0;
+        box-shadow: var(--md-sys-elevation-level3);
+    }
+
+    .mb-shell-workspace[data-tab-placement="left"] .mb-shell-topbar {
+        left: 0;
+    }
+
+    .mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar {
+        right: 0;
+        border-radius: var(--md-sys-shape-corner-extra-large) 0 0
+            var(--md-sys-shape-corner-extra-large);
+    }
+
+    .mb-shell-workspace[data-sidebar-collapsed="true"] .mb-shell-topbar {
+        width: var(--mb-navigation-collapsed-width);
+        border-radius: 0 var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-large) 0;
+        box-shadow: var(--md-sys-elevation-level1);
+    }
+
+    .mb-shell-workspace[data-tab-placement="right"][data-sidebar-collapsed="true"]
+        .mb-shell-topbar {
+        border-radius: var(--md-sys-shape-corner-large) 0 0 var(--md-sys-shape-corner-large);
+    }
+
+    .mb-shell-workspace[data-tab-placement="left"] .mb-main {
+        padding-left: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-2));
+    }
+
+    .mb-shell-workspace[data-tab-placement="right"] .mb-main {
+        padding-right: calc(var(--mb-navigation-collapsed-width) + var(--md-sys-spacing-2));
+    }
+
+    .mb-app-shell[data-navigation-open="true"] .mb-navigation-scrim:not([hidden]) {
+        display: block;
+    }
+
+    .mb-main {
+        padding-block: var(--md-sys-spacing-3);
+        padding-inline: var(--md-sys-spacing-2);
+    }
+}
+
+@media (width <= 390px) {
+    .mb-brand-word {
+        display: none;
+    }
+
+    .mb-brand {
+        padding-right: var(--md-sys-spacing-1);
+    }
+
+    .mb-main {
+        padding-inline: var(--md-sys-spacing-1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-app-bar,
+    .mb-shell-topbar {
+        transition: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .mb-app-bar,
+    .mb-shell-topbar,
+    .mb-shell-footer {
+        border: 1px solid CanvasText;
+        background: Canvas;
+        color: CanvasText;
+        box-shadow: none;
+    }
+
+    .mb-brand-mark {
+        border: 2px solid CanvasText;
+        background: Canvas;
+        color: CanvasText;
+    }
 }
