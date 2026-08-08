@@ -17,6 +17,12 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
+import type {
+    DependencyInstallerBridge,
+    SysdepBatchResult,
+    SysdepInstallEvent,
+    SysdepPreviewRow,
+} from "../settings/dependencyBridge.js";
 import GhCliAccountsList from "./GhCliAccountsList.vue";
 import { createGhCliAccountsStore, type GhCliAccountsStoreState } from "./ghCliAccountsStore.js";
 import type {
@@ -78,13 +84,20 @@ function account(overrides: Partial<GhCliAccountReadout> = {}): GhCliAccountRead
 
 let wrapper: VueWrapper | null = null;
 
-function mountList(state: GhCliAccountsStoreState): {
+function mountList(
+    state: GhCliAccountsStoreState,
+    dependencyBridge?: DependencyInstallerBridge | null,
+): {
     wrapper: VueWrapper;
     emitted: Record<string, unknown[][]>;
 } {
     const Host = defineComponent({
         setup() {
-            return () => h(VApp, null, { default: () => [h(GhCliAccountsList, { list: state })] });
+            const listProps =
+                dependencyBridge === undefined
+                    ? { list: state }
+                    : { list: state, dependencyBridge };
+            return () => h(VApp, null, { default: () => [h(GhCliAccountsList, listProps)] });
         },
     });
     wrapper = mount(Host, {
@@ -159,11 +172,65 @@ function scriptedGhCli(
     return { bridge, calls };
 }
 
-async function readyList(state: GhCliAccountsStoreState): Promise<ReturnType<typeof mountList>> {
-    const mounted = mountList(state);
+async function readyList(
+    state: GhCliAccountsStoreState,
+    dependencyBridge?: DependencyInstallerBridge | null,
+): Promise<ReturnType<typeof mountList>> {
+    const mounted = mountList(state, dependencyBridge);
     await state.load();
     await settle();
     return mounted;
+}
+
+const GH_CLI_PREVIEW: SysdepPreviewRow = {
+    id: "githubCli",
+    displayName: "GitHub CLI",
+    route: { kind: "package-manager", manager: "winget", packageId: "GitHub.cli" },
+    elevation: "required",
+    elevationDisclosure:
+        "The GitHub CLI's installer defaults to a machine-wide install, so Windows will ask for administrator permission before this runs.",
+    alreadyInstalled: false,
+    installedVersion: null,
+};
+
+function transitioningGhCli(): {
+    readonly bridge: GhCliBridge;
+    readonly calls: string[];
+    markAvailable(): void;
+} {
+    let available = false;
+    const signedOut: GhCliAccountsStatusReadout = {
+        availability: "no-accounts",
+        version: "gh version 2.96.0",
+        accounts: [],
+        source: "json",
+        message: "gh is installed but nobody is signed in to it. Use the sign-in action below.",
+    };
+    const scripted = scriptedGhCli(signedOut);
+    return {
+        calls: scripted.calls,
+        bridge: {
+            ...scripted.bridge,
+            ghCliListAccounts: () => {
+                scripted.calls.push("list");
+                return Promise.resolve(
+                    available
+                        ? signedOut
+                        : {
+                              availability: "not-installed" as const,
+                              version: null,
+                              accounts: [],
+                              source: null,
+                              message:
+                                  "The GitHub command-line tool (gh) is not on this computer's PATH. Use the install-and-sign-in action below.",
+                          },
+                );
+            },
+        },
+        markAvailable() {
+            available = true;
+        },
+    };
 }
 
 describe("rendering real accounts", () => {
@@ -469,13 +536,13 @@ describe("the three honest empty/unavailable states", () => {
             accounts: [],
             source: null,
             message:
-                "The GitHub command-line tool (gh) is not on this computer's PATH, so its own accounts cannot be listed. This application's own sign-in above is unaffected either way - install gh from cli.github.com if you also want to use it from a terminal.",
+                "The GitHub command-line tool (gh) is not on this computer's PATH, so its own accounts cannot be listed. Use the install-and-sign-in action in this section; it shows the package route and any administrator permission before installing anything.",
         });
         const state = createGhCliAccountsStore({ bridge });
         const { wrapper: root } = await readyList(state);
 
         expect(root.text()).toContain("not on this computer's PATH");
-        expect(root.text()).toContain("sign-in above is unaffected");
+        expect(root.text()).toContain("install-and-sign-in action");
 
         const openDeps = root
             .findAll("button")
@@ -488,6 +555,218 @@ describe("the three honest empty/unavailable states", () => {
             unknown[][]
         >;
         expect(emittedAfter["open-dependencies"]).toHaveLength(1);
+    });
+
+    it("previews, installs, verifies and re-probes GitHub CLI before starting GUI sign-in", async () => {
+        const gh = transitioningGhCli();
+        const installCalls: string[][] = [];
+        let installEvent: ((event: SysdepInstallEvent) => void) | null = null;
+        let finishInstall!: (result: SysdepBatchResult) => void;
+        const dependencyBridge: DependencyInstallerBridge = {
+            sysdepsPreview: () => Promise.resolve([GH_CLI_PREVIEW]),
+            installSysdeps: (ids) => {
+                installCalls.push([...ids]);
+                installEvent?.({
+                    dependency: "githubCli",
+                    manager: "winget",
+                    stage: "downloading",
+                    message: "Downloading GitHub CLI from winget.",
+                    progress: { kind: "determinate", percent: 42 },
+                });
+                return new Promise<SysdepBatchResult>((resolve) => {
+                    finishInstall = resolve;
+                });
+            },
+            cancelSysdepInstall: () => Promise.resolve({ cancelled: true }),
+            onSysdepInstallEvent: (listener) => {
+                installEvent = listener;
+                return () => {
+                    installEvent = null;
+                };
+            },
+        };
+        const state = createGhCliAccountsStore({ bridge: gh.bridge });
+        const { wrapper: root } = await readyList(state, dependencyBridge);
+
+        expect(root.text()).toContain("winget: GitHub.cli");
+        expect(root.text()).toContain("Windows will ask for administrator permission");
+        const install = root
+            .findAll("button")
+            .find((button) => button.text().includes("Install GitHub CLI and sign in"));
+        expect(install).toBeDefined();
+
+        await install!.trigger("click");
+        await settle();
+
+        expect(installCalls).toEqual([["githubCli"]]);
+        expect(gh.calls).not.toContain("login:new");
+        expect(root.text()).toContain("Downloading GitHub CLI from winget");
+        const progress = root.get('[role="progressbar"][aria-valuenow="42"]');
+        expect(progress.attributes("aria-label")).toContain("GitHub CLI installation progress");
+
+        gh.markAvailable();
+        finishInstall({
+            outcomes: [
+                {
+                    kind: "installed",
+                    dependency: "githubCli",
+                    manager: "winget",
+                    verified: true,
+                    verifiedOutput: "gh version 2.96.0",
+                },
+            ],
+            cancelled: false,
+        });
+        await settle();
+
+        expect(gh.calls).toContain("login:new");
+        expect(state.availability.value).toBe("no-accounts");
+    });
+
+    it("cancels the installer stage without falling through into GUI sign-in", async () => {
+        const gh = transitioningGhCli();
+        let cancelCalls = 0;
+        let finishInstall!: (result: SysdepBatchResult) => void;
+        const dependencyBridge: DependencyInstallerBridge = {
+            sysdepsPreview: () => Promise.resolve([GH_CLI_PREVIEW]),
+            installSysdeps: () =>
+                new Promise<SysdepBatchResult>((resolve) => {
+                    finishInstall = resolve;
+                }),
+            cancelSysdepInstall: () => {
+                cancelCalls += 1;
+                return Promise.resolve({ cancelled: true });
+            },
+            onSysdepInstallEvent: () => () => {},
+        };
+        const state = createGhCliAccountsStore({ bridge: gh.bridge });
+        const { wrapper: root } = await readyList(state, dependencyBridge);
+
+        await root
+            .findAll("button")
+            .find((button) => button.text().includes("Install GitHub CLI and sign in"))!
+            .trigger("click");
+        await settle();
+        await root
+            .findAll("button")
+            .find((button) => button.text().includes("Cancel installation"))!
+            .trigger("click");
+        await settle();
+
+        expect(cancelCalls).toBe(1);
+        expect(gh.calls).not.toContain("login:new");
+
+        finishInstall({
+            outcomes: [{ kind: "cancelled", dependency: "githubCli" }],
+            cancelled: true,
+        });
+        await settle();
+
+        expect(root.text()).toContain("Installation and sign-in stopped");
+        expect(gh.calls).not.toContain("login:new");
+    });
+
+    it("stops between installation and sign-in while the fresh account probe is pending", async () => {
+        const signedOut: GhCliAccountsStatusReadout = {
+            availability: "no-accounts",
+            version: "gh version 2.96.0",
+            accounts: [],
+            source: "json",
+            message: "gh is installed but nobody is signed in to it.",
+        };
+        const scripted = scriptedGhCli(signedOut);
+        let listCalls = 0;
+        let finishProbe!: (status: GhCliAccountsStatusReadout) => void;
+        const bridge: GhCliBridge = {
+            ...scripted.bridge,
+            ghCliListAccounts: () => {
+                scripted.calls.push("list");
+                listCalls += 1;
+                if (listCalls === 1) {
+                    return Promise.resolve({
+                        availability: "not-installed",
+                        version: null,
+                        accounts: [],
+                        source: null,
+                        message: "gh is not on this computer's PATH.",
+                    });
+                }
+                return new Promise<GhCliAccountsStatusReadout>((resolve) => {
+                    finishProbe = resolve;
+                });
+            },
+        };
+        const dependencyBridge: DependencyInstallerBridge = {
+            sysdepsPreview: () => Promise.resolve([GH_CLI_PREVIEW]),
+            installSysdeps: () =>
+                Promise.resolve({
+                    outcomes: [
+                        {
+                            kind: "installed",
+                            dependency: "githubCli",
+                            manager: "winget",
+                            verified: true,
+                            verifiedOutput: "gh version 2.96.0",
+                        },
+                    ],
+                    cancelled: false,
+                }),
+            cancelSysdepInstall: () => Promise.resolve({ cancelled: false }),
+            onSysdepInstallEvent: () => () => {},
+        };
+        const state = createGhCliAccountsStore({ bridge });
+        const { wrapper: root } = await readyList(state, dependencyBridge);
+
+        await root
+            .findAll("button")
+            .find((button) => button.text().includes("Install GitHub CLI and sign in"))!
+            .trigger("click");
+        await settle();
+
+        const stop = root
+            .findAll("button")
+            .find((button) => button.text().includes("Stop before sign-in"));
+        expect(stop).toBeDefined();
+        await stop!.trigger("click");
+        finishProbe(signedOut);
+        await settle();
+
+        expect(root.text()).toContain("Setup stopped after checking gh");
+        expect(scripted.calls).not.toContain("login:new");
+    });
+
+    it("skips installation when the preview already verifies gh, then re-probes and signs in", async () => {
+        const gh = transitioningGhCli();
+        let installCalls = 0;
+        const dependencyBridge: DependencyInstallerBridge = {
+            sysdepsPreview: () =>
+                Promise.resolve([
+                    {
+                        ...GH_CLI_PREVIEW,
+                        alreadyInstalled: true,
+                        installedVersion: "gh version 2.96.0",
+                    },
+                ]),
+            installSysdeps: () => {
+                installCalls += 1;
+                return Promise.reject(new Error("install should not run"));
+            },
+            cancelSysdepInstall: () => Promise.resolve({ cancelled: false }),
+            onSysdepInstallEvent: () => () => {},
+        };
+        const state = createGhCliAccountsStore({ bridge: gh.bridge });
+        const { wrapper: root } = await readyList(state, dependencyBridge);
+
+        expect(root.text()).toContain("Already installed (gh version 2.96.0)");
+        gh.markAvailable();
+        await root
+            .findAll("button")
+            .find((button) => button.text().includes("Continue to gh sign-in"))!
+            .trigger("click");
+        await settle();
+
+        expect(installCalls).toBe(0);
+        expect(gh.calls).toContain("login:new");
     });
 
     it("says plainly when gh is installed but signed in as nobody, and offers GUI sign-in", async () => {
