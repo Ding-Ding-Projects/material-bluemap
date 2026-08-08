@@ -76,7 +76,12 @@ function act(action: string, hit: TabHit): void {
             <div class="mb-tabs-results__meta">
                 <v-chip v-if="showLocation" size="x-small" variant="outlined">{{ hit.windowLabel }}</v-chip>
                 <v-chip v-if="showLocation" size="x-small" variant="outlined">{{ hit.stripLabel }}</v-chip>
-                <v-chip v-if="hit.groupName !== null" size="x-small" variant="tonal">
+                <v-chip
+                    v-if="hit.groupName !== null"
+                    class="mb-tabs-results__group-name"
+                    size="x-small"
+                    variant="tonal"
+                >
                     {{ hit.groupName }}
                 </v-chip>
                 <v-chip v-if="hit.groupCollapsed" size="x-small" variant="outlined">
@@ -170,6 +175,20 @@ function act(action: string, hit: TabHit): void {
     flex-wrap: wrap;
     gap: 4px;
     padding-inline: 8px 4px;
+}
+
+/* Tab-group names are user-authored and can be longer than a compact result row.
+   Wrap inside the chip instead of inheriting Vuetify's single-line hard clip. */
+.mb-tabs-results__group-name.v-chip {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.mb-tabs-results__group-name .v-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding-block: 2px;
 }
 
 .mb-tabs-results__spacer {
