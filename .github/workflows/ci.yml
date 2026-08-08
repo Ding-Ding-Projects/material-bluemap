@@ -149,6 +149,7 @@ jobs:
           cache-dependency-path: design/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm screenshots:check
       - run: pnpm lint
       - run: pnpm build
       # After `build`, never before: a package resolves a sibling `@worldlens/*`
