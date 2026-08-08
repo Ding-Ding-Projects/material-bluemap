@@ -18,6 +18,7 @@ import {
     type SleepLike,
 } from "../github/deviceFlow.js";
 import { describeError, redactSecrets } from "../github/redact.js";
+import { missingScopes, normalizeRequiredScopes, normalizeScopes } from "../github/token.js";
 import { GH_COMMAND, type ProcessRunner } from "../cirender/gh.js";
 import { parseGhAuthStatusJson, type GhCliAccountSummary } from "./accounts.js";
 import { GH_CLI_AUTH_ENVIRONMENT } from "./environment.js";
@@ -44,6 +45,8 @@ export const GH_CLI_LOGIN_SCOPES: readonly string[] = [
     "read:project",
     "project",
 ];
+
+const NORMALIZED_GH_CLI_LOGIN_SCOPES = normalizeRequiredScopes(GH_CLI_LOGIN_SCOPES);
 
 export type GhCliLoginStage =
     | "requesting-code"
@@ -438,7 +441,7 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
             accounts?.find((account) => account.host === GH_CLI_LOGIN_HOST && account.active) ??
             null;
         if (!status.started || status.code !== 0 || active === null) {
-            const said = redactSecrets(firstLine(status.stderr));
+            const said = redactSecrets(firstLine(status.stderr), [token]);
             const state = emit(
                 publicState(
                     "failed",
@@ -448,6 +451,29 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
                         ...withGrant(grant),
                         browserOpened,
                         failureCode: "gh-status-unverified",
+                    },
+                ),
+            );
+            return { ok: false, state };
+        }
+
+        const grantedScopes = normalizeScopes(active.scopes);
+        const missing = active.scopesReported
+            ? missingScopes(grantedScopes, NORMALIZED_GH_CLI_LOGIN_SCOPES)
+            : NORMALIZED_GH_CLI_LOGIN_SCOPES;
+        if (missing.length > 0) {
+            const state = emit(
+                publicState(
+                    "failed",
+                    expectedLogin,
+                    active.scopesReported
+                        ? `gh stored ${active.login}'s approved credential, but the active account is missing the requested ${missing.length === 1 ? "scope" : "scopes"}: ${missing.join(", ")}.`
+                        : `gh stored ${active.login}'s approved credential, but the active account did not report scopes, so the requested permissions could not be verified.`,
+                    {
+                        ...withGrant(grant),
+                        browserOpened,
+                        account: active,
+                        failureCode: "insufficient-scopes",
                     },
                 ),
             );
@@ -470,7 +496,7 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
             effectiveLogin === "" ||
             !sameLogin(active.login, effectiveLogin)
         ) {
-            const said = redactSecrets(firstLine(viewer.stderr));
+            const said = redactSecrets(firstLine(viewer.stderr), [token]);
             const state = emit(
                 publicState(
                     "failed",
@@ -508,7 +534,7 @@ export async function loginGhCli(options: GhCliLoginOptions): Promise<GhCliLogin
             publicState(
                 "succeeded",
                 expectedLogin,
-                `${effectiveLogin} is signed in through gh on ${GH_CLI_LOGIN_HOST}. gh status and the API identity both agree.`,
+                `${effectiveLogin} is signed in through gh on ${GH_CLI_LOGIN_HOST}. The requested scopes are verified, and gh status and the API identity agree.`,
                 { browserOpened, account: active },
             ),
         );

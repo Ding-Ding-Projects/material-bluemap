@@ -24,6 +24,8 @@ import { describe, expect, it } from "vitest";
 import {
     checkRepositoryAccess,
     missingScopes,
+    normalizeRequiredScopes,
+    normalizeScopes,
     revokeToken,
     scopeSatisfied,
     verifyToken,
@@ -54,6 +56,8 @@ describe("scope arithmetic", () => {
     it("knows which scopes contain which", () => {
         expect(scopeSatisfied(["repo"], "public_repo")).toBe(true);
         expect(scopeSatisfied(["user"], "read:user")).toBe(true);
+        expect(scopeSatisfied([" PROJECT "], "read:project")).toBe(true);
+        expect(scopeSatisfied(["ADMIN:ORG"], "read:org")).toBe(true);
         expect(scopeSatisfied(["public_repo"], "public_repo")).toBe(true);
         // The one that catches people out: `workflow` is not implied by any repository
         // scope, so a token with `repo` alone still cannot dispatch a workflow.
@@ -63,6 +67,14 @@ describe("scope arithmetic", () => {
     it("lists exactly what is missing", () => {
         expect(missingScopes(["public_repo", "read:user"])).toEqual(["workflow"]);
         expect(missingScopes(["repo", "workflow", "user"])).toEqual([]);
+    });
+
+    it("normalizes scope sets and removes redundant narrower requests", () => {
+        expect(normalizeScopes([" Repo ", "repo", "WORKFLOW", ""])).toEqual(["repo", "workflow"]);
+        expect(normalizeRequiredScopes(["read:project", "project", "READ:ORG"])).toEqual([
+            "project",
+            "read:org",
+        ]);
     });
 });
 
