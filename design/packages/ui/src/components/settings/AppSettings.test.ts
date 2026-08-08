@@ -42,6 +42,7 @@ import {
     SETTINGS_SECTIONS,
     type SettingsSectionAnchor,
 } from "./settingsSections.js";
+import { DEFAULT_UI_SIZE_LEVEL, changeUiSize, currentUiSizeLevel } from "./uiSizeSetting.js";
 
 /** The fallback title `sectionCopy` gives each anchor, which is what the tabs read. */
 const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
@@ -51,6 +52,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "world-folder": "World folder",
     "github-account": "GitHub account",
     "language-and-tone": "Language and tone",
+    "display": "Display and ease of use",
     "surface-placement": "Where the panels sit",
     "render-memory": "Render memory",
     "notification-duration": "Notification duration",
@@ -588,6 +590,73 @@ describe("the language and tone setting", () => {
         await settle();
 
         expect(resultTitles()).toContain(SECTION_TITLE["language-and-tone"]);
+    });
+});
+
+describe("the display and ease-of-use setting", () => {
+    /*
+     * The point of the section: the interface-size dial did not exist at all, and the
+     * theme lived only inside an open map's own menu. Both controls have to be the real
+     * ones - a stop that resizes the document and a theme button that writes the
+     * viewer's own stored record - rather than labels describing them.
+     */
+    it("offers the real controls: five size stops and four theme choices", async () => {
+        open({ anchor: "display" });
+        await settle();
+
+        const element = requireSection("display");
+        const labels = [...element.querySelectorAll("button")].map(
+            (button) => button.textContent ?? "",
+        );
+        for (const stop of ["1 · Standard", "2 · Comfortable", "3 · Large", "4 · Extra large", "5 · Largest"]) {
+            expect(labels.some((label) => label.includes(stop))).toBe(true);
+        }
+        for (const theme of ["Default (System/Browser)", "Dark", "Light", "Contrast"]) {
+            expect(labels.some((label) => label.includes(theme))).toBe(true);
+        }
+    });
+
+    it("pressing a size stop genuinely resizes the interface, not merely the button", async () => {
+        open({ anchor: "display" });
+        await settle();
+
+        const element = requireSection("display");
+        const large = [...element.querySelectorAll("button")].find(
+            (button) => button.textContent?.includes("3 · Large") === true,
+        );
+        expect(large).toBeDefined();
+        large!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+
+        // jsdom has no preload bridge, so the CSS route is the observable one here; the
+        // bridge route is `uiSizeSetting.test.ts`'s subject.
+        expect(document.documentElement.style.getPropertyValue("zoom")).toBe("1.5");
+        expect(currentUiSizeLevel.value).toBe(3);
+
+        changeUiSize(DEFAULT_UI_SIZE_LEVEL);
+    });
+
+    it("is found by the surface's own search, by a size stop's own label", async () => {
+        open();
+        await settle();
+
+        const field = wrapper?.find(".mb-config-search input");
+        await field?.setValue("Extra large");
+        await settle();
+
+        expect(resultTitles()).toContain(SECTION_TITLE.display);
+        expect(resultTitles()).not.toContain(SECTION_TITLE["java-runtime"]);
+    });
+
+    it("is found by a theme choice's name, which is what its own buttons show", async () => {
+        open();
+        await settle();
+
+        const field = wrapper?.find(".mb-config-search input");
+        await field?.setValue("Contrast");
+        await settle();
+
+        expect(resultTitles()).toContain(SECTION_TITLE.display);
     });
 });
 

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
@@ -2291,6 +2291,19 @@ interface WorldlensBridge {
     onWindowMaximizedChanged(listener: (maximized: boolean) => void): () => void;
 
     /**
+     * Scales the whole interface, chrome and map alike, to `factor` times its designed
+     * size - Chromium's own page zoom, the identical mechanism behind Ctrl+plus in a
+     * browser, which is what keeps the map canvas re-rendering crisp instead of being
+     * stretched.
+     *
+     * Synchronous and renderer-local (`webFrame` belongs to the calling frame), so it is
+     * not an IPC round-trip and needs nothing from the main process. The renderer owns
+     * the persisted choice; this only applies it. Clamped to [1, 2]: the settings dial
+     * offers 100% to 200% and a factor below 1 would shrink the control that undoes it.
+     */
+    setUiZoom(factor: number): void;
+
+    /**
      * Mojang download consent.
      *
      * Asked once, during first-run setup, and remembered afterwards. Nothing in the
@@ -3120,6 +3133,15 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("window:maximizedChanged", forward);
         };
+    },
+
+    setUiZoom: (factor) => {
+        // Guarded rather than trusted: the renderer only ever passes one of five known
+        // factors, but this is the process boundary, and a NaN handed to
+        // `setZoomFactor` throws where a clamp reads as "the nearest size we do".
+        const requested = Number(factor);
+        const clamped = Number.isFinite(requested) ? Math.min(2, Math.max(1, requested)) : 1;
+        webFrame.setZoomFactor(clamped);
     },
 
     readConsent: () => ipcRenderer.invoke("consent:read"),

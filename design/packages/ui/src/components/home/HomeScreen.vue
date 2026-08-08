@@ -13,6 +13,7 @@ import {
     mdiFileCogOutline,
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
+    mdiFormatSize,
     mdiGavel,
     mdiGithub,
     mdiHelpCircleOutline,
@@ -411,6 +412,20 @@ const capabilities = computed<HomeCapability[]>(() => {
             icon: mdiCogOutline,
             keywords: ["preferences", "options"],
             action: () => emit("open-settings", null),
+            remedyAction: null,
+        }),
+        // Straight after Settings itself, because it is the tile for the person least
+        // equipped to go looking: bigger text and buttons, and a theme that does not
+        // need a map to be open. Same reuse rule as the GitHub tile below - the words
+        // are the settings section's own, so the tile and the tab it opens agree.
+        tile({
+            id: "display",
+            group: t("home.section.settings", "Settings and tools"),
+            title: sections.display.title,
+            description: sections.display.description,
+            icon: mdiFormatSize,
+            keywords: ["bigger", "larger", "text size", "zoom", "theme", "dark", "light", "contrast", "accessibility"],
+            action: () => emit("open-settings", "display"),
             remedyAction: null,
         }),
         tile({

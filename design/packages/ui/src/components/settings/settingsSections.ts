@@ -58,6 +58,15 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * not stop for the want of a funny level, so nothing on the bridge could honestly point at
  * it.
  *
+ * Display and ease of use sits beside language and tone because the two answer the same
+ * question about different senses: how this app reads, and how it looks. The interface
+ * size dial and the theme both had no home a person could reach from a fresh install —
+ * the theme control lived only inside an open map's own menu, and the interface size did
+ * not exist at all, leaving anyone who found 14px chrome too small to operate the most
+ * detailed editor in the app (per-element appearance) as their only remedy. Not an
+ * anchor: no render stops for the want of a bigger button, so nothing on the bridge
+ * could honestly point here.
+ *
  * Where the panels sit is next, and is a setting about this surface as much as about any
  * other: every docked panel remembers its own placement, and the one control that resets
  * all of them at once has to live somewhere a person can find it when they have moved a
@@ -117,6 +126,7 @@ export const SETTINGS_SECTIONS = [
     ...SETTINGS_ANCHORS,
     "github-account",
     "language-and-tone",
+    "display",
     "surface-placement",
     "render-memory",
     "notification-duration",

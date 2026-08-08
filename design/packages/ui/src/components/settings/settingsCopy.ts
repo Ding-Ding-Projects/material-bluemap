@@ -83,6 +83,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
             ),
         },
+        "display": {
+            title: t("settings.display.title", "Display and ease of use"),
+            description: t(
+                "settings.display.description",
+                "How big everything is drawn, from the designed size up to double it, and whether the app is dark, light, high-contrast, or follows this computer. Both apply immediately and are remembered.",
+            ),
+        },
         "surface-placement": {
             title: t("settings.placement.title", "Where the panels sit"),
             description: t(
@@ -247,6 +254,51 @@ export function noticeDurationLevelLabel(t: Translate, level: NoticeDurationLeve
             return t("settings.noticeDuration.level.4", "4 · Relaxed");
         case 5:
             return t("settings.noticeDuration.level.5", "5 · Stay until dismissed");
+    }
+}
+
+/**
+ * The name of an interface-size stop, in one place.
+ *
+ * Shared between `UiSizeRow.vue`, which renders it on the five toggle buttons, and the
+ * settings surface's own search, for exactly the reason {@link noticeDurationLevelLabel}
+ * is: one copy of the five strings, so a search for "Largest" or "Extra large" finds the
+ * row showing that word rather than reporting no matches.
+ */
+export function uiSizeLevelLabel(t: Translate, level: 1 | 2 | 3 | 4 | 5): string {
+    switch (level) {
+        case 1:
+            return t("settings.uiSize.level.1", "1 · Standard");
+        case 2:
+            return t("settings.uiSize.level.2", "2 · Comfortable");
+        case 3:
+            return t("settings.uiSize.level.3", "3 · Large");
+        case 4:
+            return t("settings.uiSize.level.4", "4 · Extra large");
+        case 5:
+            return t("settings.uiSize.level.5", "5 · Largest");
+    }
+}
+
+/**
+ * The name of a theme choice, in one place, and deliberately the viewer's own keys.
+ *
+ * `SettingsMenu.vue`'s in-map theme group renders `theme.default`, `theme.dark`,
+ * `theme.light` and `theme.contrast`, which upstream's thirty bundled locales already
+ * translate. Reusing them here is what keeps the two controls describing the same four
+ * choices in the same words in every language - and what the settings search matches, so
+ * the words on screen are the words that find this row.
+ */
+export function themeChoiceLabel(t: Translate, choice: "dark" | "light" | "contrast" | null): string {
+    switch (choice) {
+        case null:
+            return t("theme.default", "Default (System/Browser)");
+        case "dark":
+            return t("theme.dark", "Dark");
+        case "light":
+            return t("theme.light", "Light");
+        case "contrast":
+            return t("theme.contrast", "Contrast");
     }
 }
 
