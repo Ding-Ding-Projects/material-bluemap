@@ -351,10 +351,17 @@ describe("a group's header and its commands menu", () => {
     });
 
     it("lets a long group name take the room the menu button does not", () => {
-        const rule =
-            /\.mb-tabs-strip__group-bar\s*>\s*\.mb-tabs-strip__group-head\s*\{[^}]*\}/s.exec(
-                stripSource,
-            )?.[0] ?? "";
+        // Read from the header's own rule rather than from a `.mb-tabs-strip__group-bar > ...`
+        // rule of its own. There was one, briefly, and it shadowed this class for
+        // `projectSurfaceSizing.test.ts`, which reads the same class by name to check the
+        // 44px touch target and silently began reading a rule with no size in it at all.
+        // One rule per class is what keeps both checks honest.
+        const rule = /^\.mb-tabs-strip__group-head\s*\{[^}]*\}/m.exec(stripSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
         expect(rule).toContain("min-width: 0");
+        expect(rule).toContain("flex: 1 1 auto");
+        // The touch target the other suite guards, asserted here too so the two rules that
+        // now share one block cannot be separated again without both files objecting.
+        expect(rule).toContain("44px");
     });
 });
