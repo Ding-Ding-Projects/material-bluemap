@@ -86,7 +86,6 @@ import { sharedRegexEvaluator } from "./search/evaluator.js";
 import { SearchQueryModel } from "./search/queryModel.js";
 import type { CandidateField } from "./search/runSearch.js";
 import type { NotificationRecord } from "./notifications/Notifications.js";
-import worldlensLogoUrl from "./assets/worldlens-logo.png";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -1316,72 +1315,6 @@ function boot(): void {
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
     // setting to switch it off.
     maybeShowDimSum({ i18n, host: document.body });
-}
-
-/**
- * Toggles `data-scrolled` on the sticky topbar once the page has actually scrolled, so
- * shell.css can fade the bar's elevation shadow and gradient rule in rather than showing
- * both on every load regardless of scroll position.
- *
- * Passive and rAF-throttled so it never competes with the scroll it is observing, and it
- * degrades to a no-op wherever `window` is unavailable (this module is imported by tests
- * that never mount a DOM). The visible effect is a plain CSS transition driven by
- * tokens.css's own duration tokens, so `prefers-reduced-motion` still collapses it for
- * free with no branch here.
- */
-function watchTopbarScrollShadow(topbar: HTMLElement): void {
-    if (typeof window === "undefined") return;
-    let queued = false;
-    const apply = (): void => {
-        queued = false;
-        topbar.dataset["scrolled"] = window.scrollY > 0 ? "true" : "false";
-    };
-    window.addEventListener(
-        "scroll",
-        () => {
-            if (queued) return;
-            queued = true;
-            window.requestAnimationFrame(apply);
-        },
-        { passive: true },
-    );
-    apply();
-}
-
-/**
- * The site's own brand mark.
- *
- * It is a real control, not a logo pasted into the corner: it always returns the visitor to
- * Home, carries a localised accessible name, and is itself an appearance target with the
- * usual context-menu and Shift+right-click editor, exactly like every other element on the
- * page.
- */
-function createBrand(
-    i18n: I18n,
-    appearance: AppearanceController,
-    goHome: () => void,
-): HTMLButtonElement {
-    const brand = el("button", "mb-brand");
-    brand.type = "button";
-
-    const mark = el("img", "mb-brand-mark");
-    mark.src = worldlensLogoUrl;
-    mark.alt = "";
-    mark.setAttribute("aria-hidden", "true");
-    brand.appendChild(mark);
-
-    // The proper noun stays literal text; only the accessible label (below) is localised,
-    // matching how every other proper noun on the site is handled.
-    brand.appendChild(el("span", "mb-brand-word", "worldlens"));
-
-    i18n.bindAttr(brand, "aria-label", "site.brandAria");
-    brand.addEventListener("click", goHome);
-    registerAppearanceTarget(
-        brand,
-        { kind: "card", instance: "brand", instanceLabel: "Site brand mark" },
-        appearance,
-    );
-    return brand;
 }
 
 /**

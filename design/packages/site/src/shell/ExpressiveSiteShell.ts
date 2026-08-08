@@ -1,5 +1,6 @@
 import type { I18n } from "../i18n/I18n.js";
 import { icon } from "../platform/dom.js";
+import worldlensLogoUrl from "../assets/worldlens-logo.png";
 import type { SidebarNavigation } from "./SidebarNavigation.js";
 import { applySidebarNavigation } from "./SidebarNavigation.js";
 import type { TabModel } from "../tabs/TabModel.js";
@@ -104,14 +105,11 @@ export class ExpressiveSiteShell {
         this.options.i18n.bindAttr(brand, "aria-label", "site.brandAria");
         brand.addEventListener("click", this.options.actions.home);
 
-        const mark = document.createElement("span");
+        const mark = document.createElement("img");
         mark.className = "mb-brand-mark";
+        mark.src = worldlensLogoUrl;
+        mark.alt = "";
         mark.setAttribute("aria-hidden", "true");
-        mark.append(
-            Object.assign(document.createElement("span"), { className: "mb-brand-mark__lens" }),
-            Object.assign(document.createElement("span"), { className: "mb-brand-mark__voxel" }),
-            Object.assign(document.createElement("span"), { className: "mb-brand-mark__glint" }),
-        );
 
         const word = document.createElement("span");
         word.className = "mb-brand-word";
