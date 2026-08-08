@@ -18,6 +18,7 @@ import { PlayerMarkerManager } from "./markers/PlayerMarkerManager";
 import { NormalMarkerManager } from "./markers/NormalMarkerManager";
 import { makeReactive } from "./util/reactivity";
 import type { ControlsLike } from "./controls/ControlsManager";
+import { MaterialShell } from "./materialShell";
 
 export interface BlueMapAppSettings {
     version: string;
@@ -124,6 +125,7 @@ export class BlueMapApp {
 
     hashUpdateTimeout: ReturnType<typeof setTimeout> | null;
     viewAnimation: Animation | null;
+    materialShell: MaterialShell;
 
     allowRemoteInjection: (kind: "script" | "style", url: string) => boolean;
     dataRoot: string;
@@ -135,6 +137,7 @@ export class BlueMapApp {
         this.dataRoot = (options.dataRoot ?? "").replace(/\/+$/, "");
 
         this.mapViewer = new MapViewer(rootElement, this.events);
+        this.materialShell = new MaterialShell(rootElement);
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);
@@ -1017,11 +1020,21 @@ export class BlueMapApp {
     mapInteraction = (event: Event): void => {
         const detail = (
             event as CustomEvent<{
-                data: { doubleTap?: boolean };
+                data: { doubleTap?: boolean; contextMenu?: boolean; screenX?: number; screenY?: number };
                 hit?: Intersection | null;
                 object?: Object3D;
             }>
         ).detail;
+
+        if (detail.data.contextMenu) {
+            const context = detail.data;
+            this.materialShell.openContextMenu(
+                detail as unknown as import("./MapViewer").MapInteractionEventDetail,
+                context.screenX ?? 0,
+                context.screenY ?? 0,
+            );
+            return;
+        }
 
         if (detail.data.doubleTap) {
             const cm = this.mapViewer.controlsManager;

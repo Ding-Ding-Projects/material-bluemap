@@ -56,7 +56,11 @@ export class StaticHandler implements HttpHandler {
             .digest("hex")
             .slice(0, 16);
         if (req.headers["if-none-match"] === etag) {
-            res.writeHead(304);
+            res.writeHead(304, {
+                "x-content-type-options": "nosniff",
+                "referrer-policy": "no-referrer",
+                "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+            });
             res.end();
             return true;
         }
@@ -65,6 +69,9 @@ export class StaticHandler implements HttpHandler {
             "content-type": CONTENT_TYPES[path.extname(filePath)] ?? "application/octet-stream",
             "content-length": stat.size,
             etag,
+            "x-content-type-options": "nosniff",
+            "referrer-policy": "no-referrer",
+            "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         });
         if (req.method === "HEAD") {
             res.end();

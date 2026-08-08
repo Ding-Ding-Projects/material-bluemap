@@ -288,6 +288,12 @@ export class MapControls {
 
     onContextMenu = (evt: Event) => {
         evt.preventDefault();
+        const mouse = evt as MouseEvent;
+        this.manager?.handleMapInteraction(new Vector2(mouse.clientX, mouse.clientY), {
+            contextMenu: true,
+            screenX: mouse.clientX,
+            screenY: mouse.clientY,
+        });
     };
 
     onTap = (evt: HammerInput) => {
