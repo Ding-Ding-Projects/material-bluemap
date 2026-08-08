@@ -352,7 +352,12 @@ function isOpen(key: string): boolean {
 
 <style>
 .mb-tabs-finder {
-    min-width: 340px;
+    /* This content is mounted inside the tab sheet, which is itself clamped to
+       `calc(100vw - 16px)`. A fixed minimum used to overflow that sheet at phone
+       widths before the sheet's own max-width could help. */
+    box-sizing: border-box;
+    width: min(340px, calc(100vw - 16px));
+    min-width: 0;
     max-width: 460px;
     padding: 12px;
 }
