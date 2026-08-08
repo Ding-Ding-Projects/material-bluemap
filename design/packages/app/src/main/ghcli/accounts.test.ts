@@ -22,10 +22,17 @@ import {
     switchGhCliAccount,
 } from "./accounts.js";
 import type { GhCliAccountSummary } from "./accounts.js";
-import type { ProcessResult, ProcessRunner, ProcessToFileResult } from "../cirender/gh.js";
+import type {
+    ProcessResult,
+    ProcessRunner,
+    ProcessRunOptions,
+    ProcessToFileResult,
+} from "../cirender/gh.js";
+import { GH_CLI_AUTH_ENVIRONMENT } from "./environment.js";
 
 interface Call {
     readonly args: readonly string[];
+    readonly omittedEnvironment: readonly string[];
 }
 
 interface FakeRunner extends ProcessRunner {
@@ -37,14 +44,17 @@ function fakeRunner(answers: Readonly<Record<string, Partial<ProcessResult>>>): 
     const calls: Call[] = [];
     return {
         calls,
-        run(_command, args): Promise<ProcessResult> {
-            calls.push({ args: [...args] });
+        run(_command, args, options?: ProcessRunOptions): Promise<ProcessResult> {
+            calls.push({
+                args: [...args],
+                omittedEnvironment: [...(options?.omitEnvironmentVariables ?? [])],
+            });
             const key = args.join(" ");
             const found = answers[key];
             return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "", ...found });
         },
         runToFile(_command, args, _destination): Promise<ProcessToFileResult> {
-            calls.push({ args: [...args] });
+            calls.push({ args: [...args], omittedEnvironment: [] });
             return Promise.resolve({ started: true, code: 0, bytes: 0, stderr: "" });
         },
     };
@@ -75,7 +85,8 @@ const REAL_TEXT_MULTI_ACCOUNT =
     "  - Token: gho_************************************\n" +
     "  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'\n";
 
-const REAL_TEXT_NOT_LOGGED_IN = "You are not logged into any GitHub hosts. To log in, run: gh auth login\n";
+const REAL_TEXT_NOT_LOGGED_IN =
+    "You are not logged into any GitHub hosts. To log in, run: gh auth login\n";
 
 /* -------------------------------------------------------------------------- */
 /* The JSON route                                                             */
@@ -99,7 +110,9 @@ describe("parseGhAuthStatusJson", () => {
     });
 
     it("returns null (never an empty list) for something that is not this JSON shape", () => {
-        expect(parseGhAuthStatusJson("unknown flag: --json\n\nUsage:  gh auth status [flags]")).toBeNull();
+        expect(
+            parseGhAuthStatusJson("unknown flag: --json\n\nUsage:  gh auth status [flags]"),
+        ).toBeNull();
         expect(parseGhAuthStatusJson("")).toBeNull();
         expect(parseGhAuthStatusJson('{"nothing":"relevant"}')).toBeNull();
     });
@@ -172,7 +185,9 @@ describe("parseGhAuthStatusText", () => {
 
 describe("listGhCliAccounts", () => {
     it("says not-installed when gh is not on PATH, and asks nothing else", async () => {
-        const runner = fakeRunner({ "--version": { started: false, code: null, stderr: "spawn gh ENOENT" } });
+        const runner = fakeRunner({
+            "--version": { started: false, code: null, stderr: "spawn gh ENOENT" },
+        });
         const status = await listGhCliAccounts({ runner });
         expect(status.availability).toBe("not-installed");
         expect(status.accounts).toEqual([]);
@@ -187,7 +202,8 @@ describe("listGhCliAccounts", () => {
         const status = await listGhCliAccounts({ runner });
         expect(status.availability).toBe("no-accounts");
         expect(status.source).toBe("json");
-        expect(status.message).toContain("gh auth login");
+        expect(status.message).toContain("sign-in action below");
+        expect(status.message).toContain("stored by gh");
     });
 
     it("prefers the JSON route and reports it as the source", async () => {
@@ -241,6 +257,24 @@ describe("listGhCliAccounts", () => {
             expect(call.args).not.toContain("-t");
         }
     });
+
+    it("strips inherited auth overrides from every version, JSON, and text-fallback call", async () => {
+        const runner = fakeRunner({
+            "--version": { stdout: "gh version 2.20.0\n" },
+            "auth status --json hosts": { code: 1, stderr: "unknown flag: --json" },
+            "auth status": { code: 0, stdout: REAL_TEXT_MULTI_ACCOUNT },
+        });
+        await listGhCliAccounts({ runner });
+
+        expect(runner.calls.map((call) => call.args.join(" "))).toEqual([
+            "--version",
+            "auth status --json hosts",
+            "auth status",
+        ]);
+        for (const call of runner.calls) {
+            expect(call.omittedEnvironment).toEqual(GH_CLI_AUTH_ENVIRONMENT);
+        }
+    });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -249,7 +283,10 @@ describe("listGhCliAccounts", () => {
 
 describe("switchGhCliAccount", () => {
     it("reports ok only after re-reading confirms the switch actually took", async () => {
-        const switchedJson = REAL_JSON_MULTI_ACCOUNT.replace('"active":true', '"active":false').replace(
+        const switchedJson = REAL_JSON_MULTI_ACCOUNT.replace(
+            '"active":true',
+            '"active":false',
+        ).replace(
             '"login":"cafepromenade","tokenSource":"keyring","scopes":"gist, read:org, repo, workflow","gitProtocol":"https"}',
             '"login":"cafepromenade","tokenSource":"keyring","scopes":"gist, read:org, repo, workflow","gitProtocol":"https","active":true}',
         );
@@ -318,6 +355,24 @@ describe("switchGhCliAccount", () => {
         });
         await switchGhCliAccount({ runner }, "github.com", "cafepromenade");
         for (const call of runner.calls) expect(call.args).not.toContain("--show-token");
+    });
+
+    it("strips inherited auth overrides from switching and its complete re-read", async () => {
+        const runner = fakeRunner({
+            "auth switch --hostname github.com --user cafepromenade": { code: 0 },
+            "--version": VERSION_OK,
+            "auth status --json hosts": { stdout: REAL_JSON_MULTI_ACCOUNT },
+        });
+        await switchGhCliAccount({ runner }, "github.com", "cafepromenade");
+
+        expect(runner.calls.map((call) => call.args.join(" "))).toEqual([
+            "auth switch --hostname github.com --user cafepromenade",
+            "--version",
+            "auth status --json hosts",
+        ]);
+        for (const call of runner.calls) {
+            expect(call.omittedEnvironment).toEqual(GH_CLI_AUTH_ENVIRONMENT);
+        }
     });
 });
 

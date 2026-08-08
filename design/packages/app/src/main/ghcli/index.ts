@@ -24,6 +24,20 @@ export type {
 
 export { registerGhCliHandlers, GH_CLI_CHANNELS } from "./ipc.js";
 export type { GhCliIpc, GhCliIpcOptions } from "./ipc.js";
+export { GH_CLI_AUTH_ENVIRONMENT } from "./environment.js";
+
+export {
+    GH_CLI_LOGIN_HOST,
+    GH_CLI_LOGIN_SCOPES,
+    GH_CLI_OAUTH_CLIENT_ID,
+    loginGhCli,
+} from "./login.js";
+export type {
+    GhCliLoginOptions,
+    GhCliLoginResult,
+    GhCliLoginStage,
+    GhCliLoginState,
+} from "./login.js";
 
 export {
     chooseAccountForScope,

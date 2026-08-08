@@ -48,6 +48,7 @@ export type {
 } from "./ghCliAccountsStore.js";
 
 export {
+    canLoginGhCli,
     canListGhCliAccounts,
     canSwitchGhCliAccount,
     resolveGhCliBridge,
@@ -57,6 +58,10 @@ export type {
     GhCliAccountsStatusReadout,
     GhCliAvailabilityReadout,
     GhCliBridge,
+    GhCliCancelLoginReadout,
+    GhCliLoginResultReadout,
+    GhCliLoginStageReadout,
+    GhCliLoginStateReadout,
     GhCliSwitchReadout,
 } from "./ghCliBridge.js";
 

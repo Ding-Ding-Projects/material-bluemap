@@ -19,6 +19,7 @@ import {
     ghApiJson,
     ghApiPost,
     ghApiToFile,
+    nodeProcessRunner,
 } from "./gh.js";
 import type { ProcessResult, ProcessRunner, ProcessToFileResult } from "./gh.js";
 
@@ -62,7 +63,46 @@ function fakeRunner(
     };
 }
 
-const NOT_ON_PATH: Partial<ProcessResult> = { started: false, code: null, stderr: "spawn gh ENOENT" };
+const NOT_ON_PATH: Partial<ProcessResult> = {
+    started: false,
+    code: null,
+    stderr: "spawn gh ENOENT",
+};
+
+describe("process environment boundaries", () => {
+    it("omits named inherited variables case-insensitively without putting their values in argv", async () => {
+        const names = ["GH_TOKEN", "GITHUB_TOKEN", "WorldLens_Test_Auth_Override"] as const;
+        const original = new Map(names.map((name) => [name, process.env[name]]));
+        process.env.GH_TOKEN = "test-gh-token-value";
+        process.env.GITHUB_TOKEN = "test-github-token-value";
+        process.env.WorldLens_Test_Auth_Override = "test-mixed-case-value";
+
+        try {
+            const script =
+                "const omitted=['gh_token','github_token','worldlens_test_auth_override'];" +
+                "const present=Object.keys(process.env).some(k=>omitted.includes(k.toLowerCase()));" +
+                "process.stdout.write(present?'present':'omitted')";
+            const result = await nodeProcessRunner().run(process.execPath, ["-e", script], {
+                omitEnvironmentVariables: [
+                    "gh_token",
+                    "github_token",
+                    "WORLDLENS_TEST_AUTH_OVERRIDE",
+                ],
+            });
+
+            expect(result).toMatchObject({ started: true, code: 0, stdout: "omitted" });
+            expect(script).not.toContain("test-gh-token-value");
+            expect(script).not.toContain("test-github-token-value");
+            expect(script).not.toContain("test-mixed-case-value");
+        } finally {
+            for (const name of names) {
+                const value = original.get(name);
+                if (value === undefined) delete process.env[name];
+                else process.env[name] = value;
+            }
+        }
+    });
+});
 
 describe("three states, three sentences", () => {
     it("says gh is not installed when it is not on PATH", async () => {
@@ -113,7 +153,10 @@ describe("three states, three sentences", () => {
     it("reads an older gh that wrote its status to stderr, and said 'as' rather than 'account'", async () => {
         const runner = fakeRunner({
             "--version": { stdout: "gh version 2.20.0\n" },
-            status: { code: 0, stderr: "ghe.example.com\n  ✓ Logged in to ghe.example.com as octocat\n" },
+            status: {
+                code: 0,
+                stderr: "ghe.example.com\n  ✓ Logged in to ghe.example.com as octocat\n",
+            },
         });
         const status = await detectGh(runner);
 
@@ -188,14 +231,21 @@ describe("calling the API through it", () => {
 
     it("sends a dispatch body on stdin as JSON", async () => {
         const runner = fakeRunner({ api: {} });
-        await ghApiPost("repos/o/r/actions/workflows/render-world.yml/dispatches", {
-            ref: "main",
-            inputs: { "map-id": "world" },
-        }, { runner });
+        await ghApiPost(
+            "repos/o/r/actions/workflows/render-world.yml/dispatches",
+            {
+                ref: "main",
+                inputs: { "map-id": "world" },
+            },
+            { runner },
+        );
 
         const call = runner.calls[0];
         expect(call?.args).toEqual(expect.arrayContaining(["-X", "POST", "--input", "-"]));
-        expect(JSON.parse(call?.input ?? "{}")).toEqual({ ref: "main", inputs: { "map-id": "world" } });
+        expect(JSON.parse(call?.input ?? "{}")).toEqual({
+            ref: "main",
+            inputs: { "map-id": "world" },
+        });
     });
 
     it("turns gh's HTTP status into the same error the API route raises", async () => {
@@ -225,7 +275,9 @@ describe("calling the API through it", () => {
 
     it("streams a binary body to a file and reports how many bytes landed", async () => {
         const runner = fakeRunner({ api: {} }, { bytes: 4096 });
-        const bytes = await ghApiToFile("repos/o/r/actions/artifacts/9/zip", "/tmp/x.zip", { runner });
+        const bytes = await ghApiToFile("repos/o/r/actions/artifacts/9/zip", "/tmp/x.zip", {
+            runner,
+        });
         expect(bytes).toBe(4096);
         expect(runner.calls[0]?.destination).toBe("/tmp/x.zip");
     });

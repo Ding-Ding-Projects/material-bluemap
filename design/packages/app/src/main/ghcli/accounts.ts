@@ -29,16 +29,13 @@
  * zero accounts, which would read as "you are not signed in to anything" when the truth
  * is "this application could not understand what gh said".
  *
- * ## `gh auth login` / `gh auth refresh` are never driven from here
+ * ## Sign-in is driven by the GUI without driving gh's interactive prompt
  *
- * Exactly the rule `cirender/gh.ts` already documents and this module leans on rather than
- * re-litigating: both commands suppress their device-code prompt the moment stdin is not a
- * real terminal, which is always true of a child process this application spawns, so they
- * would print nothing and hang forever. Launching a console for them does not rescue it
- * either - the hang is in the process itself, not in having somewhere to show output. So
- * "add an account" and "this account is missing scopes" are answered the same way
- * `cirender/gh.ts` answers "you are signed out": by naming the exact command for the person
- * to run in *their own* terminal, never by spawning it here.
+ * `gh auth login` and `gh auth refresh` suppress their device-code prompt when stdin is not
+ * a terminal, so `login.ts` never tries to scrape that prompt. It performs GitHub's public
+ * device exchange itself, shows the code through secret-free IPC, and writes the approved
+ * token once to `gh auth login --with-token` over stdin. `gh` still owns the credential;
+ * this application keeps no copy.
  *
  * ## Switching is machine-wide, and the switch here proves rather than assumes
  *
@@ -56,8 +53,9 @@
  * of which name accounts and never carry a secret.
  */
 
-import { GH_COMMAND, GH_LOGIN_COMMAND } from "../cirender/gh.js";
+import { GH_COMMAND } from "../cirender/gh.js";
 import type { ProcessRunner } from "../cirender/gh.js";
+import { GH_CLI_AUTH_ENVIRONMENT } from "./environment.js";
 
 /**
  * The scopes this application's own gh-driven features actually need: `repo` for the
@@ -177,12 +175,17 @@ export function parseGhAuthStatusJson(raw: string): readonly GhCliAccountSummary
 
             accounts.push({
                 login,
-                host: typeof record["host"] === "string" && record["host"].trim() !== "" ? record["host"] : hostKey,
+                host:
+                    typeof record["host"] === "string" && record["host"].trim() !== ""
+                        ? record["host"]
+                        : hostKey,
                 active: record["active"] === true,
                 scopes,
                 scopesReported,
-                tokenSource: typeof record["tokenSource"] === "string" ? record["tokenSource"] : null,
-                gitProtocol: typeof record["gitProtocol"] === "string" ? record["gitProtocol"] : null,
+                tokenSource:
+                    typeof record["tokenSource"] === "string" ? record["tokenSource"] : null,
+                gitProtocol:
+                    typeof record["gitProtocol"] === "string" ? record["gitProtocol"] : null,
                 healthy,
                 stateDetail: healthy ? null : state,
                 missingAppScopes: missingAppScopesOf(scopes, scopesReported),
@@ -287,9 +290,9 @@ function summarize(
             accounts: [],
             source,
             message:
-                `${GH_COMMAND} is installed but nobody is signed in to it. Run \`${GH_LOGIN_COMMAND}\`` +
-                " in a terminal - it has to be run there, because it asks for a code interactively" +
-                " and cannot be driven from inside this application - then check again.",
+                `${GH_COMMAND} is installed but nobody is signed in to it. Use the sign-in` +
+                " action below to approve a one-time code in your browser; the approved" +
+                " credential will be stored by gh, not by this application.",
         };
     }
     const plural = accounts.length === 1 ? "account is" : "accounts are";
@@ -308,11 +311,20 @@ function summarize(
  * strategy and why an unrecognised format is never reported as zero accounts.
  */
 export async function listGhCliAccounts(options: GhCliRunOptions): Promise<GhCliAccountsStatus> {
-    const runOptions = options.signal === undefined ? {} : { signal: options.signal };
+    const runOptions = {
+        omitEnvironmentVariables: GH_CLI_AUTH_ENVIRONMENT,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+    };
 
     const version = await options.runner.run(GH_COMMAND, ["--version"], runOptions);
     if (!version.started) {
-        return { availability: "not-installed", version: null, accounts: [], source: null, message: NOT_INSTALLED };
+        return {
+            availability: "not-installed",
+            version: null,
+            accounts: [],
+            source: null,
+            message: NOT_INSTALLED,
+        };
     }
     if (version.code !== 0) {
         return {
@@ -328,7 +340,11 @@ export async function listGhCliAccounts(options: GhCliRunOptions): Promise<GhCli
     }
     const versionText = firstLine(version.stdout) || firstLine(version.stderr) || null;
 
-    const jsonResult = await options.runner.run(GH_COMMAND, ["auth", "status", "--json", "hosts"], runOptions);
+    const jsonResult = await options.runner.run(
+        GH_COMMAND,
+        ["auth", "status", "--json", "hosts"],
+        runOptions,
+    );
     const jsonAccounts = parseGhAuthStatusJson(jsonResult.stdout);
     if (jsonAccounts !== null) return summarize(jsonAccounts, versionText, "json");
 
@@ -368,9 +384,16 @@ export async function switchGhCliAccount(
     login: string,
 ): Promise<GhCliSwitchResult> {
     if (host.trim() === "" || login.trim() === "") {
-        return { ok: false, account: null, message: "Give a host and a login to switch gh's active account to." };
+        return {
+            ok: false,
+            account: null,
+            message: "Give a host and a login to switch gh's active account to.",
+        };
     }
-    const runOptions = options.signal === undefined ? {} : { signal: options.signal };
+    const runOptions = {
+        omitEnvironmentVariables: GH_CLI_AUTH_ENVIRONMENT,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+    };
 
     const result = await options.runner.run(
         GH_COMMAND,

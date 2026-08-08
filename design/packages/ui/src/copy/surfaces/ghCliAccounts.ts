@@ -151,35 +151,44 @@ export const GHCLIACCOUNTS_VOICED = {
             "呢個帳戶權限唔夠喉：欠咗 {scopes}，呢個程式要有呢啲先至用得晒晒齊。",
         ],
     },
-    /* Explains why "add account" and "fix the scopes" both mean "run a command yourself" -
-     * gh auth login/refresh cannot be driven from inside this application at all. */
-    "settings.github.ghCli.terminalOnlyExplainer": {
+    /* The code and approval are visible here, while the approved credential goes straight
+     * to gh and is never retained by this application. */
+    "settings.github.ghCli.loginExplainer": {
         en: [
-            "gh cannot be signed in from inside this application - it asks for a code interactively, so it can only be run in your own terminal.",
-            "gh cannot be signed in from inside this application - it asks for a code interactively, so it can only be run in your own terminal.",
-            "gh cannot be signed in from inside this application: it asks for a code interactively, which only works in your own terminal, never from a program driving it.",
-            "This application cannot drive gh's own sign-in - it asks for a code interactively, which only a real terminal can show, so the command below is one to run yourself.",
-            "gh's own sign-in insists on asking a real human in a real terminal for a code, so this application cannot drive it for you - run the command below yourself, then come back and check again.",
+            "Sign-in starts here and approval happens on GitHub in your browser. The approved credential goes directly to gh's own credential store; this application does not keep it.",
+            "Sign-in starts here and approval happens on GitHub in your browser. The approved credential goes directly to gh's own credential store; this application does not keep it.",
+            "Start sign-in here, then approve it on GitHub in your browser. The credential travels straight into gh's own store, and this application does not keep a copy.",
+            "This screen handles the one-time code while your browser handles GitHub approval. The approved credential lands directly in gh's store; this application does not keep it.",
+            "This screen shows the one-time code, your browser gets the GitHub approval ceremony, and gh gets the credential. This application does not keep it or hide a souvenir copy in a drawer.",
         ],
         yue: [
-            "唔可以喺呢個程式入面幫 gh 登入，因為佢要即場俾個 code 你，所以淨係喺你自己個 terminal 度先做得到。",
-            "唔可以喺呢個程式入面幫 gh 登入，因為佢要即場俾個 code 你，所以淨係喺你自己個 terminal 度先做得到。",
-            "呢個程式冇辦法幫 gh 登入：佢要即場俾個 code 你，淨係喺你自己個 terminal 先用得，唔可以由程式代做。",
-            "呢個程式冇辦法幫 gh 自己登入：佢要即場俾個 code 你，淨係真係嘅 terminal 先顯示得到，所以下面條命令要你自己去行。",
-            "gh 自己嘅登入硬係要喺真人真 terminal 度俾個 code，所以呢個程式幫唔到手，下面條命令要你自己行，行完返嚟再檢查多次。",
+            "喺呢度開始登入，再喺 browser 入面嘅 GitHub 批准。批准咗嘅憑證會直接入 gh 自己個儲存庫，呢個程式唔會保存。",
+            "喺呢度開始登入，再喺 browser 入面嘅 GitHub 批准。批准咗嘅憑證會直接入 gh 自己個儲存庫，呢個程式唔會保存。",
+            "呢度開始登入，去 browser 入面批准 GitHub，憑證就直接交畀 gh 自己保存，呢個程式唔會保存副本。",
+            "呢個畫面負責一次性 code，browser 負責 GitHub 批准，批准咗嘅憑證直接落 gh 個儲存庫，呢個程式唔會保存。",
+            "呢度拎一次性 code，browser 搞掂 GitHub 批准，gh 收好憑證；呢個程式唔會保存，更加唔會偷偷留張紀念品喺櫃桶。",
         ],
     },
 } as const satisfies Record<string, VoicedString>;
 
 export const GHCLIACCOUNTS_FIXED = {
-    "settings.github.ghCli.title": { en: "gh command-line tool accounts", yue: "gh command-line 工具帳戶" },
+    "settings.github.ghCli.title": {
+        en: "gh command-line tool accounts",
+        yue: "gh command-line 工具帳戶",
+    },
     "settings.github.ghCli.listLabel": {
         en: "gh command-line tool accounts",
         yue: "gh command-line 工具帳戶",
     },
     "settings.github.ghCli.searchLabel": { en: "Search gh accounts", yue: "搜尋 gh 帳戶" },
-    "settings.github.ghCli.searchHint": { en: "a login, a host, or a permission", yue: "登入名、主機或者權限" },
-    "settings.github.ghCli.searchSummary": { en: "Showing {shown} of {total}.", yue: "顯示緊 {total} 個入面嘅 {shown} 個。" },
+    "settings.github.ghCli.searchHint": {
+        en: "a login, a host, or a permission",
+        yue: "登入名、主機或者權限",
+    },
+    "settings.github.ghCli.searchSummary": {
+        en: "Showing {shown} of {total}.",
+        yue: "顯示緊 {total} 個入面嘅 {shown} 個。",
+    },
     "settings.github.ghCli.emptySearch": {
         en: "Nothing here matches that search. Clearing it brings the whole list back.",
         yue: "冇嘢啱呢個搜尋。清咗佢個列表就會返晒嚟。",
@@ -189,29 +198,39 @@ export const GHCLIACCOUNTS_FIXED = {
     "settings.github.ghCli.switching": { en: "Switching…", yue: "切換緊…" },
     "settings.github.ghCli.checkAgain": { en: "Check again", yue: "再檢查" },
     "settings.github.ghCli.checking": { en: "Checking…", yue: "檢查緊…" },
-    "settings.github.ghCli.copyCommand": { en: "Copy the command", yue: "複製命令" },
-    "settings.github.ghCli.commandCopied": { en: "Copied.", yue: "複製咗。" },
+    "settings.github.ghCli.copyCode": { en: "Copy code", yue: "複製 code" },
+    "settings.github.ghCli.codeCopied": { en: "Code copied.", yue: "Code 複製咗。" },
     "settings.github.ghCli.openDependencies": {
         en: "Open the System dependencies settings",
         yue: "打開「系統依賴」設定",
     },
-    "settings.github.ghCli.addAccountCommandLabel": {
-        en: "Run this in a terminal to add an account",
-        yue: "喺 terminal 度行呢句嚟新增帳戶",
+    "settings.github.ghCli.signInAction": { en: "Sign in with gh", yue: "用 gh 登入" },
+    "settings.github.ghCli.repairScopesAction": {
+        en: "Approve required permissions",
+        yue: "批准需要嘅權限",
     },
-    "settings.github.ghCli.refreshCommandLabel": {
-        en: "Run this in a terminal to add the missing scopes",
-        yue: "喺 terminal 度行呢句嚟補返啲欠咗嘅權限",
+    "settings.github.ghCli.cancelLogin": { en: "Cancel sign-in", yue: "取消登入" },
+    "settings.github.ghCli.dismissLogin": { en: "Dismiss", yue: "收起" },
+    "settings.github.ghCli.codeLabel": { en: "One-time code", yue: "一次性 code" },
+    "settings.github.ghCli.verificationUrlLabel": {
+        en: "GitHub approval page",
+        yue: "GitHub 批准頁面",
     },
-    "settings.github.ghCli.refreshNeedsActiveNote": {
-        en: "gh can only refresh the active account's scopes, so switch to this account first if it is not already active.",
-        yue: "gh 淨係可以幫使用緊嘅帳戶補權限，如果呢個帳戶未係使用緊，就要先切換去佢。",
+    "settings.github.ghCli.secondsRemaining": {
+        en: "{seconds} seconds remaining.",
+        yue: "仲有 {seconds} 秒。",
     },
     "settings.github.ghCli.field.source": { en: "Signed in with", yue: "用咩登入" },
     "settings.github.ghCli.field.protocol": { en: "Git protocol", yue: "Git 協議" },
     "settings.github.ghCli.field.scopes": { en: "Permissions", yue: "權限" },
-    "settings.github.ghCli.noScopes": { en: "Not reported by this token", yue: "呢個 token 冇報呢項" },
-    "settings.github.ghCli.unhealthy": { en: "gh reports a problem with this account", yue: "gh 話呢個帳戶有問題" },
+    "settings.github.ghCli.noScopes": {
+        en: "Not reported by this token",
+        yue: "呢個 token 冇報呢項",
+    },
+    "settings.github.ghCli.unhealthy": {
+        en: "gh reports a problem with this account",
+        yue: "gh 話呢個帳戶有問題",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const GHCLIACCOUNTS_FACTS = {
@@ -239,9 +258,9 @@ export const GHCLIACCOUNTS_FACTS = {
         en: ["{scopes}"],
         yue: ["{scopes}"],
     },
-    "settings.github.ghCli.terminalOnlyExplainer": {
-        en: ["gh", "terminal"],
-        yue: ["gh", "terminal"],
+    "settings.github.ghCli.loginExplainer": {
+        en: ["gh", "browser", "does not keep"],
+        yue: ["gh", "browser", "唔會保存"],
     },
 } as const satisfies Record<
     keyof typeof GHCLIACCOUNTS_VOICED,
