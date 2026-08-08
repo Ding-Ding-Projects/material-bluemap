@@ -164,6 +164,11 @@ function act(action: string, hit: TabHit): void {
 }
 
 .mb-tabs-results__label {
+    /* This span is a flex item inside Vuetify's `.v-btn__content`, so its default
+       `min-width: auto` kept it from shrinking -- the ellipsis below never fired, and
+       `.v-btn`'s own overflow clipped the label mid-glyph instead. `min-width: 0` is
+       the same shrink floor `.mb-tabs-strip__label` in TabStrip.vue already sets. */
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

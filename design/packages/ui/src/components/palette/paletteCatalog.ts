@@ -133,6 +133,10 @@ export interface PaletteShellActions {
     readonly openChangelog?: () => void;
     /** Open the interactive tour: see `components/tutorial/`. */
     readonly openTutorial?: () => void;
+    /** Open the docked licence panel: the shell's own `EulaSurface` mount. */
+    readonly openEula?: () => void;
+    /** Open the docked "what is this?" panel: the shell's own `WelcomeSurface` mount. */
+    readonly openWelcome?: () => void;
 }
 
 export interface PaletteCatalogInput {
@@ -617,6 +621,11 @@ function menuPageItems(input: PaletteCatalogInput, group: string): PaletteItem[]
  * destination's promise is "a surface appears and here is which"; these three are anchored
  * panels that open in place beside the control they belong to, and calling that a destination
  * would set up an expectation of arriving somewhere else that the surface then does not meet.
+ *
+ * The licence panel and "what is this?" joined this group when their permanent corner buttons
+ * came out of the shell: each is a Home card, and these two rows are what keeps each reachable
+ * from every other screen. Commands like their three neighbours, because both open a docked
+ * panel wherever the user last placed it rather than promising a fixed arrival point.
  */
 function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
     const { t, actions } = input;
@@ -694,6 +703,45 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
             ),
             keywords: ["tour", "tutorial", "walkthrough", "guide", "onboarding", "getting started", "how to"],
             run: () => openTutorial(),
+        });
+    }
+
+    /*
+     * The two docked panels the shell mounts once and used to give permanent corner buttons.
+     * Their titles are this catalogue's own keys rather than `eula.viewerTitle` and
+     * `welcome.viewerTitle`, because those live in `components/setup/`'s hand-rolled string
+     * store, which vue-i18n's `t` cannot reach - the same words, spelled where this surface
+     * can actually translate them.
+     */
+    const openEula = actions.openEula;
+    if (openEula !== undefined) {
+        items.push({
+            kind: "command",
+            id: "chrome.eula",
+            group,
+            title: t("palette.chrome.eulaTitle", "The Minecraft licence"),
+            description: t(
+                "palette.chrome.eula",
+                "Mojang's licence document in its own docked panel: the same text the first-run step shows, fetched, categorised and searchable.",
+            ),
+            keywords: ["eula", "licence", "license", "mojang", "minecraft", "legal", "terms", "agreement", "gavel"],
+            run: () => openEula(),
+        });
+    }
+
+    const openWelcome = actions.openWelcome;
+    if (openWelcome !== undefined) {
+        items.push({
+            kind: "command",
+            id: "chrome.welcome",
+            group,
+            title: t("palette.chrome.welcomeTitle", "What is this?"),
+            description: t(
+                "palette.chrome.welcome",
+                "The introduction from first-run setup, kept reachable: what this app is for, in its own docked panel, with a Start here button that goes to the wizard.",
+            ),
+            keywords: ["welcome", "intro", "introduction", "about", "what is this", "start here", "help", "first run"],
+            run: () => openWelcome(),
         });
     }
 

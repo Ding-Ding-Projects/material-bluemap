@@ -9,8 +9,6 @@ import {
     mdiFileCogOutline,
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
-    mdiGavel,
-    mdiHelpCircleOutline,
     mdiHomeOutline,
     mdiMapOutline,
     mdiMapPlus,
@@ -42,7 +40,6 @@ import {
     tutorialOffered,
 } from "./components/tutorial/index.js";
 import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
-import { useSetupI18n } from "./components/setup/setupI18n.js";
 import { AppSettings, type SettingsSectionAnchor } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
@@ -71,7 +68,6 @@ import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
 import { productDisplayName } from "./stores/productName.js";
 
 const { t } = useI18n();
-const setupI18n = useSetupI18n();
 
 /**
  * The menu components resolve the running app through this injection key (their port of
@@ -481,8 +477,12 @@ function revealSetting(target: SettingsTarget): void {
 /**
  * The standalone docked licence panel, alongside its two embedded copies (the first-run
  * licence step and the consent settings row). `EulaSurface` documents itself as "mount one
- * in the shell and open it from anywhere" - this is that mount, and the FAB beside Settings
- * is the "anywhere".
+ * in the shell and open it from anywhere" - this is that mount, and the "anywhere" is two
+ * routes rather than a permanent button: the licence card on Home, and the command
+ * palette's own row, reachable with Ctrl+Shift+F from any screen. It used to have a FAB in
+ * the corner stack below as well, which made four floating buttons on every screen for a
+ * document most people read once; the two workbench controls kept their buttons and this
+ * panel kept its reachability.
  */
 const eulaOpen = ref(false);
 
@@ -493,9 +493,11 @@ const eulaOpen = ref(false);
 /**
  * The standalone "what is this?" panel, alongside first-run setup's own welcome step.
  * `WelcomeSurface` is `EulaSurface`'s twin: "mount one in the shell and open it from
- * anywhere", and this is that mount plus its own FAB. It is how the welcome step's
- * content stays reachable once setup is complete and never shown again unprompted -
- * exactly as `firstRunFlow.ts` intends first-run setup itself to behave.
+ * anywhere", and this is that mount. Its "anywhere" is the same pair of routes the licence
+ * panel's is - the introduction card on Home, and the command palette row - rather than a
+ * fourth permanent FAB. It is how the welcome step's content stays reachable once setup is
+ * complete and never shown again unprompted - exactly as `firstRunFlow.ts` intends
+ * first-run setup itself to behave.
  */
 const welcomeOpen = ref(false);
 
@@ -1096,7 +1098,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 counterpart, so they are not in the ported menu, and neither of them is a
                 page. The server list used to have a button here too and no longer does -
                 it is a tab now, and a floating button that opens what a tab already opens is
-                two navigation models arguing in the same corner of the screen.
+                two navigation models arguing in the same corner of the screen. The licence
+                panel and "what is this?" used to stack two more buttons here for the same
+                bad trade: four permanent buttons on every screen, two of them for panels
+                most people open once. Both panels keep their Home cards and gained a
+                command-palette row each, so the stack holds only the two workbench
+                controls somebody reaches for repeatedly.
             -->
             <div class="mb-shell-fabs" :class="{ 'mb-shell-fabs--lifted': showFreeFlightControls }">
                 <v-tooltip :text="t('settings.title', 'Settings')" location="end">
@@ -1131,38 +1138,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                     </template>
                 </v-tooltip>
-
-                <v-tooltip :text="setupI18n.t('eula.viewerTitle')" location="end">
-                    <template #activator="{ props: tooltipProps }">
-                        <v-btn
-                            v-bind="tooltipProps"
-                            class="mb-shell-fab mb-interactive"
-                            :icon="mdiGavel"
-                            color="surface"
-                            variant="flat"
-                            elevation="3"
-                            :aria-label="setupI18n.t('eula.viewerTitle')"
-                            :aria-expanded="eulaOpen"
-                            @click="eulaOpen = !eulaOpen"
-                        />
-                    </template>
-                </v-tooltip>
-
-                <v-tooltip :text="setupI18n.t('welcome.viewerTitle')" location="end">
-                    <template #activator="{ props: tooltipProps }">
-                        <v-btn
-                            v-bind="tooltipProps"
-                            class="mb-shell-fab mb-interactive"
-                            :icon="mdiHelpCircleOutline"
-                            color="surface"
-                            variant="flat"
-                            elevation="3"
-                            :aria-label="setupI18n.t('welcome.viewerTitle')"
-                            :aria-expanded="welcomeOpen"
-                            @click="welcomeOpen = !welcomeOpen"
-                        />
-                    </template>
-                </v-tooltip>
             </div>
 
             <AppSettings
@@ -1175,16 +1150,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
             <!--
                 The standalone route `EulaSurface`'s own doc comment describes: a docked panel
-                the user can place, opened from the FAB above rather than only reachable
-                through the first-run step or the consent settings row.
+                the user can place, opened from the licence card on Home and from the command
+                palette's own row rather than only reachable through the first-run step or the
+                consent settings row.
             -->
             <EulaSurface :open="eulaOpen" @update:open="eulaOpen = $event" />
 
             <!--
                 `WelcomeSurface`'s own twin route: the welcome step's "what is this?"
-                content, reachable from its own FAB rather than only met once at first run.
-                Its "Start here" button is the live half of the wizard pointer the welcome
-                step can only ever describe.
+                content, reachable from Home's introduction card and the command palette
+                rather than only met once at first run. Its "Start here" button is the live
+                half of the wizard pointer the welcome step can only ever describe.
             -->
             <WelcomeSurface
                 :open="welcomeOpen"
@@ -1210,6 +1186,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @open-tab-finder="requestReveal('tabFinder')"
                 @open-changelog="openChangelog"
                 @open-tutorial="requestTutorialLaunch()"
+                @open-eula="eulaOpen = true"
+                @open-welcome="welcomeOpen = true"
             />
         </v-main>
 

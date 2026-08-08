@@ -214,6 +214,8 @@ function fullActions(): PaletteShellActions & {
     noticeCentre: number;
     tabFinder: number;
     changelog: number;
+    eula: number;
+    welcome: number;
 } {
     const state = {
         pagesOpened: [] as string[],
@@ -221,6 +223,8 @@ function fullActions(): PaletteShellActions & {
         noticeCentre: 0,
         tabFinder: 0,
         changelog: 0,
+        eula: 0,
+        welcome: 0,
     };
     return {
         get pagesOpened() {
@@ -238,6 +242,12 @@ function fullActions(): PaletteShellActions & {
         get changelog() {
             return state.changelog;
         },
+        get eula() {
+            return state.eula;
+        },
+        get welcome() {
+            return state.welcome;
+        },
         revealSetting: () => {},
         openSettings: () => {},
         openConfig: (screen) => state.configOpened.push(screen),
@@ -246,6 +256,8 @@ function fullActions(): PaletteShellActions & {
         openNoticeCentre: () => state.noticeCentre++,
         openTabFinder: () => state.tabFinder++,
         openChangelog: () => state.changelog++,
+        openEula: () => state.eula++,
+        openWelcome: () => state.welcome++,
     };
 }
 
@@ -692,7 +704,27 @@ describe("the surfaces that are not pages", () => {
         expect(shell.changelog).toBe(1);
     });
 
-    it("builds none of the three for a shell that did not offer them", () => {
+    it("opens the licence panel and \"what is this?\", the two panels whose corner buttons the shell dropped", () => {
+        // Neither panel has a permanent FAB any more, so this row and the Home card are the
+        // whole of each panel's reachability. Neither needs a viewer: both are docked panels
+        // the shell itself mounts, so they are offered with no map open at all.
+        const shell = fullActions();
+        const items = buildPaletteCatalog(input({ actions: shell }));
+
+        const eula = byId(items, "chrome.eula");
+        const welcome = byId(items, "chrome.welcome");
+        if (eula.kind !== "command" || welcome.kind !== "command") throw new Error("expected commands");
+
+        expect(eula.title).toBe("The Minecraft licence");
+        expect(welcome.title).toBe("What is this?");
+
+        eula.run();
+        welcome.run();
+        expect(shell.eula).toBe(1);
+        expect(shell.welcome).toBe(1);
+    });
+
+    it("builds no chrome rows at all for a shell that did not offer them", () => {
         const items = buildPaletteCatalog(input({ actions: actions(), app: fakeApp({}).app }));
         expect(items.filter((item) => item.id.startsWith("chrome."))).toEqual([]);
     });

@@ -89,6 +89,12 @@ function pick(choices: MenuChoiceItem[], id: unknown): void {
 .mb-menu-choice__group.v-btn-toggle .v-btn {
     flex: 1 1 0;
     min-width: 0;
-    height: 32px;
+    /* A floor, like the toggle above, not a fixed height: the fixed 32px here undid the
+       toggle's own `height: auto`, and at (0,3,0) it also out-ranked bilingual.css's
+       `html[data-language-mode="bilingual"] .v-btn` sizing at (0,2,1), so in bilingual
+       mode the Cantonese half of each choice label was clipped inside a one-line box. */
+    height: auto;
+    min-height: 32px;
+    padding-block: 4px;
 }
 </style>

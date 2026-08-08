@@ -22,9 +22,9 @@ import { readPaletteSize, writePaletteSize, type PaletteSize } from "./palettePr
  *
  * The problem this solves is not that the app's features are missing. They are all there,
  * behind a settings sheet, a seven-tab options editor, a viewer menu with its own pages, and
- * three floating buttons - which is four separate mental models a person has to hold before
- * they can find a setting whose name they already know. So this is a single surface where
- * everything is one list, and where typing the name of a thing is enough.
+ * the shell's floating buttons - which is four separate mental models a person has to hold
+ * before they can find a setting whose name they already know. So this is a single surface
+ * where everything is one list, and where typing the name of a thing is enough.
  *
  * **Three kinds of row, and the difference is not cosmetic.** A setting carries the real
  * control: changing the theme here changes the theme, through the same `BlueMapApp` method
@@ -88,6 +88,10 @@ const emit = defineEmits<{
     "open-changelog": [];
     /** Open the interactive tour. */
     "open-tutorial": [];
+    /** Open the docked licence panel the shell mounts. */
+    "open-eula": [];
+    /** Open the docked "what is this?" panel the shell mounts. */
+    "open-welcome": [];
 }>();
 
 const { t, locale } = useI18n();
@@ -133,6 +137,8 @@ const actions: PaletteShellActions = {
     openTabFinder: () => emit("open-tab-finder"),
     openChangelog: () => emit("open-changelog"),
     openTutorial: () => emit("open-tutorial"),
+    openEula: () => emit("open-eula"),
+    openWelcome: () => emit("open-welcome"),
 };
 
 /**

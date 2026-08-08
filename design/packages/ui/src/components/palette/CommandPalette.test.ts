@@ -160,7 +160,15 @@ function fakeApp(): { app: BlueMapApp; state: { debug: boolean; saved: number } 
 /** The shell, near enough: the one prop `App.vue` binds and the events it listens for. */
 const Host = defineComponent({
     props: { open: { type: Boolean, default: false } },
-    emits: ["update:open", "reveal-setting", "open-settings", "open-config", "open-profiles"],
+    emits: [
+        "update:open",
+        "reveal-setting",
+        "open-settings",
+        "open-config",
+        "open-profiles",
+        "open-eula",
+        "open-welcome",
+    ],
     setup(props, { emit }) {
         return () =>
             h(VApp, null, {
@@ -172,6 +180,8 @@ const Host = defineComponent({
                         onOpenSettings: () => emit("open-settings"),
                         onOpenConfig: (screen: unknown) => emit("open-config", screen),
                         onOpenProfiles: () => emit("open-profiles"),
+                        onOpenEula: () => emit("open-eula"),
+                        onOpenWelcome: () => emit("open-welcome"),
                     }),
                 ],
             });
@@ -305,9 +315,16 @@ describe("keyboard navigation", () => {
 });
 
 describe("destinations", () => {
+    /*
+     * "mojang download" rather than "mojang": the licence row (`chrome.eula`) also says
+     * Mojang in its own description, and the chrome group is listed ahead of the app
+     * settings group, so the bare word now surfaces that command first. This test is about
+     * the consent destination specifically, and "mojang download" is in that row's own
+     * title and no other row's text.
+     */
     it("emits the settings target the shell's existing reveal handler already takes", async () => {
         const mounted = await open();
-        await type("mojang");
+        await type("mojang download");
 
         const button = rows()[0]?.querySelector<HTMLElement>("button");
         button?.click();
@@ -317,6 +334,35 @@ describe("destinations", () => {
             { surface: "settings", anchor: "mojang-download-consent", missing: false },
         ]);
         // Having gone somewhere, the palette gets out of the way.
+        expect(mounted.emitted("update:open")?.at(-1)).toEqual([false]);
+    });
+
+    /*
+     * The two docked panels lost their permanent corner buttons, so the palette row wired
+     * here (plus each panel's Home card) is the whole of their reachability. "gavel" is one
+     * of the licence row's own keywords and appears nowhere else in the catalogue, so it
+     * isolates exactly the row this test means to run; "what is this" is the welcome row's
+     * own title.
+     */
+    it("emits open-eula from the licence row, so the shell can open the panel it mounts", async () => {
+        const mounted = await open();
+        await type("gavel");
+
+        rows()[0]?.querySelector<HTMLElement>("button")?.click();
+        await nextTick();
+
+        expect(mounted.emitted("open-eula")).toHaveLength(1);
+        expect(mounted.emitted("update:open")?.at(-1)).toEqual([false]);
+    });
+
+    it("emits open-welcome from the \"what is this?\" row", async () => {
+        const mounted = await open();
+        await type("what is this");
+
+        rows()[0]?.querySelector<HTMLElement>("button")?.click();
+        await nextTick();
+
+        expect(mounted.emitted("open-welcome")).toHaveLength(1);
         expect(mounted.emitted("update:open")?.at(-1)).toEqual([false]);
     });
 });

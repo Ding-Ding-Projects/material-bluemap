@@ -11,13 +11,15 @@
  * `components/confirm/superConfirmPolicy.test.ts` use for the same reason.
  *
  * A visual audit of the current screenshot set (`docs/visual-audit-2026-08-05.md`) found
- * the gear/config/licence FAB stack, which is `position: fixed` at the bottom-left,
- * painting directly over scrolled-to text in nine separate screenshots across six
- * surfaces - "Rendering" reading "ndering", "Pick an account" reading "ck an account",
- * and at higher display scales the icons sitting on top of actual radio-button controls.
- * The fix reserves a permanent left gutter on `.mb-world-host` sized to the stack's own
- * footprint; this file pins the two numbers together so a future edit to either cannot
- * silently reopen the gap between them.
+ * the FAB stack (four buttons at the time; the licence and welcome buttons have since
+ * moved out, leaving Settings and the options editor), which is `position: fixed` at the
+ * bottom-left, painting directly over scrolled-to text in nine separate screenshots
+ * across six surfaces - "Rendering" reading "ndering", "Pick an account" reading "ck an
+ * account", and at higher display scales the icons sitting on top of actual radio-button
+ * controls. The fix reserves a permanent left gutter on `.mb-world-host` sized to the
+ * stack's own footprint - a footprint set by the buttons' shared width, not their count,
+ * so it holds for two buttons exactly as it did for four; this file pins the two numbers
+ * together so a future edit to either cannot silently reopen the gap between them.
  *
  * ## The reported "ninth instance" was the eighth one, seen through a doorway
  *

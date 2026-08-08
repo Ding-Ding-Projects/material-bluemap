@@ -11,6 +11,10 @@ import { dimSumPoolSize, maybeShowDimSum, showDimSumDish } from "./index.js";
 import type { DimSumDish } from "./pool.js";
 
 const dimsumCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "dimsum.css"), "utf8");
+const notificationsCss = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../notifications/notifications.css"),
+    "utf8",
+);
 
 const SAMPLE_DISH: DimSumDish = {
     id: "hk-dish-0001",
@@ -113,5 +117,37 @@ describe("dim sum surprise", () => {
         } finally {
             dialog.remove();
         }
+    });
+});
+
+describe("the two corner cards never overlap (dimsum.css vs notifications.css)", () => {
+    // jsdom lays nothing out, so these read the stylesheets' own source, the same way the
+    // touch-target test above and content/content.css.test.ts already do.
+
+    it("starts stacking above the toast region at the width the two cards need side by side", () => {
+        // The arithmetic, derived from the two stylesheets rather than restated by hand:
+        // this card is min(22rem, ...) wide in the bottom-left, the toast region
+        // min(24rem, ...) in the bottom-right, and three 16px gutters separate them from
+        // the edges and each other. 352px + 384px + 48px = 784px. The old breakpoint of
+        // 600px left a 601-783px band where both cards sat on the same bottom edge and
+        // the toast region (z-index 90) painted over this card (z-index 80).
+        const cardWidth = /width:\s*min\((\d+)rem/.exec(dimsumCss);
+        const toastWidth = /width:\s*min\((\d+)rem/.exec(notificationsCss);
+        expect(cardWidth, "dimsum.css lost its min(<n>rem, ...) width").not.toBeNull();
+        expect(toastWidth, "notifications.css lost its min(<n>rem, ...) width").not.toBeNull();
+        const needed = (Number(cardWidth![1]) + Number(toastWidth![1])) * 16 + 3 * 16;
+        expect(needed).toBe(784);
+        expect(dimsumCss).toContain(`@media (width <= ${needed}px)`);
+    });
+
+    it("clears the toast stack by its published height, not a hard-coded guess", () => {
+        // Below the breakpoint the toast region is full-width and grows upward without
+        // bound (wrapping text, wrapped action rows, bilingual second lines), so the
+        // clearance has to come from Notifications.ts's measured --mbm-toast-stack-height.
+        // The 5.5rem fallback stays on purpose: a failed observer degrades to the old
+        // fixed clearance rather than to zero.
+        expect(dimsumCss).toMatch(
+            /bottom:\s*calc\(var\(--md-sys-spacing-2\)\s*\+\s*var\(--mbm-toast-stack-height,\s*5\.5rem\)\s*\+\s*var\(--md-sys-spacing-2\)\)/,
+        );
     });
 });

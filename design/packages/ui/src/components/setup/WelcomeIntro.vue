@@ -8,7 +8,7 @@ import { useSetupI18n } from "./setupI18n.js";
  * the first-run welcome step, where it is met once, and `WelcomeSurface.vue`, where it
  * stays reachable afterwards. One component rather than two copies, so the answer to
  * "what is BlueMap" cannot drift between the version somebody reads on day one and the
- * version they find later from the FAB.
+ * version they find later from Home's introduction card or the command palette.
  *
  * Four short facts, in order, before any jargon: what BlueMap is, what this app does
  * with it, what you end up with, and where to go next. The alert at the end is the
