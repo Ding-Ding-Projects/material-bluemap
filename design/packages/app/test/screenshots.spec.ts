@@ -969,8 +969,24 @@ test.beforeAll(async () => {
     const userData = await mkdtemp(join(tmpdir(), "worldlens-capture-"));
     console.log(`[harness] user data: ${userData}`);
 
+    // `--force-prefers-reduced-motion` is not cosmetic here, it is what makes the run
+    // deterministic. The interface animates deliberately now - pages arrive, tabs inside an
+    // expanding group fade in, disclosures open - and Playwright's `click()` waits for an
+    // element to be *stable* before it will press it. On a loaded CI runner that wait can
+    // outlast the timeout, and the failure reads as "the harness could not open Projects",
+    // which is a sentence about a screen that is working perfectly. It also stops captures
+    // catching a half-played frame, which is a photograph of nothing anybody's build
+    // actually looks like. The application honours the media query by removing every
+    // transition and animation, so this is the app's own supported path rather than a
+    // special mode invented for the harness.
     app = await electron.launch({
-        args: [appRoot, "--no-sandbox", "--disable-gpu", `--user-data-dir=${userData}`],
+        args: [
+            appRoot,
+            "--no-sandbox",
+            "--disable-gpu",
+            "--force-prefers-reduced-motion",
+            `--user-data-dir=${userData}`,
+        ],
         env: { ...process.env, WORLDLENS_SCREENSHOTS: "1" },
     });
 
