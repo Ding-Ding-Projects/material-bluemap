@@ -13,7 +13,6 @@ import {
     loginGhCli,
     type GhCliLoginOptions,
     type GhCliLoginResult,
-    type GhCliLoginState,
 } from "./login.js";
 import type { FetchLike, SleepLike } from "../github/deviceFlow.js";
 import type { ProcessRunner } from "../cirender/gh.js";
@@ -26,7 +25,7 @@ export const GH_CLI_CHANNELS = [
     "ghCli:cancelLogin",
 ] as const;
 
-/** The only event channel. Its payload is always a {@link GhCliLoginState}. */
+/** The only event channel. Its payload is always the secret-free login state from `login.ts`. */
 export const GH_CLI_LOGIN_STATE_CHANNEL = "ghCli:loginState" as const;
 
 export interface GhCliCancelLoginResult {
