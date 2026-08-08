@@ -1651,7 +1651,7 @@ onBeforeUnmount(() => {
                             {{
                                 t(
                                     "cirender.bootstrap.conflict",
-                                    "Managed workflow conflict — no repository files were changed.",
+                                    "Managed workflow conflict: no repository files were changed.",
                                 )
                             }}
                         </p>
