@@ -1,14 +1,14 @@
 {
   "capturedBy": "design/packages/app/test/screenshots.spec.ts",
-  "method": "Playwright _electron against the packaged app entry point",
-  "commit": "c533c8c8d49655194057882a5896e583c35ffd8e",
-  "run": "(local run)",
+  "method": "Playwright _electron against the packaged app entry point plus a targeted first-run supplement, merged by scripts/merge-screenshot-captures.mjs",
+  "commit": "be70670721f7089e418b4b58ccfee9839a6f8ab4",
+  "run": "local cheap-headless: 25/25 full + 1/1 onboarding supplement",
   "captureMode": "local",
-  "mapSource": "served over loopback from http://127.0.0.1:50494/local/capture",
+  "mapSource": "served over loopback from http://127.0.0.1:65477/local/capture",
   "renderedBy": null,
   "world": null,
   "renderedAt": null,
-  "fixtureRequestsServed": 264,
+  "fixtureRequestsServed": 262,
   "offlineGuard": "loopback only; every other host is refused and recorded",
   "networkViolations": [],
   "viewports": [
@@ -27,22 +27,28 @@
   "caption": "Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it.",
   "captures": [
     {
-      "name": "firstrun-1-welcome",
-      "file": "firstrun-1-welcome.png",
-      "surface": "First-run setup, the welcome step, with the three language modes and a separate funny level for each language",
-      "caption": "First-run setup, the welcome step, with the three language modes and a separate funny level for each language. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the first-run dialog rather than showing the whole window."
-    },
-    {
       "name": "firstrun-1-welcome-window",
       "file": "firstrun-1-welcome-window.png",
       "surface": "First-run setup as it appears over the whole application window on a fresh profile",
       "caption": "First-run setup as it appears over the whole application window on a fresh profile. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, the map had drawn nothing when this was taken, so the map area is empty."
     },
     {
+      "name": "firstrun-1-welcome",
+      "file": "firstrun-1-welcome.png",
+      "surface": "First-run setup, the welcome step, with the three language modes and a separate funny level for each language",
+      "caption": "First-run setup, the welcome step, with the three language modes and a separate funny level for each language. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the first-run dialog rather than showing the whole window."
+    },
+    {
       "name": "firstrun-2-consent",
       "file": "firstrun-2-consent.png",
       "surface": "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means",
       "caption": "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the first-run dialog rather than showing the whole window."
+    },
+    {
+      "name": "firstrun-2-eula",
+      "file": "firstrun-2-eula.png",
+      "surface": "First-run setup, the Minecraft licence step, with the document provenance and its anchored search",
+      "caption": "First-run setup, the Minecraft licence step, with the document provenance and its anchored search. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the first-run dialog rather than showing the whole window."
     },
     {
       "name": "firstrun-3-storage",
@@ -129,6 +135,12 @@
       "caption": "The application shell at 200% display scale. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, the map area shows the locally rendered world named above."
     },
     {
+      "name": "issue-105-popup-edge",
+      "file": "issue-105-popup-edge.png",
+      "surface": "The block-coordinate popup opened from a real map click near the lower-right viewport edge, with every coordinate row retained inside the map",
+      "caption": "The block-coordinate popup opened from a real map click near the lower-right viewport edge, with every coordinate row retained inside the map. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, the map area shows the locally rendered world named above. Measured popup 139×62 pixels inside CSS2D bounds 800×560 pixels."
+    },
+    {
       "name": "theme-light",
       "file": "theme-light.png",
       "surface": "The application shell in the light theme",
@@ -205,6 +217,12 @@
       "file": "profiles-manager.png",
       "surface": "The maps and servers manager on its own tab, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
       "caption": "The maps and servers manager on its own tab, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, an opaque surface fills the window, so none of the map behind it is visible."
+    },
+    {
+      "name": "backups",
+      "file": "backups.png",
+      "surface": "Backing a world or a rendered map up to GitHub release assets: what to pack, where it goes, and the notice saying nobody is signed in to GitHub on this computer yet. The screen states why this uses release assets rather than Git LFS, and the pointer format it writes",
+      "caption": "Backing a world or a rendered map up to GitHub release assets: what to pack, where it goes, and the notice saying nobody is signed in to GitHub on this computer yet. The screen states why this uses release assets rather than Git LFS, and the pointer format it writes. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, an opaque surface fills the window, so none of the map behind it is visible."
     },
     {
       "name": "settings-drawer",
@@ -381,10 +399,82 @@
       "caption": "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the notification centre rather than showing the whole window."
     },
     {
+      "name": "palette",
+      "file": "palette.png",
+      "surface": "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list",
+      "caption": "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, an opaque surface fills the window, so none of the map behind it is visible."
+    },
+    {
+      "name": "palette-search",
+      "file": "palette-search.png",
+      "surface": "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would",
+      "caption": "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the command palette rather than showing the whole window."
+    },
+    {
+      "name": "tab-strip",
+      "file": "tab-strip.png",
+      "surface": "The browser-style tab strip: the shell's own pages, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier",
+      "caption": "The browser-style tab strip: the shell's own pages, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the tab strip rather than showing the whole window."
+    },
+    {
+      "name": "tab-context-menu",
+      "file": "tab-context-menu.png",
+      "surface": "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one",
+      "caption": "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the tab's context menu rather than showing the whole window."
+    },
+    {
+      "name": "tab-finder",
+      "file": "tab-finder.png",
+      "surface": "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder",
+      "caption": "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the tab finder rather than showing the whole window."
+    },
+    {
+      "name": "tab-bulk-close-preview",
+      "file": "tab-bulk-close-preview.png",
+      "surface": "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes",
+      "caption": "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the bulk-close panel rather than showing the whole window."
+    },
+    {
+      "name": "appearance-context-menu",
+      "file": "appearance-context-menu.png",
+      "surface": "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top",
+      "caption": "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the tab's context menu rather than showing the whole window."
+    },
+    {
+      "name": "appearance-typography",
+      "file": "appearance-typography.png",
+      "surface": "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live",
+      "caption": "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the appearance editor rather than showing the whole window."
+    },
+    {
+      "name": "appearance-surface",
+      "file": "appearance-surface.png",
+      "surface": "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own",
+      "caption": "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the appearance editor rather than showing the whole window."
+    },
+    {
+      "name": "infinite-colour-picker",
+      "file": "infinite-colour-picker.png",
+      "surface": "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout",
+      "caption": "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the infinite colour picker rather than showing the whole window."
+    },
+    {
+      "name": "changelog-viewer",
+      "file": "changelog-viewer.png",
+      "surface": "The changelog viewer, folded inside the Info page: every released version, its date filter, its own search wired to the regex builder, and the commit each entry links to",
+      "caption": "The changelog viewer, folded inside the Info page: every released version, its date filter, its own search wired to the regex builder, and the commit each entry links to. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the changelog fold in the Info page rather than showing the whole window."
+    },
+    {
       "name": "wizard-1-world",
       "file": "wizard-1-world.png",
       "surface": "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top",
       "caption": "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. In this image, no map is loaded, so the application is showing the wizard for making one."
+    },
+    {
+      "name": "wizard-ssh-world-source",
+      "file": "wizard-ssh-world-source.png",
+      "surface": "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination",
+      "caption": "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the SSH world-source checklist rather than showing the whole window."
     },
     {
       "name": "wizard-1-world-read",
@@ -441,6 +531,10 @@
       "reason": "the harness could not open it in this run: locator.waitFor: Timeout 3000ms exceeded."
     },
     {
+      "surface": "Wizard, Docker world source",
+      "reason": "the harness could not open it in this run: expect(received).toBe(expected) // Object.is equality"
+    },
+    {
       "surface": "Release asset list and download progress",
       "reason": "listing a release's assets and downloading one both need real traffic to github.com, which the offline guard refuses; the panel is captured in the state it is in before anything has been asked for"
     },
@@ -453,5 +547,19 @@
       "reason": "it only appears when a previous render was interrupted and left a session behind, and the throwaway profile this run used has never started one"
     }
   ],
-  "note": "Every image is a capture of the real running app. None is a mockup or a design file. Publish each one with its caption from captions.md: the caption is what keeps a capture of the viewer from being read as a capture of the mesher. `skipped` lists the surfaces this run could not reach, with the reason; nothing was substituted for any of them."
+  "note": "Every image is a capture of the real running app. None is a mockup or a design file. Publish each one with its caption from captions.md: the caption is what keeps a capture of the viewer from being read as a capture of the mesher. `skipped` lists the surfaces this run could not reach, with the reason; nothing was substituted for any of them. This manifest combines one complete required-surface run with one targeted first-run capture from the same built source state; duplicate filenames use the targeted run's newer bytes.",
+  "supplements": [
+    {
+      "source": "C:\\Users\\cntow\\Documents\\GitHub\\material-bluemap-screenshot-inventory-20260807\\design\\packages\\app\\screenshots",
+      "captures": [
+        "firstrun-1-welcome-window.png",
+        "firstrun-1-welcome.png",
+        "firstrun-2-consent.png",
+        "firstrun-2-eula.png",
+        "firstrun-3-storage.png",
+        "run-location.png"
+      ],
+      "reason": "The full run proved every required surface; this targeted fresh-profile run supplied onboarding after its isolation seam was repaired."
+    }
+  ]
 }
