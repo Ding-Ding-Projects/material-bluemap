@@ -86,6 +86,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "config-history.md",
     "render-mask-drawing.md",
     "eula-and-consent.md",
+    "startup-recovery.md",
     "dependency-provisioning.md",
     "gh-cli-accounts.md",
     "automatic-updates.md",

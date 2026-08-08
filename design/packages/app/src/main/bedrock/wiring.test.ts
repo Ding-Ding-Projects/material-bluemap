@@ -42,7 +42,12 @@ describe("bedrock handlers are wired into the running app", () => {
 
         const createWindowStart = source.indexOf("async function createWindow(");
         expect(createWindowStart).toBeGreaterThan(-1);
-        const createWindowBody = source.slice(createWindowStart, createWindowStart + 4000);
-        expect(createWindowBody).toContain(`${name}(`);
+        // createWindow's startup attempt list is longer than 4,000 characters. Inspect the
+        // complete function tail so a valid late startup entry cannot be mistaken for an
+        // unwired handler when a new recovery step is added above it.
+        const createWindowBody = source.slice(createWindowStart);
+        // The startup list passes this idempotent starter as a callback; it need not call
+        // it inline. Accept the callback form as well as an explicit invocation.
+        expect(createWindowBody).toMatch(new RegExp(`\\b${name}\\s*(?:\\(|,)`));
     });
 });
