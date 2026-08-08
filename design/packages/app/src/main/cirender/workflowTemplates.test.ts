@@ -6,16 +6,19 @@
  */
 
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
     CI_WORKFLOW_FILE_NAMES,
+    CI_WORKFLOW_TEMPLATE_VERSION,
     CiWorkflowTemplateError,
     loadCiWorkflowTemplates,
 } from "./workflowTemplates.js";
 
 const cleanups: string[] = [];
+const require = createRequire(import.meta.url);
 
 afterEach(async () => {
     while (cleanups.length > 0) {
@@ -34,6 +37,14 @@ async function scratchDirWith(files: Readonly<Record<string, string>>): Promise<
 }
 
 describe("loadCiWorkflowTemplates", () => {
+    it("packages the same complete three-file set the loader requires", () => {
+        const config = require("../../../electron-builder.config.cjs") as {
+            extraResources?: { to?: string; filter?: string[] }[];
+        };
+        const workflows = config.extraResources?.find((entry) => entry.to === "workflows");
+        expect(workflows?.filter).toEqual([...CI_WORKFLOW_FILE_NAMES]);
+    });
+
     it("reads every named file, prefixed under .github/workflows/", async () => {
         const dir = await scratchDirWith({
             "render-world.yml": "name: Render world\n",
@@ -51,7 +62,7 @@ describe("loadCiWorkflowTemplates", () => {
             },
             { path: ".github/workflows/scheduled-render.yml", content: "name: Scheduled render\n" },
         ]);
-        expect(loaded.version).toMatch(/^[0-9a-f]{16}$/);
+        expect(loaded.version).toBe(CI_WORKFLOW_TEMPLATE_VERSION);
     });
 
     it("prefers a packaged resourcesDir over the checkout fallback when both are given", async () => {
@@ -70,6 +81,7 @@ describe("loadCiWorkflowTemplates", () => {
         });
 
         const loaded = await loadCiWorkflowTemplates({
+            packaged: true,
             resourcesDir: resources,
             checkoutWorkflowsDir: checkoutDir,
         });
@@ -77,7 +89,7 @@ describe("loadCiWorkflowTemplates", () => {
         expect(loaded.templates[0]?.content).toContain("from resources:");
     });
 
-    it("falls through to the checkout directory when resourcesDir is missing a file", async () => {
+    it("fails closed in packaged mode when even one packaged workflow is missing", async () => {
         const resources = await scratchDirWith({});
         const fs = await import("node:fs/promises");
         await fs.mkdir(join(resources, "workflows"), { recursive: true });
@@ -86,7 +98,7 @@ describe("loadCiWorkflowTemplates", () => {
             "only half there\n",
             "utf8",
         );
-        // render-shard-wave.yml deliberately missing from resources.
+        // render-shard-wave.yml and scheduled-render.yml deliberately missing from resources.
 
         const checkoutDir = await scratchDirWith({
             "render-world.yml": "from checkout\n",
@@ -94,16 +106,16 @@ describe("loadCiWorkflowTemplates", () => {
             "scheduled-render.yml": "from checkout three\n",
         });
 
-        const loaded = await loadCiWorkflowTemplates({
-            resourcesDir: resources,
-            checkoutWorkflowsDir: checkoutDir,
-        });
-        expect(
-            loaded.templates.every((template) => template.content.includes("from checkout")),
-        ).toBe(true);
+        await expect(
+            loadCiWorkflowTemplates({
+                packaged: true,
+                resourcesDir: resources,
+                checkoutWorkflowsDir: checkoutDir,
+            }),
+        ).rejects.toThrow(/complete managed workflow set.*packaged/i);
     });
 
-    it("produces the same version for the same content, and a different one for different content", async () => {
+    it("uses the declared monotonic version rather than deriving ordering from content", async () => {
         const dirA = await scratchDirWith({
             "render-world.yml": "name: A\n",
             "render-shard-wave.yml": "name: A2\n",
@@ -119,8 +131,9 @@ describe("loadCiWorkflowTemplates", () => {
         const loadedA2 = await loadCiWorkflowTemplates({ checkoutWorkflowsDir: dirA });
         const loadedB = await loadCiWorkflowTemplates({ checkoutWorkflowsDir: dirB });
 
-        expect(loadedA.version).toBe(loadedA2.version);
-        expect(loadedA.version).not.toBe(loadedB.version);
+        expect(loadedA.version).toBe(CI_WORKFLOW_TEMPLATE_VERSION);
+        expect(loadedA2.version).toBe(CI_WORKFLOW_TEMPLATE_VERSION);
+        expect(loadedB.version).toBe(CI_WORKFLOW_TEMPLATE_VERSION);
     });
 
     it("refuses cleanly when no candidate directory has the files", async () => {

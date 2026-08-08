@@ -470,7 +470,12 @@ export type CiBootstrapFailureCode =
     | "missing-scope"
     | "no-route"
     | "repository-not-writable"
+    | "empty-repository"
     | "user-authored-conflict"
+    | "managed-file-modified"
+    | "newer-marker-version"
+    | "newer-template-version"
+    | "concurrent-update"
     | "http-error";
 
 export interface CiBootstrapFailure {
@@ -568,9 +573,9 @@ export interface CiRenderBridge {
     ): Promise<Answer<CiScheduleWriteResult>>;
 
     /**
-     * Prepares a repository so a CI render can actually run on it: a truly empty
-     * repository, an existing project that never had the render workflow added, or a
-     * stale copy this application wrote earlier. See docs/ci-repository-setup.md.
+     * Prepares a repository so a CI render can actually run on it: an empty repository
+     * needing a starter commit, an existing project that never had the render workflow
+     * added, or a stale copy this application wrote earlier. See docs/ci-repository-setup.md.
      * Optional: a build without it falls back to the plain refusal message
      * `routeReport.describe` already carries, exactly as it did before this existed.
      */

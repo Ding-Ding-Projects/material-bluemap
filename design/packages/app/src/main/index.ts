@@ -932,6 +932,8 @@ function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc)
             }
         },
         appVersion: app.getVersion(),
+        packaged: app.isPackaged,
+        resourcesDir: process.resourcesPath,
     });
     return ciRenderIpc;
 }

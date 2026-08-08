@@ -22,19 +22,14 @@
  *
  * ## Four starting states, one operation
  *
- * 1. **Truly empty** - zero commits, no default branch ref yet. `CiTransport.isRepositoryEmpty`
- *    tells this apart from every other 404 (see its own doc comment for why `GET
- *    /repos/{o}/{r}` alone cannot). `CiTransport.writeFile` with no `sha` on an empty
- *    repository creates the very first commit and, with it, the default branch - nothing
- *    here needs a branch to already exist.
- * 2. **Has content, no workflow.** The same `writeFile` with no `sha` creates the file
- *    alongside whatever is already there; nothing else in the repository is read or
- *    written.
+ * 1. **Truly empty** - zero commits, no default branch ref yet. GitHub's Git Data API cannot
+ *    create that first ref, so the operation fails closed and asks for one starter commit.
+ * 2. **Has content, no workflow.** A new tree is based on the current default-branch tree,
+ *    preserving every unrelated path and adding the complete managed set in one commit.
  * 3. **This application prepared it before, and the shipped workflow has moved on.**
- *    Detected by comparing the committed file's content against the current template - not
- *    a version number alone, so a hand-edited file compares as changed too - and updated
- *    with the file's current `sha`, which is GitHub's own optimistic-concurrency check
- *    against clobbering a write that landed after this one was read.
+ *    Updated only when the current bytes still equal the exact SHA-256 recorded at install
+ *    time. A later edit or deletion is a typed conflict, and a newer marker/template version
+ *    is never downgraded by an older build.
  * 4. **Looks prepared, cannot run.** `CiTransport.readActionsPolicy` is read after the
  *    files are in place, and a `disabled` state is reported as `ready: false` with the
  *    actual policy named - never smoothed into a green tick. An `unknown` state (this
@@ -43,16 +38,11 @@
  *
  * ## Never a guessed verdict, and never a clobber
  *
- * Every file this writes is guarded the same way `pages/hosting.ts` guards its publishing
- * branch: a marker (`CI_BOOTSTRAP_MARKER_FILE`) records which paths this application put
- * there, and a file that exists, differs from the template, and is **not** listed in that
- * marker is refused rather than overwritten - it is somebody else's file that happens to
- * share a path. Token scopes are checked before a single byte is written, because a token
- * with `repo` but not `workflow` fails specifically and only on the workflow file, leaving
- * a half-prepared repository behind; catching that first means nothing is half-prepared at
- * all. A conflict on any one managed file is treated the same way: every template is
- * *planned* (read-only) before any of them is written, so a conflict on the second of two
- * files never leaves the first one already changed - see {@link planTemplate}.
+ * A marker (`CI_BOOTSTRAP_MARKER_FILE`) records each path and the exact SHA-256 installed
+ * there. Every template is planned read-only, candidate Git objects are created off-ref,
+ * and one non-force ref update guarded by the expected branch-head SHA makes the whole set
+ * visible. A conflict, concurrent writer, or injected failure therefore exposes either the
+ * old complete tree or the new complete tree, never a half-prepared repository.
  *
  * ## What crosses, and what does not
  *
@@ -61,10 +51,11 @@
  * one request it authorizes.
  */
 
+import { createHash } from "node:crypto";
 import type { FetchLike } from "../backup/index.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
 import type { ProcessRunner } from "./gh.js";
-import { resolveTransport } from "./transport.js";
+import { CiAtomicCommitConflictError, resolveTransport } from "./transport.js";
 import type { CiRoute, CiTransport } from "./transport.js";
 
 /** The file that says a path belongs to this application, and which paths those are. */
@@ -76,7 +67,7 @@ export const CI_BOOTSTRAP_MARKER_TOOL = "worldlens";
 export const LEGACY_CI_BOOTSTRAP_MARKER_TOOL = "material-bluemap";
 
 /** Bumped only if the marker's shape changes. An unknown version is still *ours*. */
-export const CI_BOOTSTRAP_MARKER_VERSION = 1;
+export const CI_BOOTSTRAP_MARKER_VERSION = 2;
 
 /**
  * The two scopes preparing a repository needs. `repo` is what every other write in this
@@ -102,8 +93,11 @@ export interface CiBootstrapMarker {
     readonly tool: string;
     readonly version: number;
     /** Identifies the shipped template set that produced the files this marker lists. */
-    readonly templateVersion: string;
+    /** Numeric in schema 2; string remains readable for schema-1 adoption compatibility. */
+    readonly templateVersion: number | string;
     readonly files: readonly string[];
+    /** Exact SHA-256 of the UTF-8 bytes installed at each managed workflow path. */
+    readonly fileHashes?: Readonly<Record<string, string>>;
     readonly preparedAt: string;
 }
 
@@ -137,7 +131,12 @@ export type CiBootstrapFailureCode =
     | "missing-scope"
     | "no-route"
     | "repository-not-writable"
+    | "empty-repository"
     | "user-authored-conflict"
+    | "managed-file-modified"
+    | "newer-marker-version"
+    | "newer-template-version"
+    | "concurrent-update"
     | "http-error";
 
 export interface CiBootstrapFailure {
@@ -160,10 +159,20 @@ export type CiBootstrapPhase =
     | "finished";
 
 export type CiBootstrapEvent =
-    | { readonly type: "started"; readonly owner: string; readonly repo: string; readonly at: string }
+    | {
+          readonly type: "started";
+          readonly owner: string;
+          readonly repo: string;
+          readonly at: string;
+      }
     | { readonly type: "phase"; readonly phase: CiBootstrapPhase; readonly at: string }
     | { readonly type: "file"; readonly outcome: CiBootstrapFileOutcome; readonly at: string }
-    | { readonly type: "log"; readonly level: "info" | "warning" | "error"; readonly message: string; readonly at: string }
+    | {
+          readonly type: "log";
+          readonly level: "info" | "warning" | "error";
+          readonly message: string;
+          readonly at: string;
+      }
     | { readonly type: "finished"; readonly report: CiBootstrapReport; readonly at: string }
     | { readonly type: "failed"; readonly failure: CiBootstrapFailure; readonly at: string };
 
@@ -189,7 +198,7 @@ export interface CiBootstrapOptions {
     /** The workflow files to commit. Real content comes from `workflowTemplates.ts`. */
     readonly templates: readonly CiWorkflowTemplate[];
     /** Identifies the shipped template set, for the marker and for staleness reporting. */
-    readonly templateVersion: string;
+    readonly templateVersion: number;
     readonly onEvent?: ((event: CiBootstrapEvent) => void) | undefined;
     readonly now?: (() => Date) | undefined;
 }
@@ -223,7 +232,8 @@ export async function bootstrapCiRepository(
     if (owner.length === 0 || repo.length === 0) {
         return fail({
             code: "invalid-request",
-            message: "An owner and a repository name are required to prepare a repository for CI rendering.",
+            message:
+                "An owner and a repository name are required to prepare a repository for CI rendering.",
             missingScopes: null,
         });
     }
@@ -231,6 +241,24 @@ export async function bootstrapCiRepository(
         return fail({
             code: "invalid-request",
             message: "No workflow templates were supplied, so there was nothing to prepare.",
+            missingScopes: null,
+        });
+    }
+    if (!Number.isSafeInteger(options.templateVersion) || options.templateVersion < 1) {
+        return fail({
+            code: "invalid-request",
+            message: "The managed workflow template version must be a positive monotonic integer.",
+            missingScopes: null,
+        });
+    }
+    if (
+        new Set(options.templates.map((template) => template.path)).size !==
+        options.templates.length
+    ) {
+        return fail({
+            code: "invalid-request",
+            message:
+                "The managed workflow set contains duplicate repository paths, so nothing was changed.",
             missingScopes: null,
         });
     }
@@ -255,7 +283,8 @@ export async function bootstrapCiRepository(
         ...(options.prefer === undefined ? {} : { prefer: options.prefer }),
         // The whole fix: proves a credential can see the repository, not that it can
         // already see a workflow file a bootstrap exists precisely because is not there.
-        probe: (transport, probeOwner, probeRepo) => transport.readRepository(probeOwner, probeRepo),
+        probe: (transport, probeOwner, probeRepo) =>
+            transport.readRepository(probeOwner, probeRepo),
     });
     if (resolved.transport === null) {
         return fail({ code: "no-route", message: resolved.report.describe, missingScopes: null });
@@ -275,7 +304,7 @@ export async function bootstrapCiRepository(
                     `${transport.describe} is missing the ${missing.map((scope) => `"${scope}"`).join(" and ")} ` +
                     `permission${missing.length > 1 ? "s" : ""}. Preparing a repository needs "repo" to write to ` +
                     'it at all, and "workflow" specifically to commit anything under .github/workflows/ - a ' +
-                    "token with only \"repo\" will create everything else and then fail on the workflow file " +
+                    'token with only "repo" will create everything else and then fail on the workflow file ' +
                     "alone. Sign in again and grant it; nothing was written this attempt.",
                 missingScopes: missing,
             });
@@ -286,7 +315,7 @@ export async function bootstrapCiRepository(
             level: "info",
             message:
                 `${transport.describe} did not report its token scopes, so they could not be checked in ` +
-                "advance. If writing the workflow file is refused, a missing \"workflow\" scope is the usual reason.",
+                'advance. If writing the workflow file is refused, a missing "workflow" scope is the usual reason.',
             at: stamp(),
         });
     }
@@ -320,19 +349,84 @@ export async function bootstrapCiRepository(
         );
     }
 
-    /* -- the files, planned first and written only when nothing conflicts --------------- */
-    //
-    // Reading every template's target before writing any of it is what makes a conflict
-    // atomic: a repository with two managed files, one of them somebody else's, ends this
-    // call having written *neither*, rather than one already committed and the other
-    // refused - a half-prepared repository is exactly what checking scopes up front (see
-    // above) is meant to avoid, and a conflict deserves the same treatment.
+    /* -- the files, planned first and made visible in one guarded Git commit ------------ */
     emit({ type: "phase", phase: "writing-files", at: stamp() });
+    if (
+        transport.readRepositoryHead === undefined ||
+        transport.commitFilesAtomically === undefined
+    ) {
+        return fail({
+            code: "invalid-request",
+            message:
+                `${transport.describe} cannot make a guarded multi-file Git commit, so the managed workflows ` +
+                "were not changed one file at a time.",
+            missingScopes: null,
+        });
+    }
+
     let plans: readonly TemplatePlan[];
+    let markerState: ManagedMarkerState;
+    let expectedHead: Awaited<ReturnType<NonNullable<CiTransport["readRepositoryHead"]>>>;
+    let expectedHeadSha: string;
     try {
-        const empty = await transport.isRepositoryEmpty(owner, repo);
+        expectedHead = await transport.readRepositoryHead(owner, repo);
+        if (expectedHead.sha === null) {
+            return fail({
+                code: "empty-repository",
+                message:
+                    `${owner}/${repo} has no first commit yet. GitHub does not allow its Git Data API to create ` +
+                    "the first branch ref, so the managed workflows cannot be installed atomically. Create one " +
+                    "starter commit (the in-app repository creator does this automatically), then try again. Nothing was changed.",
+                missingScopes: null,
+            });
+        }
+        expectedHeadSha = expectedHead.sha;
+        markerState = await readManagedMarker(transport, owner, repo, expectedHeadSha);
+        if (markerState.kind === "foreign") {
+            return fail({
+                code: "user-authored-conflict",
+                message:
+                    `${markerState.path} already exists on ${owner}/${repo} but is not a valid marker written ` +
+                    "by this application. Nothing was changed; move or rename that file before preparing again.",
+                missingScopes: null,
+            });
+        }
+        if (
+            markerState.kind === "ours" &&
+            markerState.marker.version > CI_BOOTSTRAP_MARKER_VERSION
+        ) {
+            return fail({
+                code: "newer-marker-version",
+                message:
+                    `${owner}/${repo} was prepared with marker schema ${markerState.marker.version}, newer than ` +
+                    `schema ${CI_BOOTSTRAP_MARKER_VERSION} understood by this build. This older build will not downgrade it.`,
+                missingScopes: null,
+            });
+        }
+        if (
+            markerState.kind === "ours" &&
+            markerState.marker.version === CI_BOOTSTRAP_MARKER_VERSION &&
+            markerState.marker.templateVersion > options.templateVersion
+        ) {
+            return fail({
+                code: "newer-template-version",
+                message:
+                    `${owner}/${repo} has managed workflow template version ${markerState.marker.templateVersion}, ` +
+                    `newer than version ${options.templateVersion} in this build. This older build will not downgrade it.`,
+                missingScopes: null,
+            });
+        }
         plans = await Promise.all(
-            options.templates.map((template) => planTemplate(transport, owner, repo, template, empty)),
+            options.templates.map((template) =>
+                planTemplate(
+                    transport,
+                    owner,
+                    repo,
+                    template,
+                    markerState.kind === "ours" ? markerState.marker : null,
+                    expectedHeadSha,
+                ),
+            ),
         );
     } catch (error) {
         return fail(toHttpFailure(error));
@@ -343,59 +437,79 @@ export async function bootstrapCiRepository(
         action: planAction(plan.kind),
         reason: plan.reason,
     }));
-    for (const outcome of outcomes) emit({ type: "file", outcome, at: stamp() });
-
     const refused = outcomes.filter((outcome) => outcome.action === "refused");
     if (refused.length > 0) {
+        for (const outcome of outcomes) emit({ type: "file", outcome, at: stamp() });
+        const modified = plans.some((plan) => plan.failureCode === "managed-file-modified");
         return fail({
-            code: "user-authored-conflict",
+            code: modified ? "managed-file-modified" : "user-authored-conflict",
             message:
-                `${refused.map((outcome) => outcome.path).join(", ")} already exist${refused.length === 1 ? "s" : ""} ` +
-                `on ${owner}/${repo} and ${refused.length === 1 ? "was" : "were"} not written by this ` +
-                "application, so nothing there was overwritten. Move or rename the existing file and " +
-                "prepare again, or add the render workflow to it by hand.",
+                `${refused.map((outcome) => outcome.path).join(", ")} ${modified ? "no longer match the exact bytes this application installed" : "cannot be claimed as application-managed files"}. ` +
+                "Nothing was overwritten. Keep the edits and manage the workflows yourself, or restore the installed bytes before trying again.",
             missingScopes: null,
         });
     }
 
-    const toWrite = plans.filter((plan) => plan.kind === "create" || plan.kind === "update");
-    try {
-        for (const plan of toWrite) {
-            await transport.writeFile(
-                owner,
-                repo,
-                plan.template.path,
-                base64Of(plan.template.content),
-                `${plan.kind === "create" ? "Add" : "Update"} ${plan.template.path} for CI rendering ` +
-                    `(Worldlens ${options.templateVersion})`,
-                plan.kind === "update" && plan.existingSha !== null ? plan.existingSha : undefined,
-            );
-        }
-    } catch (error) {
-        return fail(toHttpFailure(error));
-    }
-
+    const desiredHashes = Object.fromEntries(
+        options.templates.map((template) => [template.path, sha256Of(template.content)]),
+    );
+    const markerCurrent =
+        markerState.kind === "ours" &&
+        markerState.path === CI_BOOTSTRAP_MARKER_FILE &&
+        markerMatches(
+            markerState.marker,
+            options.templates,
+            options.templateVersion,
+            desiredHashes,
+        );
+    const needsCommit =
+        plans.some((plan) => plan.kind === "create" || plan.kind === "update") || !markerCurrent;
     let markerWritten = false;
-    if (toWrite.length > 0) {
+    if (needsCommit) {
+        const marker: CiBootstrapMarker = {
+            tool: CI_BOOTSTRAP_MARKER_TOOL,
+            version: CI_BOOTSTRAP_MARKER_VERSION,
+            templateVersion: options.templateVersion,
+            files: options.templates.map((template) => template.path),
+            fileHashes: desiredHashes,
+            preparedAt: stamp(),
+        };
         try {
-            // The marker always names the *whole* managed set, not only what changed this
-            // run - a run that updates one file and leaves another unchanged must not drop
-            // the unchanged one from the ownership list, or a later run would see it as a
-            // file it never wrote and refuse to touch it.
-            markerWritten = await writeMarker(
-                transport,
-                owner,
-                repo,
-                options.templates,
-                options.templateVersion,
-                stamp(),
-            );
+            await transport.commitFilesAtomically(owner, repo, {
+                branch: expectedHead.branch,
+                expectedHeadSha,
+                files: [
+                    ...options.templates.map((template) => ({
+                        path: template.path,
+                        contentBase64: base64Of(template.content),
+                    })),
+                    {
+                        path: CI_BOOTSTRAP_MARKER_FILE,
+                        contentBase64: base64Of(`${JSON.stringify(marker, null, 2)}\n`),
+                    },
+                ],
+                message: `Update managed CI render workflows (WorldLens template ${options.templateVersion})`,
+            });
+            markerWritten = true;
         } catch (error) {
+            if (error instanceof CiAtomicCommitConflictError) {
+                return fail({
+                    code: "concurrent-update",
+                    message: error.message,
+                    missingScopes: null,
+                });
+            }
             return fail(toHttpFailure(error));
         }
     } else {
-        notes.push("Every file this application manages was already up to date, so nothing was written.");
+        notes.push(
+            "Every file this application manages was already up to date, so nothing was written.",
+        );
     }
+    // A planned create/update is not reported as completed until the guarded ref update
+    // succeeds. On a conflict or injected object-write failure, no progress event claims
+    // repository-visible bytes changed when they did not.
+    for (const outcome of outcomes) emit({ type: "file", outcome, at: stamp() });
 
     /* -- Actions enablement, checked and reported rather than assumed --------------------- */
     emit({ type: "phase", phase: "checking-actions", at: stamp() });
@@ -411,7 +525,9 @@ export async function bootstrapCiRepository(
             actionsMessage =
                 `GitHub Actions is turned off for ${owner}/${repo} (Settings -> Actions -> General is set ` +
                 `to disable Actions${
-                    policy.allowedActions === null ? "" : `, allowed actions: ${policy.allowedActions}`
+                    policy.allowedActions === null
+                        ? ""
+                        : `, allowed actions: ${policy.allowedActions}`
                 }). Turn it on there before a render can run.`;
         } else {
             actionsEnabled = null;
@@ -447,10 +563,22 @@ type TemplatePlanKind = "create" | "update" | "unchanged" | "refuse";
 interface TemplatePlan {
     readonly template: CiWorkflowTemplate;
     readonly kind: TemplatePlanKind;
-    /** The sha to send back with an update. Null for everything else. */
-    readonly existingSha: string | null;
     readonly reason: string | null;
+    readonly failureCode: "user-authored-conflict" | "managed-file-modified" | null;
 }
+
+interface StoredManagedMarker {
+    readonly tool: string;
+    readonly version: number;
+    readonly templateVersion: number;
+    readonly files: readonly string[];
+    readonly fileHashes: Readonly<Record<string, string>>;
+}
+
+type ManagedMarkerState =
+    | { readonly kind: "absent" }
+    | { readonly kind: "foreign"; readonly path: string }
+    | { readonly kind: "ours"; readonly path: string; readonly marker: StoredManagedMarker };
 
 function planAction(kind: TemplatePlanKind): CiBootstrapFileAction {
     switch (kind) {
@@ -473,135 +601,186 @@ function textOf(contentBase64: string): string {
     return Buffer.from(contentBase64, "base64").toString("utf8");
 }
 
+function sha256Of(text: string): string {
+    return createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex");
+}
+
 /**
  * Decides what would happen to one template, without writing anything.
  *
  * Read-only by construction - this is what lets {@link bootstrapCiRepository} plan every
- * template before committing to any write, so a conflict on the second of two files never
- * leaves the first one already changed. `empty` is read once by the caller and passed in
- * rather than re-checked per template, because nothing written during planning could ever
- * change it.
+ * template before committing to any write, so a conflict on a later file never leaves the
+ * first one already changed.
  */
 async function planTemplate(
     transport: CiTransport,
     owner: string,
     repo: string,
     template: CiWorkflowTemplate,
-    empty: boolean,
+    marker: StoredManagedMarker | null,
+    ref: string,
 ): Promise<TemplatePlan> {
-    if (empty) return { template, kind: "create", existingSha: null, reason: null };
-
-    const existing = await transport.readFile(owner, repo, template.path);
-    if (existing === null) return { template, kind: "create", existingSha: null, reason: null };
+    const existing = await transport.readFile(owner, repo, template.path, ref);
+    const markerOwnsPath = marker?.files.includes(template.path) === true;
+    if (existing === null) {
+        if (markerOwnsPath) {
+            return {
+                template,
+                kind: "refuse",
+                reason:
+                    `${template.path} was previously installed by this application but is now missing. ` +
+                    "Its deletion is treated as a user edit and will not be reversed automatically.",
+                failureCode: "managed-file-modified",
+            };
+        }
+        return { template, kind: "create", reason: null, failureCode: null };
+    }
 
     const existingContent = textOf(existing.contentBase64);
     if (existingContent === template.content) {
-        return { template, kind: "unchanged", existingSha: existing.sha, reason: null };
+        if (!markerOwnsPath) {
+            return {
+                template,
+                kind: "refuse",
+                reason:
+                    `${template.path} already exists but no valid marker claims it. Matching bytes are not ` +
+                    "enough to take ownership of a user-authored file.",
+                failureCode: "user-authored-conflict",
+            };
+        }
+        return { template, kind: "unchanged", reason: null, failureCode: null };
     }
 
-    const ownedByApp = await isAppOwnedFile(transport, owner, repo, template.path);
-    if (!ownedByApp) {
+    if (!markerOwnsPath) {
         return {
             template,
             kind: "refuse",
-            existingSha: existing.sha,
             reason: `${template.path} already exists on ${owner}/${repo} and was not written by this application.`,
+            failureCode: "user-authored-conflict",
+        };
+    }
+
+    const installedHash = marker?.fileHashes[template.path];
+    if (
+        marker?.version !== CI_BOOTSTRAP_MARKER_VERSION ||
+        installedHash === undefined ||
+        sha256Of(existingContent) !== installedHash
+    ) {
+        return {
+            template,
+            kind: "refuse",
+            reason:
+                `${template.path} differs from the exact SHA-256 recorded when it was installed. ` +
+                "It is treated as user-edited and will not be overwritten.",
+            failureCode: "managed-file-modified",
         };
     }
 
     return {
         template,
         kind: "update",
-        existingSha: existing.sha,
         reason:
             `The copy of ${template.path} already on ${owner}/${repo} was from an earlier version of this ` +
             "application. It has been brought up to date; nothing else on the repository was touched.",
+        failureCode: null,
     };
 }
 
-/**
- * True when a file already sitting at the marker path is one this application wrote.
- *
- * Deliberately checks only `tool`, not the version: a marker from a newer build is still
- * ours and may be rewritten, whereas anything that does not parse, or that parses without
- * our tool name, belongs to somebody else and is left alone.
- */
-function isOurMarker(contentBase64: string): boolean {
+function parseManagedMarker(contentBase64: string): StoredManagedMarker | null {
     try {
-        const parsed = JSON.parse(textOf(contentBase64)) as Partial<CiBootstrapMarker>;
-        return (
-            parsed.tool === CI_BOOTSTRAP_MARKER_TOOL ||
-            parsed.tool === LEGACY_CI_BOOTSTRAP_MARKER_TOOL
-        );
-    } catch {
-        return false;
-    }
-}
-
-/** True only when the marker names this exact path as one this application placed. */
-async function isAppOwnedFile(
-    transport: CiTransport,
-    owner: string,
-    repo: string,
-    path: string,
-): Promise<boolean> {
-    const marker =
-        (await transport.readFile(owner, repo, CI_BOOTSTRAP_MARKER_FILE)) ??
-        (await transport.readFile(owner, repo, LEGACY_CI_BOOTSTRAP_MARKER_FILE));
-    if (marker === null) return false;
-    try {
-        const parsed = JSON.parse(textOf(marker.contentBase64)) as Partial<CiBootstrapMarker>;
+        const parsed = JSON.parse(textOf(contentBase64)) as Record<string, unknown>;
         if (
-            parsed.tool !== CI_BOOTSTRAP_MARKER_TOOL &&
-            parsed.tool !== LEGACY_CI_BOOTSTRAP_MARKER_TOOL
+            parsed["tool"] !== CI_BOOTSTRAP_MARKER_TOOL &&
+            parsed["tool"] !== LEGACY_CI_BOOTSTRAP_MARKER_TOOL
         ) {
-            return false;
+            return null;
         }
-        return Array.isArray(parsed.files) && parsed.files.includes(path);
+        const version = parsed["version"];
+        const files = parsed["files"];
+        if (!Number.isSafeInteger(version) || (version as number) < 1) return null;
+        // A future schema is still recognisably ours from its stable tool/version header.
+        // Its remaining shape is deliberately not interpreted by this older build; the
+        // caller will issue the typed no-downgrade refusal before planning any file.
+        if ((version as number) > CI_BOOTSTRAP_MARKER_VERSION) {
+            return {
+                tool: parsed["tool"] as string,
+                version: version as number,
+                templateVersion:
+                    typeof parsed["templateVersion"] === "number" ? parsed["templateVersion"] : 0,
+                files: [],
+                fileHashes: {},
+            };
+        }
+        if (!Array.isArray(files)) return null;
+        if (!files.every((path) => typeof path === "string" && path.length > 0)) return null;
+
+        const rawTemplateVersion = parsed["templateVersion"];
+        const templateVersion =
+            typeof rawTemplateVersion === "number" && Number.isSafeInteger(rawTemplateVersion)
+                ? rawTemplateVersion
+                : 0;
+        const rawHashes = parsed["fileHashes"];
+        const fileHashes: Record<string, string> = {};
+        if (typeof rawHashes === "object" && rawHashes !== null) {
+            for (const [path, hash] of Object.entries(rawHashes)) {
+                if (typeof hash === "string" && /^[0-9a-f]{64}$/.test(hash))
+                    fileHashes[path] = hash;
+            }
+        }
+        if ((version as number) >= CI_BOOTSTRAP_MARKER_VERSION) {
+            if (
+                templateVersion < 1 ||
+                (files as string[]).some((path) => fileHashes[path] === undefined)
+            )
+                return null;
+        }
+        return {
+            tool: parsed["tool"] as string,
+            version: version as number,
+            templateVersion,
+            files: files as string[],
+            fileHashes,
+        };
     } catch {
-        return false;
+        return null;
     }
 }
 
-async function writeMarker(
+async function readManagedMarker(
     transport: CiTransport,
     owner: string,
     repo: string,
-    templates: readonly CiWorkflowTemplate[],
-    templateVersion: string,
-    preparedAt: string,
-): Promise<boolean> {
-    const marker: CiBootstrapMarker = {
-        tool: CI_BOOTSTRAP_MARKER_TOOL,
-        version: CI_BOOTSTRAP_MARKER_VERSION,
-        templateVersion,
-        files: templates.map((template) => template.path),
-        preparedAt,
-    };
-    const existing = await transport.readFile(owner, repo, CI_BOOTSTRAP_MARKER_FILE);
-    // The two workflow templates are protected from clobbering a foreign file by
-    // isAppOwnedFile above; the marker itself was not, which left a real hole in this
-    // module's own promise that a file it did not write is refused rather than
-    // overwritten. The filename makes a collision unlikely, but "unlikely" is not the
-    // guarantee this module states, and silently replacing somebody's file is the one
-    // outcome no amount of unlikeliness excuses.
-    if (existing !== null && !isOurMarker(existing.contentBase64)) {
-        throw new Error(
-            `${CI_BOOTSTRAP_MARKER_FILE} already exists on ${owner}/${repo} and was not written by ` +
-                "this application, so it has been left exactly as it is and nothing else on the " +
-                "repository was changed. Move or rename that file if you want this repository " +
-                "prepared for CI rendering.",
-        );
+    ref: string,
+): Promise<ManagedMarkerState> {
+    for (const path of [CI_BOOTSTRAP_MARKER_FILE, LEGACY_CI_BOOTSTRAP_MARKER_FILE]) {
+        const file = await transport.readFile(owner, repo, path, ref);
+        if (file === null) continue;
+        const marker = parseManagedMarker(file.contentBase64);
+        return marker === null ? { kind: "foreign", path } : { kind: "ours", path, marker };
     }
-    await transport.writeFile(
-        owner,
-        repo,
-        CI_BOOTSTRAP_MARKER_FILE,
-        base64Of(`${JSON.stringify(marker, null, 2)}\n`),
-        "Record what Worldlens prepared for CI rendering",
-        existing === null ? undefined : existing.sha,
-    );
-    return true;
+    return { kind: "absent" };
+}
+
+function markerMatches(
+    marker: StoredManagedMarker,
+    templates: readonly CiWorkflowTemplate[],
+    templateVersion: number,
+    hashes: Readonly<Record<string, string>>,
+): boolean {
+    if (
+        marker.tool !== CI_BOOTSTRAP_MARKER_TOOL ||
+        marker.version !== CI_BOOTSTRAP_MARKER_VERSION ||
+        marker.templateVersion !== templateVersion
+    ) {
+        return false;
+    }
+    const paths = templates.map((template) => template.path);
+    if (
+        marker.files.length !== paths.length ||
+        marker.files.some((path, index) => path !== paths[index])
+    )
+        return false;
+    return paths.every((path) => marker.fileHashes[path] === hashes[path]);
 }
 
 function toHttpFailure(error: unknown): CiBootstrapFailure {
@@ -614,7 +793,10 @@ function toHttpFailure(error: unknown): CiBootstrapFailure {
     const message = String(error);
     return {
         code: "http-error",
-        message: message.length > 0 ? message : "This repository could not be prepared, and nothing said why.",
+        message:
+            message.length > 0
+                ? message
+                : "This repository could not be prepared, and nothing said why.",
         missingScopes: null,
     };
 }

@@ -81,8 +81,8 @@ export const CIRENDER_CHANNELS = [
     // .github/workflows/scheduled-render.yml's last report, and turning it on or off.
     "cirender:scheduleRead",
     "cirender:scheduleWrite",
-    // Preparing a repository that has never had the render workflow committed to it, so a
-    // truly empty repository is not a dead end - see `bootstrap.ts`.
+    // Preparing a repository that has never had the render workflow committed to it. A
+    // truly empty repository gets an actionable starter-commit refusal - see `bootstrap.ts`.
     "cirender:bootstrap",
 ] as const;
 
@@ -123,6 +123,9 @@ export interface CiRenderIpcOptions {
     /** Overridable so a test never touches the network. */
     readonly fetch?: FetchLike | undefined;
     readonly appVersion?: string | null | undefined;
+    /** Installed builds must use only their own complete packaged workflow resources. */
+    readonly packaged?: boolean | undefined;
+    readonly resourcesDir?: string | undefined;
     readonly apiBase?: string | undefined;
     /** Where release assets are PUT. Overridable so a test never uploads to GitHub. */
     readonly uploadsBase?: string | undefined;
@@ -421,9 +424,9 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         },
     );
 
-    // Prepares a repository that does not yet have the render workflow on it - a truly
-    // empty repository, an existing project that never had it added, or a stale copy this
-    // application wrote earlier. See `bootstrap.ts` for the four states this tells apart
+    // Prepares a repository that does not yet have the render workflow on it - an empty
+    // repository needing a starter commit, an existing project that never had it added, or
+    // a stale copy this application wrote earlier. See `bootstrap.ts` for the four states this tells apart
     // and why nothing here can clobber a file it did not itself place there.
     options.ipcMain.handle(
         "cirender:bootstrap",
@@ -454,11 +457,13 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
 
             let loaded: Awaited<ReturnType<typeof loadCiWorkflowTemplates>>;
             try {
-                // `process.resourcesPath` is only meaningful in a packaged build; a
-                // development run's `undefined` here just leaves the loader to its own
-                // checkout-walking fallback, exactly as calling it with no options would.
+                // Installed builds accept only their own complete resources. Development
+                // runs deliberately use checkout discovery instead.
                 loaded = await loadCiWorkflowTemplates({
-                    resourcesDir: process.resourcesPath,
+                    packaged: options.packaged === true,
+                    ...(options.resourcesDir === undefined
+                        ? {}
+                        : { resourcesDir: options.resourcesDir }),
                 });
             } catch (error) {
                 return {
