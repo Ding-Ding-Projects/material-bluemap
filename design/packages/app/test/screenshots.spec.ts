@@ -965,6 +965,11 @@ test.afterAll(async () => {
 test("captures the render location choice for routing evidence", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
+    // The render-location card belongs to the Make a map wizard and is intentionally
+    // absent while a saved map is active. Reset to the truthful empty-profile state
+    // before selecting the wizard tab; otherwise a fresh CI profile can leave the
+    // screenshot waiting on a card that the current page correctly does not render.
+    await pointAppAtNoMap();
     const worldTab = page.locator('[role="tab"]', { hasText: /Make a map/i }).first();
     await worldTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
     if ((await worldTab.getAttribute("aria-selected")) !== "true") await worldTab.click();
