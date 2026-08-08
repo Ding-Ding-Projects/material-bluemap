@@ -68,6 +68,7 @@ import { sshWorldSources } from "./ssh-world-sources.js";
 import { remoteHosting } from "./remote-hosting.js";
 import { automaticRepair } from "./automatic-repair.js";
 import { pagesFeatureParity } from "./pages-feature-parity.js";
+import { actionWalkthroughs } from "./action-walkthroughs.js";
 import { scheduledSettings } from "./scheduled-settings.js";
 import { panelGeometry } from "./panel-geometry.js";
 
@@ -99,6 +100,7 @@ export const articles: readonly Article[] = [
     languageAndTone,
     actionArtwork,
     pagesFeatureParity,
+    actionWalkthroughs,
     scheduledSettings,
     panelGeometry,
     worldReading,

@@ -31,6 +31,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "collapsible-search-controls",
     "accessibility-and-target-sizing",
     "compact-bilingual-layout",
+    "action-walkthrough-gifs",
     "startup-dim-sum",
     "complete-feature-documentation",
     "verified-installer-download",
@@ -289,6 +290,17 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
             "design/packages/site/src/content/content.css.test.ts",
             "design/packages/site/src/i18n/I18n.test.ts",
         ],
+    ),
+    implemented(
+        "action-walkthrough-gifs",
+        "Twelve finite action-specific GIF walkthroughs with reduced-motion stills",
+        [
+            "design/packages/site/src/walkthroughs/Gallery.ts",
+            "design/packages/site/src/walkthroughs/manifest.ts",
+            "design/packages/site/src/walkthroughs/walkthroughs.css",
+            "design/packages/site/scripts/build-walkthrough-gifs.mjs",
+        ],
+        ["design/packages/site/src/walkthroughs/walkthroughs.test.ts"],
     ),
     implemented(
         "startup-dim-sum",

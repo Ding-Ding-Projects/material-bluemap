@@ -1,5 +1,27 @@
 # Roadmap
 
+## Ground-up Material Design 3 Expressive Pages rewrite (2026-08-07)
+
+**In progress on `codex/phase-pages-m3-rewrite`; default-branch and live deployment proof remain
+gates.** The documentation site now has one explicit application-shell owner instead of assembling
+its hierarchy through append order: sticky M3 top app bar, adaptive navigation surface, bounded
+content canvas and persistent local-assets footer. Search, notification history, settings and the
+command palette are real quick actions. The lens-and-voxel brand mark, shell surfaces, responsive
+drawer/scrim, forced-colour branch and reduced-motion branch are derived from the existing Material
+system tokens and controllers.
+
+The Home surface also carries twelve distinct finite GIF walkthroughs covering navigation,
+command palette, documentation search, regex construction, theme, language/tone, tab groups, tab
+discovery, notifications, changelog filtering, appearance and verified downloads. Every animation
+is bundled locally, silent, lazy-loaded, captioned in both languages, reserved at 640×400 and paired
+with a static reduced-motion image. The 427,520-byte total is guarded alongside GIF/PNG decode,
+dimensions, uniqueness, file budgets, finite playback, narrow layout and offline build resolution.
+
+Focused shell/content/coverage/walkthrough tests, site typecheck and a production build are green
+except for the final full-suite and runtime matrix still to run after documentation is complete. A
+local build and explanatory animation are not live-deployment proof; exact branch CI, default-branch
+integration, Pages workflow and live URL read-back remain later gates.
+
 ## Worldlens repository pre-cutover expansion (2026-08-07)
 
 The repository remains at `Ding-Ding-Projects/material-bluemap`; this checkpoint does **not**

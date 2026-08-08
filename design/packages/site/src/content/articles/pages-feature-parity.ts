@@ -118,6 +118,10 @@ export const pagesFeatureParity: Article = {
     ],
     suggested: [
         {
+            articleId: "action-walkthroughs",
+            reason: "The finite local GIF and reduced-motion still gallery that demonstrates twelve site actions.",
+        },
+        {
             articleId: "tabbed-shell",
             reason: "The complete tab model behind the collapsible rail.",
         },
