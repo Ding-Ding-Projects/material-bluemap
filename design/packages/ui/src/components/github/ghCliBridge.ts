@@ -60,14 +60,55 @@ export interface GhCliSwitchReadout {
     readonly message: string;
 }
 
+export type GhCliLoginStageReadout =
+    | "requesting-code"
+    | "waiting-for-approval"
+    | "storing-credential"
+    | "verifying"
+    | "succeeded"
+    | "denied"
+    | "expired"
+    | "cancelled"
+    | "failed";
+
+/** The secret polling device code and access token are absent; the public user code is visible. */
+export interface GhCliLoginStateReadout {
+    readonly stage: GhCliLoginStageReadout;
+    readonly host: "github.com";
+    readonly expectedLogin: string | null;
+    readonly userCode: string | null;
+    readonly verificationUri: string | null;
+    readonly verificationUriComplete: string | null;
+    readonly expiresAt: number | null;
+    readonly secondsRemaining: number | null;
+    readonly attempt: number;
+    readonly browserOpened: boolean;
+    readonly account: GhCliAccountReadout | null;
+    readonly failureCode: string | null;
+    readonly message: string;
+}
+
+export interface GhCliLoginResultReadout {
+    readonly ok: boolean;
+    readonly state: GhCliLoginStateReadout;
+}
+
+export interface GhCliCancelLoginReadout {
+    readonly cancelled: boolean;
+    readonly message: string;
+}
+
 /**
- * The preload's `gh` CLI namespace, both methods optional and feature-detected one at a
+ * The preload's `gh` CLI namespace, with each method optional and feature-detected one at a
  * time, exactly as `GitHubBridge` treats its own methods: a released shell can load a newer
  * renderer than the one it was built beside.
  */
 export interface GhCliBridge {
     ghCliListAccounts?: () => Promise<GhCliAccountsStatusReadout>;
     ghCliSwitchAccount?: (host: string, login: string) => Promise<GhCliSwitchReadout>;
+    ghCliStartLogin?: (expectedLogin?: string) => Promise<GhCliLoginResultReadout>;
+    ghCliCancelLogin?: () => Promise<GhCliCancelLoginReadout>;
+    onGhCliLoginState?: (listener: (state: GhCliLoginStateReadout) => void) => () => void;
 }
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -88,4 +129,13 @@ export function canListGhCliAccounts(bridge: GhCliBridge | null): boolean {
 /** True when this build can switch gh's own active account. */
 export function canSwitchGhCliAccount(bridge: GhCliBridge | null): boolean {
     return isFunction(bridge?.ghCliSwitchAccount);
+}
+
+/** True only when this build supports the complete start/progress/cancel GUI flow. */
+export function canLoginGhCli(bridge: GhCliBridge | null): boolean {
+    return (
+        isFunction(bridge?.ghCliStartLogin) &&
+        isFunction(bridge?.ghCliCancelLogin) &&
+        isFunction(bridge?.onGhCliLoginState)
+    );
 }

@@ -2228,6 +2228,44 @@ export interface GhCliSwitchResult {
     message: string;
 }
 
+export type GhCliLoginStage =
+    | "requesting-code"
+    | "waiting-for-approval"
+    | "storing-credential"
+    | "verifying"
+    | "succeeded"
+    | "denied"
+    | "expired"
+    | "cancelled"
+    | "failed";
+
+/** Secret-free progress pushed by the main process while `gh` sign-in is running. */
+export interface GhCliLoginState {
+    stage: GhCliLoginStage;
+    host: "github.com";
+    expectedLogin: string | null;
+    userCode: string | null;
+    verificationUri: string | null;
+    verificationUriComplete: string | null;
+    expiresAt: number | null;
+    secondsRemaining: number | null;
+    attempt: number;
+    browserOpened: boolean;
+    account: GhCliAccount | null;
+    failureCode: string | null;
+    message: string;
+}
+
+export interface GhCliLoginResult {
+    ok: boolean;
+    state: GhCliLoginState;
+}
+
+export interface GhCliCancelLoginResult {
+    cancelled: boolean;
+    message: string;
+}
+
 export /**
  * The backup types come from the main process itself rather than being restated here, so
  * this bridge cannot drift from what actually crosses. Only the two names the UI spells
@@ -2745,6 +2783,15 @@ interface WorldlensBridge {
      * reported after re-reading confirmed the switch genuinely took.
      */
     ghCliSwitchAccount(host: string, login: string): Promise<GhCliSwitchResult>;
+
+    /** Starts the GUI device flow. The approved token never crosses this bridge. */
+    ghCliStartLogin(expectedLogin?: string): Promise<GhCliLoginResult>;
+
+    /** Cancels the login started by this renderer window, if one is active. */
+    ghCliCancelLogin(): Promise<GhCliCancelLoginResult>;
+
+    /** Subscribes to secret-free code, URL, countdown, and verification progress. */
+    onGhCliLoginState(listener: (state: GhCliLoginState) => void): () => void;
 
     /**
      * Reading and writing a BlueMap config folder, for the options screen.
@@ -3289,6 +3336,20 @@ const bridge: WorldlensBridge = {
 
     ghCliListAccounts: () => ipcRenderer.invoke("ghCli:listAccounts"),
     ghCliSwitchAccount: (host, login) => ipcRenderer.invoke("ghCli:switchAccount", { host, login }),
+    ghCliStartLogin: (expectedLogin) =>
+        ipcRenderer.invoke(
+            "ghCli:startLogin",
+            expectedLogin === undefined ? {} : { expectedLogin },
+        ),
+    ghCliCancelLogin: () => ipcRenderer.invoke("ghCli:cancelLogin"),
+    onGhCliLoginState: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: GhCliLoginState): void =>
+            listener(payload);
+        ipcRenderer.on("ghCli:loginState", forward);
+        return () => {
+            ipcRenderer.off("ghCli:loginState", forward);
+        };
+    },
 
     config: {
         readFolder: (folder) => ipcRenderer.invoke("config:readFolder", folder),

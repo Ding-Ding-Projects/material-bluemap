@@ -67,8 +67,13 @@ export interface ProcessResult {
 
 export interface ProcessRunOptions {
     readonly signal?: AbortSignal | undefined;
-    /** Written to the child's stdin and closed. Used for `gh api --input -`. */
+    /** Written to the child's stdin and closed. Never placed in argv or logged here. */
     readonly input?: string | undefined;
+    /**
+     * Environment names the child must not inherit. Matching is case-insensitive so the
+     * boundary also holds on Windows, where environment variable names are case-insensitive.
+     */
+    readonly omitEnvironmentVariables?: readonly string[] | undefined;
 }
 
 export interface ProcessToFileResult {
@@ -86,7 +91,11 @@ export interface ProcessToFileResult {
  * and neither can be produced on a machine that has it working.
  */
 export interface ProcessRunner {
-    run(command: string, args: readonly string[], options?: ProcessRunOptions): Promise<ProcessResult>;
+    run(
+        command: string,
+        args: readonly string[],
+        options?: ProcessRunOptions,
+    ): Promise<ProcessResult>;
     /** Streams the child's stdout into a file. For an artifact zip, which is binary. */
     runToFile(
         command: string,
@@ -108,9 +117,11 @@ export function nodeProcessRunner(): ProcessRunner {
     return {
         run(command, args, options): Promise<ProcessResult> {
             return new Promise<ProcessResult>((resolve) => {
+                const environment = environmentWithout(options?.omitEnvironmentVariables);
                 const child = spawn(command, [...args], {
                     shell: false,
                     windowsHide: true,
+                    ...(environment === undefined ? {} : { env: environment }),
                     ...(options?.signal === undefined ? {} : { signal: options.signal }),
                 });
                 let stdout = "";
@@ -139,9 +150,11 @@ export function nodeProcessRunner(): ProcessRunner {
 
         async runToFile(command, args, destination, options): Promise<ProcessToFileResult> {
             await mkdir(dirname(destination), { recursive: true });
+            const environment = environmentWithout(options?.omitEnvironmentVariables);
             const child = spawn(command, [...args], {
                 shell: false,
                 windowsHide: true,
+                ...(environment === undefined ? {} : { env: environment }),
                 ...(options?.signal === undefined ? {} : { signal: options.signal }),
             });
             let stderr = "";
@@ -166,13 +179,23 @@ export function nodeProcessRunner(): ProcessRunner {
 
             const finished = (async (): Promise<ProcessToFileResult> => {
                 await pipeline(stdout, createWriteStream(destination));
-                const code = await new Promise<number | null>((resolve) => child.on("close", resolve));
+                const code = await new Promise<number | null>((resolve) =>
+                    child.on("close", resolve),
+                );
                 return { started: true, code, bytes, stderr };
             })();
 
             return await Promise.race([finished, failure]);
         },
     };
+}
+
+function environmentWithout(names: readonly string[] | undefined): NodeJS.ProcessEnv | undefined {
+    if (names === undefined || names.length === 0) return undefined;
+    const omitted = new Set(names.map((name) => name.toUpperCase()));
+    return Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => !omitted.has(name.toUpperCase())),
+    );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -330,7 +353,8 @@ export interface GhApiOptions {
 
 function apiArgs(endpoint: string, options: GhApiOptions, extra: readonly string[] = []): string[] {
     const args = ["api", ...extra, "-H", "Accept: application/vnd.github+json"];
-    if (options.host !== undefined && options.host.length > 0) args.push("--hostname", options.host);
+    if (options.host !== undefined && options.host.length > 0)
+        args.push("--hostname", options.host);
     args.push(endpoint);
     return args;
 }
@@ -387,7 +411,11 @@ export async function ghApiSend(
 }
 
 /** A `POST` with a JSON body, for the workflow dispatch. Answers nothing on success. */
-export async function ghApiPost(endpoint: string, body: unknown, options: GhApiOptions): Promise<void> {
+export async function ghApiPost(
+    endpoint: string,
+    body: unknown,
+    options: GhApiOptions,
+): Promise<void> {
     await ghApiSend(endpoint, "POST", body, options);
 }
 
@@ -397,9 +425,14 @@ export async function ghApiToFile(
     destination: string,
     options: GhApiOptions,
 ): Promise<number> {
-    const result = await options.runner.runToFile(GH_COMMAND, apiArgs(endpoint, options), destination, {
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
+    const result = await options.runner.runToFile(
+        GH_COMMAND,
+        apiArgs(endpoint, options),
+        destination,
+        {
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
+        },
+    );
     if (!result.started) throw new ActionsCallError(NOT_INSTALLED, 0, endpoint);
     if (result.code !== 0) throw ghFailure(result.stderr, endpoint);
     return result.bytes;

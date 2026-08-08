@@ -689,7 +689,10 @@ let ghCliIpc: GhCliIpc | null = null;
 
 function startGhCliAccounts(): GhCliIpc {
     if (ghCliIpc !== null) return ghCliIpc;
-    ghCliIpc = registerGhCliHandlers(ipcMain, { runner: nodeProcessRunner() });
+    ghCliIpc = registerGhCliHandlers(ipcMain, {
+        runner: nodeProcessRunner(),
+        openExternal: openExternalHttps,
+    });
     return ghCliIpc;
 }
 

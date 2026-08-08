@@ -3,11 +3,9 @@
  *
  * `githubAccountsStore.ts` next door is this application's own multi-account store. This
  * module is the completely separate thing: gh's own account list, read fresh every time
- * `load()` is called because nothing pushes a change here the way `github:event` pushes a
- * sign-in - `gh auth login` run in a terminal, or `gh auth switch` run from a different
- * program entirely, both change the real state with no event this application would ever
- * see. `checkAgain()` is the same call as `load()` under a name that reads right after
- * telling somebody to go run a command in a terminal and come back.
+ * `load()` is called because gh may also be changed by a terminal or another program with
+ * no event this application would ever see. `checkAgain()` is the same honest re-probe as
+ * `load()` after either the GUI login flow or an external change.
  *
  * A build whose preload predates this support has `canList === false`, and the surface that
  * mounts this falls back to a plain sentence rather than drawing an empty list - see
@@ -16,12 +14,15 @@
 
 import { computed, ref, type ComputedRef, type Ref } from "vue";
 import {
+    canLoginGhCli,
     canListGhCliAccounts,
     canSwitchGhCliAccount,
     resolveGhCliBridge,
     type GhCliAccountReadout,
     type GhCliAvailabilityReadout,
     type GhCliBridge,
+    type GhCliLoginResultReadout,
+    type GhCliLoginStateReadout,
     type GhCliSwitchReadout,
 } from "./ghCliBridge.js";
 
@@ -40,6 +41,7 @@ export interface GhCliSwitchReport {
 export interface GhCliAccountsStoreState {
     readonly canList: boolean;
     readonly canSwitch: boolean;
+    readonly canLogin: boolean;
 
     readonly availability: Ref<GhCliAvailabilityReadout | null>;
     readonly version: Ref<string | null>;
@@ -56,12 +58,21 @@ export interface GhCliAccountsStoreState {
     readonly switchReport: Ref<GhCliSwitchReport | null>;
     readonly actionFailure: Ref<string | null>;
 
+    /** Secret-free progress from the main process. */
+    readonly loginState: Ref<GhCliLoginStateReadout | null>;
+    readonly loginResult: Ref<GhCliLoginResultReadout | null>;
+    readonly loginBusy: ComputedRef<boolean>;
+
     readonly hasAccounts: ComputedRef<boolean>;
 
     load(): Promise<void>;
-    /** Same call as `load()`, named for after telling somebody to run a command elsewhere. */
+    /** Same call as `load()`, named for an explicit re-probe after any account change. */
     checkAgain(): Promise<void>;
     switchAccount(host: string, login: string): Promise<boolean>;
+    /** `expectedLogin` is supplied when repairing one account's scopes. */
+    startLogin(expectedLogin?: string): Promise<boolean>;
+    cancelLogin(): Promise<boolean>;
+    clearLogin(): void;
     dismissSwitchReport(): void;
     dismissActionFailure(): void;
 }
@@ -94,11 +105,14 @@ export function ghCliAccountSearchText(account: GhCliAccountReadout): string {
     return parts.filter((part) => part.trim().length > 0).join(" ");
 }
 
-export function createGhCliAccountsStore(options: GhCliAccountsStoreOptions = {}): GhCliAccountsStoreState {
+export function createGhCliAccountsStore(
+    options: GhCliAccountsStoreOptions = {},
+): GhCliAccountsStoreState {
     const bridge = options.bridge !== undefined ? options.bridge : resolveGhCliBridge();
 
     const canList = canListGhCliAccounts(bridge);
     const canSwitch = canSwitchGhCliAccount(bridge);
+    const canLogin = canLoginGhCli(bridge);
 
     const availability = ref<GhCliAvailabilityReadout | null>(null);
     const version = ref<string | null>(null);
@@ -111,8 +125,14 @@ export function createGhCliAccountsStore(options: GhCliAccountsStoreOptions = {}
     const busyKey = ref<string | null>(null);
     const switchReport = ref<GhCliSwitchReport | null>(null);
     const actionFailure = ref<string | null>(null);
+    const loginState = ref<GhCliLoginStateReadout | null>(null);
+    const loginResult = ref<GhCliLoginResultReadout | null>(null);
+    const loginInFlight = ref(false);
+    let stopLoginEvents: (() => void) | null = null;
+    let loginMayHaveChangedAccounts = false;
 
     const hasAccounts = computed(() => accounts.value.length > 0);
+    const loginBusy = computed(() => loginInFlight.value);
 
     async function load(): Promise<void> {
         const list = bridge?.ghCliListAccounts;
@@ -156,6 +176,62 @@ export function createGhCliAccountsStore(options: GhCliAccountsStoreOptions = {}
         }
     }
 
+    async function startLogin(expectedLogin?: string): Promise<boolean> {
+        const start = bridge?.ghCliStartLogin;
+        const subscribe = bridge?.onGhCliLoginState;
+        if (typeof start !== "function" || typeof subscribe !== "function" || loginInFlight.value)
+            return false;
+
+        stopLoginEvents?.();
+        loginMayHaveChangedAccounts = false;
+        stopLoginEvents = subscribe((state) => {
+            loginState.value = state;
+            if (
+                state.stage === "storing-credential" ||
+                state.stage === "verifying" ||
+                state.stage === "succeeded"
+            ) {
+                loginMayHaveChangedAccounts = true;
+            }
+        });
+        loginInFlight.value = true;
+        loginResult.value = null;
+        actionFailure.value = null;
+        try {
+            const result = await start(expectedLogin);
+            loginResult.value = result;
+            loginState.value = result.state;
+            if (result.ok || loginMayHaveChangedAccounts) await load();
+            return result.ok;
+        } catch (error) {
+            actionFailure.value = describe(error);
+            return false;
+        } finally {
+            loginInFlight.value = false;
+            stopLoginEvents?.();
+            stopLoginEvents = null;
+        }
+    }
+
+    async function cancelLogin(): Promise<boolean> {
+        const cancel = bridge?.ghCliCancelLogin;
+        if (typeof cancel !== "function" || !loginInFlight.value) return false;
+        try {
+            const result = await cancel();
+            if (!result.cancelled) actionFailure.value = result.message;
+            return result.cancelled;
+        } catch (error) {
+            actionFailure.value = describe(error);
+            return false;
+        }
+    }
+
+    function clearLogin(): void {
+        if (loginInFlight.value) return;
+        loginState.value = null;
+        loginResult.value = null;
+    }
+
     function dismissSwitchReport(): void {
         switchReport.value = null;
     }
@@ -167,6 +243,7 @@ export function createGhCliAccountsStore(options: GhCliAccountsStoreOptions = {}
     return {
         canList,
         canSwitch,
+        canLogin,
         availability,
         version,
         accounts,
@@ -177,10 +254,16 @@ export function createGhCliAccountsStore(options: GhCliAccountsStoreOptions = {}
         busyKey,
         switchReport,
         actionFailure,
+        loginState,
+        loginResult,
+        loginBusy,
         hasAccounts,
         load,
         checkAgain: load,
         switchAccount,
+        startLogin,
+        cancelLogin,
+        clearLogin,
         dismissSwitchReport,
         dismissActionFailure,
     };

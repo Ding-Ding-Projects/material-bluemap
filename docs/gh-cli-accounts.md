@@ -45,26 +45,41 @@ for a token kind that does not carry a scope list at all), how it was signed in 
 `keyring`, a plain file, and so on — never the credential itself), its git protocol, and whether
 `gh`'s own per-account health check reported anything other than success.
 
-### Scope gaps, shown where they matter
+### GUI sign-in and scope repair
 
-The section computes, per account, which of this application's own scopes of interest (`repo` for
-the backup route, `workflow` for dispatching a CI render) that account's token is missing —
-`APP_SCOPES_OF_INTEREST` in `main/ghcli/accounts.ts`. An account short a scope shows a warning right
-on its own row, with the exact command to fix it: `gh auth refresh --hostname <host> --scopes
-<missing scopes>`.
+The account section completes `gh` sign-in without asking somebody to run a terminal command. The
+main process uses GitHub CLI's verified public OAuth client identity (`178c6fc778ccc68e1d6a`) to
+request a device code, then shows only the one-time user code and GitHub approval URL in Settings.
+It requests `repo`, `workflow`, `gist`, `read:org`, `read:project`, and `project` together so one
+approval covers every permission this application can need through `gh`.
 
-That command is shown, never run. `gh auth login` and `gh auth refresh` both suppress their
-device-code prompt the instant standard input is not a real terminal, which is always true of a
-process this application spawns — so driving either from inside the app would hang forever with
-nothing printed. The section names the exact command, offers a copy-to-clipboard button, and a
-"Check again" button to re-read the list once the person has run it themselves. The same route
-covers "add an account": the section always shows a `gh auth login` command block, with the same
-copy-and-check-again pattern, rather than a button that pretends to start a sign-in it cannot
-finish.
+Pending approval, GitHub's `slow_down` response, denial, expiry, cancellation, credential storage,
+and identity verification are distinct visible states. Before either opening or rendering an
+address, the main process requires the exact HTTPS `github.com/login/device` route (and only the
+matching `user_code` query on a complete URL); the code and URL remain visible if no browser
+association exists.
 
-`gh auth refresh` only ever affects the *active* account on a host, which the section's copy says
-plainly beside the command when the account in question is not already active: switch to it first
-(see below), then run the refresh command.
+After approval, the access token stays in the main process just long enough to be written over
+stdin with the exact argument array below. The app removes inherited `GH_TOKEN`, `GITHUB_TOKEN`,
+enterprise-token variants, `GH_HOST`, and `GH_DEBUG` from this command and both proof commands, so
+an environment override cannot masquerade as the newly stored account, redirect host selection, or
+print auth diagnostics:
+
+```text
+gh auth login --hostname github.com --git-protocol https --with-token
+```
+
+The app never places it in argv, an environment variable, an intermediary file, a log message, or
+IPC. `gh` owns whichever operating-system keyring or CLI configuration storage it selects. The
+main process then runs `gh auth status --hostname github.com --json hosts` and
+`gh api --hostname github.com user --jq .login`; success is reported only when the stored active
+account and effective API identity agree. The application retains no token copy.
+
+The section still computes, per account, which operation-critical scopes (`repo` for backup and
+`workflow` for CI dispatch) are missing. **Approve required permissions** starts the same GUI flow
+with that account as the expected identity. If the browser approves somebody else, the interface
+reports which account `gh` actually stored and activated; it never claims the requested account
+changed.
 
 ### Switching gh's active account
 
@@ -140,38 +155,46 @@ backup) can call into; it does not itself decide when any particular screen shou
 ## Configuration
 
 There is nothing to configure. The section appears automatically inside Settings → GitHub whenever
-the build's preload exposes the `ghCliListAccounts`/`ghCliSwitchAccount` methods (every current
-build does); on an older build that predates this feature the section is simply absent, the same
-rule the app's own account list already follows.
+the preload can list accounts. GUI login is enabled only when the preload exposes the complete
+`ghCliStartLogin`, `ghCliCancelLogin`, and `onGhCliLoginState` trio, so an older shell never renders
+a half-working sign-in button.
 
 ## Failure modes
 
-| Situation | What is shown |
-|---|---|
-| `gh` is not on PATH at all | "gh is not on this computer's PATH…", plus a note that the app's own sign-in above is unaffected, plus a button to the System dependencies settings. |
-| `gh` is installed but nobody is signed in to it | "gh is installed but nobody is signed in to it. Run `gh auth login`…", plus the same command shown as a copyable block. |
-| `gh` answers a shape this build does not recognise (a very old or very new `gh`) | "gh answered … in a format this application does not recognise, so its accounts cannot be listed safely." Never reported as zero accounts. |
-| An account's token is short a scope this application needs | A warning on that account's own row, naming the missing scopes and the exact `gh auth refresh` command. |
-| `gh auth switch` reports success but the account did not actually become active | Reported as a failure, with `gh`'s own message — never a false "Active" chip. |
-| The selected account is signed in but inactive when a release operation begins | The app switches to it with the exact host and login, re-reads the account inventory, verifies the effective API identity, and leaves it active machine-wide. |
+| Situation                                                                                            | What is shown                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `gh` is not on PATH at all                                                                           | "gh is not on this computer's PATH…", plus a note that the app's own sign-in above is unaffected, plus a button to the System dependencies settings.               |
+| `gh` is installed but nobody is signed in to it                                                      | An honest signed-out status plus **Sign in with gh**, which opens the GUI device flow.                                                                             |
+| `gh` answers a shape this build does not recognise (a very old or very new `gh`)                     | "gh answered … in a format this application does not recognise, so its accounts cannot be listed safely." Never reported as zero accounts.                         |
+| An account's token is short a scope this application needs                                           | A warning naming the missing scopes plus **Approve required permissions**, using the same GUI flow.                                                                |
+| Approval is pending or GitHub asks the client to slow down                                           | The code, URL, countdown, and current wait state remain visible; the polling interval only grows.                                                                  |
+| Approval is denied, expires, or is cancelled                                                         | A terminal state names exactly what happened. No `gh` command runs before approval.                                                                                |
+| `gh` stores the credential but status or API identity cannot be proved                               | The UI says storage may have happened but verification failed; it never reports a successful sign-in.                                                              |
+| `gh auth switch` reports success but the account did not actually become active                      | Reported as a failure, with `gh`'s own message — never a false "Active" chip.                                                                                      |
+| The selected account is signed in but inactive when a release operation begins                       | The app switches to it with the exact host and login, re-reads the account inventory, verifies the effective API identity, and leaves it active machine-wide.      |
 | The selected account is missing, unhealthy, the switch is refused, or the effective identity differs | The release command is not run. The upload panel names the account and host, says no release data changed, and offers **Open GitHub accounts** beside the failure. |
-| An enterprise host is selected | Release commands use `--repo <host>/<owner>/<repository>`; no unsupported `--hostname` flag is added. |
-| A search matches nothing, while accounts exist | "Nothing here matches that search. Clearing it brings the whole list back." — distinct from either "installed and signed in as nobody" or "not installed". |
+| An enterprise host is selected                                                                       | Release commands use `--repo <host>/<owner>/<repository>`; no unsupported `--hostname` flag is added.                                                              |
+| A search matches nothing, while accounts exist                                                       | "Nothing here matches that search. Clearing it brings the whole list back." — distinct from either "installed and signed in as nobody" or "not installed".         |
 
 ## Security considerations
 
 - **The token never crosses this boundary.** `gh auth status --show-token` is never passed, `gh`'s
-  credential file is never read directly, and nothing in the IPC channel (`ghCli:listAccounts`,
-  `ghCli:switchAccount`) or the renderer's bridge types carries a token field. Every test in
+  credential file is never read directly, and nothing in the account/login IPC channels, progress
+  event, or renderer bridge types carries a token field. Every test in
   `main/ghcli/` asserts `--show-token` never appears in a spawned command's arguments.
 - **Switching is disclosed, not hidden.** Because `gh auth switch` is genuinely machine-wide, the
   warning above the row actions is treated as safety-critical copy: it is pinned by
   `GHCLIACCOUNTS_FACTS` so no funny level or rewrite can soften "whole computer" away, and it is
   shown before the action is taken as well as confirmed in the result afterward.
-- **`gh auth login`/`gh auth refresh` are never spawned by this application.** Both hang forever
-  when their stdin is not a real terminal, which is always true here — attempting to drive either
-  would be indistinguishable from a hang with no way to recover except killing the process. The
-  section only ever names the command and offers to copy it.
+- **The interactive `gh auth login` prompt is never scraped.** It suppresses its device code without
+  a terminal. The app performs the documented device exchange, then invokes only the
+  non-interactive `--with-token` storage form with the approved token on stdin.
+- **The token has one secret-safe route.** It exists only inside the main-process login function,
+  is redacted from every failure, and is absent from event, state, and result types. Tests assert it
+  is present on stdin but absent from argv, inherited auth environment, IPC-shaped JSON, and
+  rendered text. Account listing, switching, storage, status, and API proof all omit `GH_TOKEN`,
+  `GITHUB_TOKEN`, their enterprise variants, `GH_HOST`, and `GH_DEBUG`; `GH_CONFIG_DIR` stays
+  inherited because it identifies the user's real gh credential store.
 - **The credential-routing fallback never authenticates as an unselected identity for a write.**
   `decideWriteRoute` is the one gate every write-capable caller of `routeWithFallback` goes through;
   it refuses automatically the moment the fallback account differs from the one selected, which is
@@ -193,16 +216,24 @@ rule the app's own account list already follows.
   a 404-then-success reported as an access difference; a 404-then-404 reported as genuinely missing;
   a write whose fallback account differs asking rather than proceeding, and one whose account matches
   proceeding; `gh` unavailable degrading honestly; no token-shaped string in any produced message).
-- `design/packages/app/src/main/ghcli/ipc.test.ts` — 4 tests over channel registration/disposal and
-  both handlers against a fake process runner.
+- `design/packages/app/src/main/ghcli/login.test.ts` — direct device-flow coverage for pending,
+  slow-down, denial, expiry, cancellation, stdin-only credential storage, status/API identity proof,
+  account mismatch, strict approval-URL validation, inherited auth-environment removal, and token
+  redaction.
+- `design/packages/app/src/main/ghcli/ipc.test.ts` — channel registration/disposal, account handlers,
+  secret-free progress events, explicit and renderer-close cancellation, and the
+  one-process-wide-login guard.
+- `design/packages/app/src/main/cirender/gh.test.ts` — a real child-process check proving omitted
+  environment names are removed case-insensitively without putting their values in argv.
 - `design/packages/ui/src/copy/surfaces/ghCliAccounts.test.ts` — 12 tests over the catalogue's shape
   (five levels, both languages, no em-dashes, no token ever quoted), the funny-level slider actually
   changing the text, the FACTS pin never dropping the "whole computer" warning or the "gh"/"separate"
   two-stores distinction at any level.
-- `design/packages/ui/src/components/github/GhCliAccountsList.test.ts` — 12 tests mounting the real
+- `design/packages/ui/src/components/github/GhCliAccountsList.test.ts` — tests mounting the real
   component against a scripted bridge: every account's host, active chip and permissions render; the
-  machine-wide warning is always shown once accounts exist; a missing-scope warning shows the exact
-  refresh command; an unhealthy account is marked; switching reports the machine-wide outcome by
+  machine-wide warning is always shown once accounts exist; a missing-scope warning starts the same
+  GUI approval flow; the code, URL, countdown, and cancellation render; an unhealthy account is
+  marked; switching reports the machine-wide outcome by
   name; a switch that does not take is reported as a failure; all three honest empty/unavailable
   states render their own distinct message (and the not-installed state's button reaches
   `open-dependencies`); a search with no matches is distinguished from having no accounts at all; the
@@ -216,7 +247,7 @@ rule the app's own account list already follows.
 - `design/packages/ui/src/components/cirender/CiRenderScreen.test.ts` — the route refusal renders
   **Open GitHub accounts** on the same card and returns through the existing Settings action.
 
-The account and transport suites are all local fakes: they never mutate the machine's real `gh`
-sign-in and never publish a release. The exact command grammar was also checked against the installed
-`gh release create --help` / `gh release upload --help`; a real enterprise-account switch and a real
-multi-gigabyte upload remain external-account/runtime proof, not claims made by these tests.
+The account, login, and transport suites are all local fakes: they never mutate the machine's real
+`gh` sign-in and never publish a release. Login asserts the exact `gh auth login` argument array and
+asserts the approved token separately on stdin. A real browser approval remains external-account
+runtime proof, not a claim made by these tests.
