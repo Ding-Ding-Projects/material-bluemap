@@ -69,40 +69,45 @@ const timestamp = z.string().min(1);
  * here would silently drop the rest on every save. The named fields are the ones something
  * other than the editor needs to reason about without parsing HOCON.
  */
-export const projectMapSchema = z.object({
-    /** The map id, which becomes `maps/<id>.conf` and the folder tiles are written to. */
-    id: z
-        .string()
-        .min(1)
-        .regex(/^[a-z0-9_-]+$/, "a map id may hold lowercase letters, digits, hyphens and underscores"),
-    /** What a person calls it. Free text; the id is what machines use. */
-    name: z.string().min(1),
-    /** `minecraft:overworld`, `minecraft:the_nether`, or any dimension the world holds. */
-    dimension: z.string().min(1),
-    /**
-     * A different world than the one this project lives in, or null for that one.
-     *
-     * A project belongs to the world it sits in, and most maps are of that world's own
-     * dimensions - so null is the ordinary case and means "here". But a person with several
-     * worlds wants one map list covering all of them, and forcing a separate project per
-     * world would scatter the settings that describe a single server.
-     *
-     * Written relative to this project's own world where one path can reach the other, so a
-     * whole saves directory can be moved or copied and the project still resolves. An
-     * absolute path is accepted for a world on another drive, where no relative path exists,
-     * and is the one thing here that does not survive being moved - which the interface says
-     * rather than discovering silently at render time.
-     */
-    world: z.string().nullable().default(null),
-    /** The complete `maps/<id>.conf` body, HOCON. */
-    config: z.string(),
-    /** Which storage in `storages` receives the tiles. */
-    storage: z.string().min(1).default("file"),
-    /** Order in the web app's map list. Lower sorts first, as upstream does. */
-    sorting: z.number().int().default(0),
-    /** False keeps the map in the project without rendering it in a render-everything run. */
-    enabled: z.boolean().default(true),
-}).passthrough();
+export const projectMapSchema = z
+    .object({
+        /** The map id, which becomes `maps/<id>.conf` and the folder tiles are written to. */
+        id: z
+            .string()
+            .min(1)
+            .regex(
+                /^[a-z0-9_-]+$/,
+                "a map id may hold lowercase letters, digits, hyphens and underscores",
+            ),
+        /** What a person calls it. Free text; the id is what machines use. */
+        name: z.string().min(1),
+        /** `minecraft:overworld`, `minecraft:the_nether`, or any dimension the world holds. */
+        dimension: z.string().min(1),
+        /**
+         * A different world than the one this project lives in, or null for that one.
+         *
+         * A project belongs to the world it sits in, and most maps are of that world's own
+         * dimensions - so null is the ordinary case and means "here". But a person with several
+         * worlds wants one map list covering all of them, and forcing a separate project per
+         * world would scatter the settings that describe a single server.
+         *
+         * Written relative to this project's own world where one path can reach the other, so a
+         * whole saves directory can be moved or copied and the project still resolves. An
+         * absolute path is accepted for a world on another drive, where no relative path exists,
+         * and is the one thing here that does not survive being moved - which the interface says
+         * rather than discovering silently at render time.
+         */
+        world: z.string().nullable().default(null),
+        /** The complete `maps/<id>.conf` body, HOCON. */
+        config: z.string(),
+        /** Which storage in `storages` receives the tiles. */
+        storage: z.string().min(1).default("file"),
+        /** Order in the web app's map list. Lower sorts first, as upstream does. */
+        sorting: z.number().int().default(0),
+        /** False keeps the map in the project without rendering it in a render-everything run. */
+        enabled: z.boolean().default(true),
+    })
+    .passthrough();
 
 export type ProjectMap = z.infer<typeof projectMapSchema>;
 
@@ -131,21 +136,29 @@ export const projectStorageSchema = z
 export type ProjectStorage = z.infer<typeof projectStorageSchema>;
 
 /** How a render of this project is started. Mirrors the CLI's own options. */
-export const projectRenderSchema = z.object({
-    /** Null means "let BlueMap decide", which is what upstream does with no value. */
-    threads: z.number().int().min(1).nullable().default(null),
-    force: z.boolean().default(false),
-    fixEdges: z.boolean().default(false),
-    metrics: z.boolean().default(false),
-    /**
-     * Where the rendered web map is written, absolute.
-     *
-     * The one absolute path here, and it has to be: the output belongs outside the world,
-     * so it cannot be expressed relative to a file that lives inside it. Null means the app
-     * uses the storage directory chosen during setup, which is the ordinary case.
-     */
-    outputFolder: z.string().nullable().default(null),
-}).passthrough();
+export const projectRenderSchema = z
+    .object({
+        /**
+         * Where the render is executed. Older project files omit this field and are treated as
+         * local by every reader; new files write the choice explicitly so a project opened on a
+         * second computer keeps the same one-click Render behaviour.
+         */
+        route: z.enum(["local", "github-actions"]).optional(),
+        /** Null means "let BlueMap decide", which is what upstream does with no value. */
+        threads: z.number().int().min(1).nullable().default(null),
+        force: z.boolean().default(false),
+        fixEdges: z.boolean().default(false),
+        metrics: z.boolean().default(false),
+        /**
+         * Where the rendered web map is written, absolute.
+         *
+         * The one absolute path here, and it has to be: the output belongs outside the world,
+         * so it cannot be expressed relative to a file that lives inside it. Null means the app
+         * uses the storage directory chosen during setup, which is the ordinary case.
+         */
+        outputFolder: z.string().nullable().default(null),
+    })
+    .passthrough();
 
 export type ProjectRender = z.infer<typeof projectRenderSchema>;
 
@@ -157,43 +170,46 @@ export type ProjectRender = z.infer<typeof projectRenderSchema>;
  * chosen subset would quietly lose the rest. Absent means "this project never touched it",
  * and the app generates BlueMap's default at render time.
  */
-export const projectFileSchema = z.object({
-    /** Stable schema identity. Legacy and absent values are adapted on read. */
-    schema: z.enum([PROJECT_SCHEMA_ID, LEGACY_PROJECT_SCHEMA_ID]).optional(),
-    /** Refused rather than guessed when it is from the future. See PROJECT_FORMAT_VERSION. */
-    version: z.number().int().min(1),
-    /** Stable across renames and moves, so a history can follow a project that was renamed. */
-    id: z.string().min(1),
-    name: z.string().min(1),
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    /** Which build wrote it last. Diagnostic only; never used to decide behaviour. */
-    appVersion: z.string().nullable().default(null),
+export const projectFileSchema = z
+    .object({
+        /** Stable schema identity. Legacy and absent values are adapted on read. */
+        schema: z.enum([PROJECT_SCHEMA_ID, LEGACY_PROJECT_SCHEMA_ID]).optional(),
+        /** Refused rather than guessed when it is from the future. See PROJECT_FORMAT_VERSION. */
+        version: z.number().int().min(1),
+        /** Stable across renames and moves, so a history can follow a project that was renamed. */
+        id: z.string().min(1),
+        name: z.string().min(1),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        /** Which build wrote it last. Diagnostic only; never used to decide behaviour. */
+        appVersion: z.string().nullable().default(null),
 
-    maps: z.array(projectMapSchema).default([]),
-    storages: z.array(projectStorageSchema).default([]),
-    render: projectRenderSchema.default({
-        threads: null,
-        force: false,
-        fixEdges: false,
-        metrics: false,
-        outputFolder: null,
-    }),
+        maps: z.array(projectMapSchema).default([]),
+        storages: z.array(projectStorageSchema).default([]),
+        render: projectRenderSchema.default({
+            route: "local",
+            threads: null,
+            force: false,
+            fixEdges: false,
+            metrics: false,
+            outputFolder: null,
+        }),
 
-    core: z.string().nullable().default(null),
-    webapp: z.string().nullable().default(null),
-    webserver: z.string().nullable().default(null),
-    plugin: z.string().nullable().default(null),
+        core: z.string().nullable().default(null),
+        webapp: z.string().nullable().default(null),
+        webserver: z.string().nullable().default(null),
+        plugin: z.string().nullable().default(null),
 
-    /**
-     * True when this project was written by the wizard and has not been edited since.
-     *
-     * Not a lesser kind of project - it is the same file with the same settings - but the
-     * interface can honestly say "made by the guide, never opened in the editor", which is
-     * the difference between a project somebody designed and one they accepted defaults for.
-     */
-    fromWizard: z.boolean().default(false),
-}).passthrough();
+        /**
+         * True when this project was written by the wizard and has not been edited since.
+         *
+         * Not a lesser kind of project - it is the same file with the same settings - but the
+         * interface can honestly say "made by the guide, never opened in the editor", which is
+         * the difference between a project somebody designed and one they accepted defaults for.
+         */
+        fromWizard: z.boolean().default(false),
+    })
+    .passthrough();
 
 export type ProjectFile = z.infer<typeof projectFileSchema>;
 
@@ -224,7 +240,10 @@ export function parseProjectFile(text: string): ProjectReadResult {
     } catch (error) {
         return {
             ok: false,
-            failure: { kind: "not-json", message: error instanceof Error ? error.message : String(error) },
+            failure: {
+                kind: "not-json",
+                message: error instanceof Error ? error.message : String(error),
+            },
         };
     }
 
@@ -238,7 +257,10 @@ export function parseProjectFile(text: string): ProjectReadResult {
     // Version 1 had no schema field and used the legacy filename. Version 2 writes the
     // immutable Worldlens schema id, while still accepting the explicit legacy id.
     const adapted =
-        typeof raw === "object" && raw !== null && !Array.isArray(raw) && (version === 1 || version === 2)
+        typeof raw === "object" &&
+        raw !== null &&
+        !Array.isArray(raw) &&
+        (version === 1 || version === 2)
             ? {
                   ...(raw as Record<string, unknown>),
                   version: PROJECT_FORMAT_VERSION,
@@ -253,7 +275,9 @@ export function parseProjectFile(text: string): ProjectReadResult {
             failure: {
                 kind: "invalid",
                 problems: parsed.error.issues.map((issue) =>
-                    issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message,
+                    issue.path.length > 0
+                        ? `${issue.path.join(".")}: ${issue.message}`
+                        : issue.message,
                 ),
             },
         };

@@ -59,13 +59,7 @@ export interface ActionsCallOptions {
  * finished, which is the exact lie this feature exists not to tell.
  */
 export type RunStatus =
-    | "queued"
-    | "in_progress"
-    | "completed"
-    | "waiting"
-    | "requested"
-    | "pending"
-    | "unknown";
+    "queued" | "in_progress" | "completed" | "waiting" | "requested" | "pending" | "unknown";
 
 const KNOWN_STATUSES: readonly RunStatus[] = [
     "queued",
@@ -148,9 +142,51 @@ function base(options: ActionsCallOptions): string {
 function init(options: ActionsCallOptions, extra: RequestInit = {}): RequestInit {
     return {
         ...extra,
-        headers: { ...headers(options.token), ...(extra.headers as Record<string, string> | undefined) },
+        headers: {
+            ...headers(options.token),
+            ...(extra.headers as Record<string, string> | undefined),
+        },
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     };
+}
+
+/**
+ * A narrow JSON request used by the repository bootstrap's Git Data transaction.
+ *
+ * The endpoint is always assembled from fixed path segments by the main process. Keeping
+ * this beside the ordinary Actions requests means authentication, abort handling and API
+ * version headers remain identical; no token ever crosses into the renderer.
+ */
+export async function githubApiJson(
+    endpoint: string,
+    options: ActionsCallOptions,
+): Promise<unknown> {
+    const url = `${base(options)}/${endpoint.replace(/^\/+/, "")}`;
+    const response = await options.fetch(url, init(options));
+    if (!response.ok) throw await refuse(response, url, `Reading ${endpoint}`);
+    return await response.json();
+}
+
+/** A JSON mutation paired with {@link githubApiJson}; successful empty bodies return null. */
+export async function githubApiSendJson(
+    endpoint: string,
+    method: "POST" | "PATCH",
+    body: unknown,
+    options: ActionsCallOptions,
+): Promise<unknown> {
+    const url = `${base(options)}/${endpoint.replace(/^\/+/, "")}`;
+    const response = await options.fetch(
+        url,
+        init(options, {
+            method,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+        }),
+    );
+    if (!response.ok) throw await refuse(response, url, `${method} ${endpoint}`);
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text.length === 0 ? null : (JSON.parse(text) as unknown);
 }
 
 /**
@@ -266,7 +302,8 @@ export async function readWorkflow(
         `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
         `/actions/workflows/${encodeURIComponent(workflowFile)}`;
     const response = await options.fetch(url, init(options));
-    if (!response.ok) throw await refuse(response, url, `Reading ${workflowFile} on ${owner}/${repo}`);
+    if (!response.ok)
+        throw await refuse(response, url, `Reading ${workflowFile} on ${owner}/${repo}`);
     const summary = parseWorkflow(await response.json());
     if (summary === null) {
         throw new ActionsCallError(
@@ -316,7 +353,8 @@ export async function dispatchWorkflow(
             body: JSON.stringify({ ref, inputs }),
         }),
     );
-    if (!response.ok) throw await refuse(response, url, `Starting ${workflowFile} on ${owner}/${repo}`);
+    if (!response.ok)
+        throw await refuse(response, url, `Starting ${workflowFile} on ${owner}/${repo}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -381,8 +419,7 @@ export async function writeRepositoryVariable(
         throw await refuse(updateResponse, updateUrl, `Setting the repository variable ${name}`);
     }
 
-    const createUrl =
-        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/variables`;
+    const createUrl = `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/variables`;
     const createResponse = await options.fetch(
         createUrl,
         init(options, {
@@ -561,19 +598,27 @@ export async function listRunArtifacts(
         `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
         `/actions/runs/${String(runId)}/artifacts?per_page=100`;
     const response = await options.fetch(url, init(options));
-    if (!response.ok) throw await refuse(response, url, `Listing the artifacts of run ${String(runId)}`);
+    if (!response.ok)
+        throw await refuse(response, url, `Listing the artifacts of run ${String(runId)}`);
     return parseArtifacts(await response.json(), artifactZipUrl(base(options), owner, repo));
 }
 
 /** The URL an artifact's zip lives at, when GitHub's own answer did not carry one. */
-export function artifactZipUrl(apiBase: string, owner: string, repo: string): (id: number) => string {
+export function artifactZipUrl(
+    apiBase: string,
+    owner: string,
+    repo: string,
+): (id: number) => string {
     return (id) =>
         `${apiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
         `/actions/artifacts/${String(id)}/zip`;
 }
 
 /** The `/artifacts` body, shared by both credential routes. */
-export function parseArtifacts(body: unknown, fallbackUrl: (id: number) => string): readonly WorkflowArtifact[] {
+export function parseArtifacts(
+    body: unknown,
+    fallbackUrl: (id: number) => string,
+): readonly WorkflowArtifact[] {
     const raw = isRecord(body) ? body["artifacts"] : null;
     if (!Array.isArray(raw)) return [];
 
@@ -727,10 +772,12 @@ export async function readRepositoryFile(
     repo: string,
     path: string,
     options: ActionsCallOptions,
+    ref?: string,
 ): Promise<RepositoryFile | null> {
     const url =
         `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
-        `/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+        `/contents/${path.split("/").map(encodeURIComponent).join("/")}` +
+        (ref === undefined ? "" : `?ref=${encodeURIComponent(ref)}`);
     const response = await options.fetch(url, init(options));
     if (response.status === 404) return null;
     if (!response.ok) throw await refuse(response, url, `Reading ${path} on ${owner}/${repo}`);
@@ -774,7 +821,11 @@ export async function writeRepositoryFile(
         init(options, {
             method: "PUT",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ message, content: contentBase64, ...(sha === undefined ? {} : { sha }) }),
+            body: JSON.stringify({
+                message,
+                content: contentBase64,
+                ...(sha === undefined ? {} : { sha }),
+            }),
         }),
     );
     if (!response.ok) throw await refuse(response, url, `Writing ${path} on ${owner}/${repo}`);

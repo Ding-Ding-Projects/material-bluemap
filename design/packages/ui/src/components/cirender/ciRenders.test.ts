@@ -144,8 +144,12 @@ describe("nothing here draws an outcome a run has not reached", () => {
     });
 
     it("reports a completed run by its actual conclusion, and says so when there is none", () => {
-        expect(runLabel(run({ status: "completed", conclusion: "failure" }), t)).toBe("Run ended: failure");
-        expect(runLabel(run({ status: "completed", conclusion: null }), t)).toContain("no conclusion");
+        expect(runLabel(run({ status: "completed", conclusion: "failure" }), t)).toBe(
+            "Run ended: failure",
+        );
+        expect(runLabel(run({ status: "completed", conclusion: null }), t)).toContain(
+            "no conclusion",
+        );
     });
 
     it("names every phase, including the one before anything has happened", () => {
@@ -212,7 +216,9 @@ describe("the line that decides whether somebody starts an upload", () => {
     });
 
     it("reports the world's own problem rather than a size, when there is one", () => {
-        expect(uploadLine(preflight({ world: null, worldFailure: "no level.dat" }), t)).toBe("no level.dat");
+        expect(uploadLine(preflight({ world: null, worldFailure: "no level.dat" }), t)).toBe(
+            "no level.dat",
+        );
     });
 });
 
@@ -241,7 +247,11 @@ describe("rows follow the events", () => {
                 needsSignIn: false,
                 needsEula: false,
                 route: "session",
-                run: run({ status: "completed", conclusion: "failure", jobs: [job({ conclusion: "failure" })] }),
+                run: run({
+                    status: "completed",
+                    conclusion: "failure",
+                    jobs: [job({ conclusion: "failure" })],
+                }),
                 failingJob: "Wave 1",
                 logExcerpt: "::error::boom",
             },
@@ -329,7 +339,13 @@ describe("rows follow the events", () => {
         const { bridge: host, emit } = bridge();
         const renders = createCiRenders(host);
 
-        emit({ type: "phase", syncId: "s", phase: "uploading", route: "session", at: "2026-08-04T10:00:00Z" });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "uploading",
+            route: "session",
+            at: "2026-08-04T10:00:00Z",
+        });
         emit({
             type: "progress",
             syncId: "s",
@@ -352,7 +368,13 @@ describe("rows follow the events", () => {
 
         // A finished upload's bar left beside "GitHub is rendering" would read as a render
         // that is nearly done rather than one that has only just started.
-        emit({ type: "phase", syncId: "s", phase: "rendering", route: "session", at: "2026-08-04T10:05:00Z" });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "rendering",
+            route: "session",
+            at: "2026-08-04T10:05:00Z",
+        });
         expect(renders.rows.value[0]?.transfer).toBeNull();
         renders.dispose();
     });
@@ -372,18 +394,38 @@ describe("rows follow the events", () => {
         // Genuinely unknown for a moment: `started` fires before the route is resolved.
         expect(renders.rows.value[0]?.route).toBeNull();
 
-        emit({ type: "phase", syncId: "s", phase: "checking", route: "gh", at: "2026-08-04T10:00:01Z" });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "checking",
+            route: "gh",
+            at: "2026-08-04T10:00:01Z",
+        });
         expect(renders.rows.value[0]?.route).toBe("gh");
-        expect(routeLabel(renders.rows.value[0]?.route ?? null, t)).toContain("gh command-line tool");
+        expect(routeLabel(renders.rows.value[0]?.route ?? null, t)).toContain(
+            "gh command-line tool",
+        );
 
-        emit({ type: "phase", syncId: "s", phase: "rendering", route: "gh", at: "2026-08-04T10:05:00Z" });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "rendering",
+            route: "gh",
+            at: "2026-08-04T10:05:00Z",
+        });
         expect(renders.rows.value[0]?.route).toBe("gh");
         renders.dispose();
     });
 
     it("keeps whichever wave each shard says it belongs to, in the summary", () => {
         const jobs: CiJobReport[] = [
-            job({ id: 1, name: "Wave 1 shard 0", status: "completed", conclusion: "success", wave: 1 }),
+            job({
+                id: 1,
+                name: "Wave 1 shard 0",
+                status: "completed",
+                conclusion: "success",
+                wave: 1,
+            }),
             job({ id: 2, name: "Wave 1 shard 1", status: "in_progress", wave: 1 }),
             job({ id: 3, name: "Wave 2 shard 0", status: "queued", wave: 2 }),
             job({ id: 4, name: "Merge group 0", status: "queued", wave: null }),
@@ -479,7 +521,11 @@ describe("repoNameProblem: GitHub's own naming rules, said before GitHub says th
 
 describe("who could own it: the signed-in login and its organisations", () => {
     it("reports nobody signed in as the sign-in case, not the try-again case", async () => {
-        const answer: CiOwnerChoicesAnswer = { ok: false, signedIn: false, message: "Nobody is signed in." };
+        const answer: CiOwnerChoicesAnswer = {
+            ok: false,
+            signedIn: false,
+            message: "Nobody is signed in.",
+        };
         const { bridge: host } = bridge({ listCiOwners: () => Promise.resolve(answer) });
         const renders = createCiRenders(host);
         expect(renders.canListOwners).toBe(true);
@@ -489,7 +535,11 @@ describe("who could own it: the signed-in login and its organisations", () => {
     });
 
     it("tells signed-in-but-unreadable apart from not-signed-in, so the button offered differs", async () => {
-        const answer: CiOwnerChoicesAnswer = { ok: false, signedIn: true, message: "GitHub answered 500." };
+        const answer: CiOwnerChoicesAnswer = {
+            ok: false,
+            signedIn: true,
+            message: "GitHub answered 500.",
+        };
         const { bridge: host } = bridge({ listCiOwners: () => Promise.resolve(answer) });
         const renders = createCiRenders(host);
         await renders.loadOwners();
@@ -527,7 +577,11 @@ describe("who could own it: the signed-in login and its organisations", () => {
         const { bridge: host } = bridge({
             listCiOwners: (accountId) => {
                 seen.push(accountId);
-                return Promise.resolve({ ok: true, login: "monalisa", owners: [{ login: "monalisa", kind: "user" }] });
+                return Promise.resolve({
+                    ok: true,
+                    login: "monalisa",
+                    owners: [{ login: "monalisa", kind: "user" }],
+                });
             },
         });
         const renders = createCiRenders(host);
@@ -567,7 +621,10 @@ describe("suggesting and checking a repository name", () => {
     });
 
     it.each([
-        ["available" as const, { status: "available", owner: "o", repo: "r" } as CiRepositoryNameAvailability],
+        [
+            "available" as const,
+            { status: "available", owner: "o", repo: "r" } as CiRepositoryNameAvailability,
+        ],
         [
             "taken" as const,
             {
@@ -580,17 +637,25 @@ describe("suggesting and checking a repository name", () => {
         ],
         [
             "unknown" as const,
-            { status: "unknown", owner: "o", repo: "r", message: "offline" } as CiRepositoryNameAvailability,
+            {
+                status: "unknown",
+                owner: "o",
+                repo: "r",
+                message: "offline",
+            } as CiRepositoryNameAvailability,
         ],
-    ])("carries the %s verdict through untouched, never rounding it to another one", async (_label, answer) => {
-        const { bridge: host } = bridge({ checkCiRepoName: () => Promise.resolve(answer) });
-        const renders = createCiRenders(host);
-        expect(renders.canCheckRepoName).toBe(true);
-        await renders.checkRepoName("o", "r");
-        expect(renders.nameAvailability.value).toEqual(answer);
-        expect(renders.checkingName.value).toBe(false);
-        renders.dispose();
-    });
+    ])(
+        "carries the %s verdict through untouched, never rounding it to another one",
+        async (_label, answer) => {
+            const { bridge: host } = bridge({ checkCiRepoName: () => Promise.resolve(answer) });
+            const renders = createCiRenders(host);
+            expect(renders.canCheckRepoName).toBe(true);
+            await renders.checkRepoName("o", "r");
+            expect(renders.nameAvailability.value).toEqual(answer);
+            expect(renders.checkingName.value).toBe(false);
+            renders.dispose();
+        },
+    );
 
     it("clears whatever the last check said, for a field that just changed underneath it", async () => {
         const { bridge: host } = bridge({
@@ -616,8 +681,12 @@ describe("suggesting and checking a repository name", () => {
         // the outer-scope use as narrowed to the `null` initialiser, so `resolveFoo?.(...)`
         // below would type-check as calling `never`. A `{ current }` box sidesteps the
         // whole limitation, because narrowing a property read never worked that way.
-        const resolveFoo: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
-        const resolveFoobar: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
+        const resolveFoo: { current: ((value: CiRepositoryNameAvailability) => void) | null } = {
+            current: null,
+        };
+        const resolveFoobar: { current: ((value: CiRepositoryNameAvailability) => void) | null } = {
+            current: null,
+        };
         const { bridge: host } = bridge({
             checkCiRepoName: ({ repo }) =>
                 new Promise<CiRepositoryNameAvailability>((resolve) => {
@@ -633,13 +702,27 @@ describe("suggesting and checking a repository name", () => {
         // The fresher request (for what the field now holds) answers first...
         resolveFoobar.current?.({ status: "available", owner: "o", repo: "foobar" });
         await fresh;
-        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+        expect(renders.nameAvailability.value).toEqual({
+            status: "available",
+            owner: "o",
+            repo: "foobar",
+        });
 
         // ...and the older, slower one answers after it. It must not clobber the fresher
         // verdict the user is already looking at.
-        resolveFoo.current?.({ status: "taken", owner: "o", repo: "foo", private: false, htmlUrl: null });
+        resolveFoo.current?.({
+            status: "taken",
+            owner: "o",
+            repo: "foo",
+            private: false,
+            htmlUrl: null,
+        });
         await stale;
-        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+        expect(renders.nameAvailability.value).toEqual({
+            status: "available",
+            owner: "o",
+            repo: "foobar",
+        });
         expect(renders.checkingName.value).toBe(false);
         renders.dispose();
     });
@@ -649,7 +732,9 @@ describe("suggesting and checking a repository name", () => {
         // executor assigns these from inside `checkCiRepoName`'s nested function, which is
         // outside the control-flow analysis TypeScript performs at the read sites below.
         const rejectFoo: { current: ((error: Error) => void) | null } = { current: null };
-        const resolveFoobar: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
+        const resolveFoobar: { current: ((value: CiRepositoryNameAvailability) => void) | null } = {
+            current: null,
+        };
         const { bridge: host } = bridge({
             checkCiRepoName: ({ repo }) =>
                 repo === "foo"
@@ -667,18 +752,28 @@ describe("suggesting and checking a repository name", () => {
 
         resolveFoobar.current?.({ status: "available", owner: "o", repo: "foobar" });
         await fresh;
-        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+        expect(renders.nameAvailability.value).toEqual({
+            status: "available",
+            owner: "o",
+            repo: "foobar",
+        });
 
         rejectFoo.current?.(new Error("network blip"));
         await stale;
-        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+        expect(renders.nameAvailability.value).toEqual({
+            status: "available",
+            owner: "o",
+            repo: "foobar",
+        });
         expect(renders.checkingName.value).toBe(false);
         renders.dispose();
     });
 
     it("a clear that lands while a check is still in flight keeps the field cleared", async () => {
         // Same boxed-closure pattern as the two tests above.
-        const resolveCheck: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
+        const resolveCheck: { current: ((value: CiRepositoryNameAvailability) => void) | null } = {
+            current: null,
+        };
         const { bridge: host } = bridge({
             checkCiRepoName: () =>
                 new Promise<CiRepositoryNameAvailability>((resolve) => {
@@ -752,7 +847,8 @@ describe("clearing a stale preflight report", () => {
 
     it("drops a failed report's message too, not only a successful one's value", async () => {
         const { bridge: host } = bridge({
-            ciRenderPreflight: () => Promise.resolve({ ok: false, message: "repository not found" }),
+            ciRenderPreflight: () =>
+                Promise.resolve({ ok: false, message: "repository not found" }),
         });
         const renders = createCiRenders(host);
         await renders.check({ worldFolder: "/w", owner: "o", repo: "r" });
@@ -841,7 +937,11 @@ describe("scheduled re-rendering", () => {
                 seen.push({ owner, repo });
                 return Promise.resolve({
                     ok: true,
-                    value: status({ enabled: true, cadence: "daily", lastCheckResult: "unchanged" }),
+                    value: status({
+                        enabled: true,
+                        cadence: "daily",
+                        lastCheckResult: "unchanged",
+                    }),
                 });
             },
         });
@@ -870,7 +970,10 @@ describe("scheduled re-rendering", () => {
         const { bridge: host } = bridge({
             ciRenderScheduleRead: () => {
                 reads++;
-                return Promise.resolve({ ok: true, value: status({ enabled: true, cadence: "weekly" }) });
+                return Promise.resolve({
+                    ok: true,
+                    value: status({ enabled: true, cadence: "weekly" }),
+                });
             },
             ciRenderScheduleWrite: () => Promise.resolve({ ok: true, value: { ok: true } }),
         });
@@ -879,6 +982,31 @@ describe("scheduled re-rendering", () => {
         expect(result).toEqual({ ok: true });
         expect(reads).toBe(1);
         expect(renders.schedule.value?.cadence).toBe("weekly");
+        renders.dispose();
+    });
+
+    it("refuses a second schedule save while the first one is still in flight", async () => {
+        let release = (): void => undefined;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        let writes = 0;
+        const { bridge: host } = bridge({
+            ciRenderScheduleRead: () => Promise.resolve({ ok: true, value: status() }),
+            ciRenderScheduleWrite: async () => {
+                writes++;
+                await gate;
+                return { ok: true as const, value: { ok: true as const } };
+            },
+        });
+        const renders = createCiRenders(host);
+        const first = renders.saveSchedule("sync-1", "o", "r", true, "hours:12");
+        await Promise.resolve();
+        const second = await renders.saveSchedule("sync-1", "o", "r", true, "hours:24");
+        expect(second).toBeNull();
+        expect(writes).toBe(1);
+        release();
+        await first;
         renders.dispose();
     });
 
@@ -892,7 +1020,10 @@ describe("scheduled re-rendering", () => {
             ciRenderScheduleWrite: () =>
                 Promise.resolve({
                     ok: true,
-                    value: { ok: false, failure: { code: "not-uploaded-yet", message: "sync it first" } },
+                    value: {
+                        ok: false,
+                        failure: { code: "not-uploaded-yet", message: "sync it first" },
+                    },
                 }),
         });
         const renders = createCiRenders(host);

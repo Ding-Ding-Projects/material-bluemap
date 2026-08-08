@@ -135,6 +135,55 @@ export const PROJECT_VOICED = {
     /* screen's prose                                                    */
     /* ---------------------------------------------------------------- */
 
+    "project.render.routeHint": {
+        en: [
+            "Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.",
+            "Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.",
+            "Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps working after this computer is off.",
+            "Render here when this computer can do the work, or hand it to GitHub Actions and let the workflow keep drawing after this computer clocks off.",
+            "Render here when this computer has the muscle, or hand the blocks to GitHub Actions and let the workflow keep drawing after this computer is off and tucked into bed.",
+        ],
+        yue: [
+            "可以用呢部電腦本機算圖，或者用 GitHub Actions 一撳就跑；就算關咗呢部電腦，workflow 都會繼續。",
+            "可以用呢部電腦本機算圖，或者用 GitHub Actions 一撳就跑；就算關咗呢部電腦，workflow 都會繼續。",
+            "可以喺呢部電腦本機算圖，或者交俾 GitHub Actions 一撳就跑；呢部電腦關咗之後，workflow 照樣繼續做。",
+            "呢部電腦夠力就本機算；想關機就交俾 GitHub Actions，workflow 會繼續畫，唔使部機陪夜。",
+            "呢部電腦夠大隻就本機算；想關機瞓覺就交俾 GitHub Actions，workflow 自己繼續搬磚畫圖，唔使部機捱通宵。",
+        ],
+    },
+    "project.create.routeHint": {
+        en: [
+            "You can change this later. GitHub Actions installs BlueMap and its dependencies inside the workflow.",
+            "You can change this later. GitHub Actions installs BlueMap and its dependencies inside the workflow.",
+            "You can change this later. GitHub Actions installs BlueMap and all required dependencies inside the workflow.",
+            "You can change this later. The GitHub Actions workflow installs BlueMap and its dependencies for itself, so this computer does not need a local BlueMap setup.",
+            "You can change this later. The GitHub Actions workflow brings its own BlueMap toolbox and dependencies, so this computer does not need to dress up as a render farm first.",
+        ],
+        yue: [
+            "之後可以再改。GitHub Actions 會喺 workflow 入面安裝 BlueMap 同所需依賴。",
+            "之後可以再改。GitHub Actions 會喺 workflow 入面安裝 BlueMap 同所需依賴。",
+            "之後隨時可以改。GitHub Actions 會喺 workflow 入面自己安裝 BlueMap 同全部所需依賴。",
+            "之後可以再改。GitHub Actions workflow 會自己裝 BlueMap 同依賴，所以呢部電腦唔使預先設定 BlueMap。",
+            "之後隨時可以改。GitHub Actions workflow 會孭住成套 BlueMap 工具箱同依賴入場，呢部電腦唔使先扮成算圖農場。",
+        ],
+    },
+    "project.autosave.queueFailed": {
+        en: [
+            "This edit is still on screen, but it could not be queued for automatic saving: {message}",
+            "This edit is still on screen, but it could not be queued for automatic saving: {message}",
+            "This edit is still safely on screen, but automatic saving could not queue it: {message}",
+            "The edit is still on screen, but the automatic-save queue dropped the baton: {message}",
+            "The edit is still on screen, but the automatic-save queue tripped over its own shoelaces: {message}",
+        ],
+        yue: [
+            "呢次改動仲喺畫面，但未能排入自動儲存：{message}",
+            "呢次改動仲喺畫面，但未能排入自動儲存：{message}",
+            "呢次改動仲安全留喺畫面，但自動儲存未能排隊：{message}",
+            "改動仲喺畫面，不過自動儲存條隊接棒失手：{message}",
+            "改動仲喺畫面，不過自動儲存條隊俾自己鞋帶跣親：{message}",
+        ],
+    },
+
     "project.render.threadsHint": {
         en: [
             "How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.",
@@ -1172,18 +1221,18 @@ export const PROJECT_VOICED = {
     },
     "project.create.started": {
         en: [
-            "The project is open but not written yet. Add its maps, set anything you want, and save when it is ready.",
-            "The project is open but not written yet. Add its maps, set anything you want, and save when it is ready.",
-            "The project is open but not written yet. Add its maps, set anything you want, and save when it is ready.",
-            "The project is open but not written yet, not until you say so. Add its maps, set anything you want, and save when it is ready.",
-            "The project is open, sitting there in memory, but not written yet. Add its maps, tune whatever you like, and save when it is ready, whenever that may be.",
+            "The project is open and automatic saving is on. Add maps or change settings; a quiet pause saves it, and Save now is always available.",
+            "The project is open and automatic saving is on. Add maps or change settings; a quiet pause saves it, and Save now is always available.",
+            "The project is open and automatic saving is on. Add maps or change settings; a quiet pause saves it, and Save now is always available.",
+            "The project is open and automatic saving is on. Add maps or tune settings; a quiet pause saves it, while Save now remains ready for the impatient click.",
+            "The project is open and automatic saving is on, already keeping watch. Add maps or tune settings; a quiet pause saves the lot, while Save now stands by like a very eager butler.",
         ],
         yue: [
-            "個 project 開咗，但仲未寫落去。加返啲地圖，想點設定就點設定，準備好就儲存。",
-            "個 project 開咗，但仲未寫落去。加返啲地圖，想點設定就點設定，準備好就儲存。",
-            "個 project 開咗，但仲未寫落去。加返啲地圖，想點設定就點設定，準備好就儲存。",
-            "個 project 開咗，但仲未寫落去，未叫佢寫就唔會寫。加返啲地圖，想點設定就點設定，準備好就儲存。",
-            "個 project 開咗，靜靜哋喺記憶體度坐緊，但仲未寫落去。加返啲地圖，想點郁就點郁，準備好就儲存，幾時得閒都得。",
+            "個 project 開咗，自動儲存亦已經開啟。加地圖或者改設定，停一停就會自動儲存，亦可以隨時撳「立即儲存」。",
+            "個 project 開咗，自動儲存亦已經開啟。加地圖或者改設定，停一停就會自動儲存，亦可以隨時撳「立即儲存」。",
+            "個 project 開咗，自動儲存亦已經開啟。加地圖或者改設定，停一停就會自動儲存，亦可以隨時撳「立即儲存」。",
+            "個 project 開咗，自動儲存已經望實。加地圖或者調設定，停一停就會儲存；心急都可以即刻撳「立即儲存」。",
+            "個 project 開咗，自動儲存已經企定定睇場。加地圖或者扭設定，停一停就幫你執好；等唔切就撳「立即儲存」。",
         ],
     },
     "project.forget.done": {
@@ -1252,18 +1301,18 @@ export const PROJECT_VOICED = {
     },
     "project.create.blurb": {
         en: [
-            "The project file is written at the root of the world folder you choose, so the world carries its own settings wherever it goes. Nothing is written until you save.",
-            "The project file is written at the root of the world folder you choose, so the world carries its own settings wherever it goes. Nothing is written until you save.",
-            "The project file is written at the root of the world folder you choose, so the world carries its own settings wherever it goes. Nothing is written until you save.",
-            "The project file gets written at the root of the world folder you choose, so the world carries its own settings wherever it goes. Nothing is written until you save.",
-            "The project file takes up residence right at the root of the world folder you choose, so the world carries its own settings wherever it wanders off to. Nothing is written until you save, not one byte.",
+            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. Automatic saving starts as soon as the project opens.",
+            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. Automatic saving starts as soon as the project opens.",
+            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. Automatic saving starts as soon as the project opens.",
+            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. Automatic saving clocks in as soon as the project opens.",
+            "The project file takes up residence at the root of the world folder, so the world carries its settings wherever it wanders. Automatic saving starts work the instant the project opens.",
         ],
         yue: [
-            "Project 檔案會寫喺你揀嘅世界資料夾嘅根目錄，所以個世界去到邊都帶住自己嘅設定。儲存之前乜都唔會寫入去。",
-            "Project 檔案會寫喺你揀嘅世界資料夾嘅根目錄，所以個世界去到邊都帶住自己嘅設定。儲存之前乜都唔會寫入去。",
-            "Project 檔案會寫喺你揀嘅世界資料夾嘅根目錄，所以個世界去到邊都帶住自己嘅設定。儲存之前乜都唔會寫入去。",
-            "Project 檔案會落戶喺你揀嘅世界資料夾嘅根目錄，所以個世界去到邊都帶住自己嘅設定。儲存之前乜都唔會寫入去。",
-            "Project 檔案會安家喺你揀嘅世界資料夾嘅根目錄，所以個世界流浪去邊都帶住自己嘅設定。儲存之前乜都唔會寫入去，一個位元組都唔會。",
+            "Project 檔案會放喺世界資料夾嘅根目錄，所以個世界去到邊都帶住設定。Project 一打開，自動儲存就開始。",
+            "Project 檔案會放喺世界資料夾嘅根目錄，所以個世界去到邊都帶住設定。Project 一打開，自動儲存就開始。",
+            "Project 檔案會放喺世界資料夾嘅根目錄，所以個世界去到邊都帶住設定。Project 一打開，自動儲存就開始。",
+            "Project 檔案會落戶喺世界資料夾嘅根目錄，所以個世界去到邊都帶住設定。Project 一開，自動儲存即刻返工。",
+            "Project 檔案會安家喺世界資料夾嘅根目錄，所以個世界流浪去邊都帶住設定。Project 一開，自動儲存即刻開工，唔使三催四請。",
         ],
     },
 
@@ -1356,6 +1405,12 @@ export const PROJECT_FIXED = {
      * use that record, via `SimpleHistoryList`, which carries its own copy for the list itself.
      */
     "project.editor.tab.history": { en: "History", yue: "版本記錄" },
+    "project.render.route": { en: "Where this project renders", yue: "呢個 project 喺邊度算圖" },
+    "project.render.routeLocal": { en: "This computer", yue: "呢部電腦" },
+    "project.render.routeActions": {
+        en: "GitHub Actions (works while this computer is off)",
+        yue: "GitHub Actions（呢部電腦熄咗都繼續）",
+    },
     "project.render.threads": { en: "Render threads", yue: "算圖執行緒" },
     "project.render.force": { en: "Draw everything again", yue: "全部重新畫" },
     "project.render.fixEdges": { en: "Redraw the edges too", yue: "連邊緣都重畫" },
@@ -1363,20 +1418,27 @@ export const PROJECT_FIXED = {
         en: "Send BlueMap's anonymous usage report",
         yue: "傳送 BlueMap 嘅匿名使用報告",
     },
-    "project.render.outputFolder": { en: "Where the rendered map is written", yue: "算好嘅地圖寫入邊度" },
+    "project.render.outputFolder": {
+        en: "Where the rendered map is written",
+        yue: "算好嘅地圖寫入邊度",
+    },
     "project.editor.back": { en: "All projects", yue: "所有 project" },
     "project.editor.fromWizard": { en: "made by the guide", yue: "由引導整嘅" },
-    "project.editor.unsaved": { en: "unsaved changes", yue: "未儲存嘅改動" },
+    "project.editor.unsaved": { en: "waiting to auto-save", yue: "等緊自動儲存" },
     "project.editor.name": { en: "Project name", yue: "Project 名稱" },
-    "project.editor.save": { en: "Save the project", yue: "儲存 project" },
+    "project.editor.save": { en: "Save now", yue: "立即儲存" },
     "project.editor.revert": { en: "Discard these changes", yue: "捨棄呢啲改動" },
     "project.editor.windowLabel": { en: "This project", yue: "呢個 project" },
     "project.editor.tabsLabel": { en: "Project sections", yue: "Project 分頁" },
     "project.render.search": { en: "Search these settings", yue: "搜尋呢啲設定" },
     "project.render.searchHint": { en: "threads, edges, output", yue: "執行緒、邊緣、輸出" },
     "project.editor.render": {
-        en: "Render this project ({maps} maps)",
-        yue: "算呢個 project（{maps} 張地圖）",
+        en: "Render on this computer ({maps} maps)",
+        yue: "喺呢部電腦算圖（{maps} 張地圖）",
+    },
+    "project.editor.renderCloud": {
+        en: "Render with GitHub Actions ({maps} maps)",
+        yue: "用 GitHub Actions 算圖（{maps} 張地圖）",
     },
     "project.render.searchSummary": {
         en: "{shown} of {total} settings match.",
@@ -1399,9 +1461,15 @@ export const PROJECT_FIXED = {
     "project.list.selectInverse": { en: "Invert", yue: "反選" },
     "project.list.selectNone": { en: "Clear the selection", yue: "清空已選" },
     "project.list.exportFormat": { en: "Export as", yue: "匯出格式" },
-    "project.list.exportChosen": { en: "Export the {chosen} chosen", yue: "匯出已選嘅 {chosen} 個" },
+    "project.list.exportChosen": {
+        en: "Export the {chosen} chosen",
+        yue: "匯出已選嘅 {chosen} 個",
+    },
     "project.list.exportShown": { en: "Export the {shown} shown", yue: "匯出顯示緊嘅 {shown} 個" },
-    "project.list.bulkDeleteTitle": { en: "Remove these project files", yue: "移除呢啲 project 檔案" },
+    "project.list.bulkDeleteTitle": {
+        en: "Remove these project files",
+        yue: "移除呢啲 project 檔案",
+    },
     "project.list.bulkDeleteConfirm": {
         en: "Remove the chosen project files",
         yue: "移除已選嘅 project 檔案",
@@ -1434,7 +1502,10 @@ export const PROJECT_FIXED = {
         yue: "JSON，齊晒每個欄位，讀得返",
     },
     "project.list.formatCsv": { en: "CSV, for a spreadsheet", yue: "CSV，用喺試算表" },
-    "project.list.formatMarkdown": { en: "Markdown table, for pasting", yue: "Markdown 表格，用嚟貼" },
+    "project.list.formatMarkdown": {
+        en: "Markdown table, for pasting",
+        yue: "Markdown 表格，用嚟貼",
+    },
     "project.list.searchSummary": {
         en: "Showing {shown} of {total}.",
         yue: "顯示緊 {total} 個入面嘅 {shown} 個。",
@@ -1466,12 +1537,24 @@ export const PROJECT_FIXED = {
         en: "Rendered when this project runs",
         yue: "呢個 project 執行時會算呢張圖",
     },
-    "project.maps.disabled": { en: "Kept in the project, not rendered", yue: "留喺 project 入面，但唔會算" },
-    "project.maps.moveUpOne": { en: "Move {name} earlier in the list", yue: "喺清單度將 {name} 移前" },
+    "project.maps.disabled": {
+        en: "Kept in the project, not rendered",
+        yue: "留喺 project 入面，但唔會算",
+    },
+    "project.maps.moveUpOne": {
+        en: "Move {name} earlier in the list",
+        yue: "喺清單度將 {name} 移前",
+    },
     "project.maps.moveUp": { en: "Earlier", yue: "移前" },
-    "project.maps.moveDownOne": { en: "Move {name} later in the list", yue: "喺清單度將 {name} 移後" },
+    "project.maps.moveDownOne": {
+        en: "Move {name} later in the list",
+        yue: "喺清單度將 {name} 移後",
+    },
     "project.maps.moveDown": { en: "Later", yue: "移後" },
-    "project.maps.deleteTitle": { en: "Take this map out of the project", yue: "由 project 移除呢張地圖" },
+    "project.maps.deleteTitle": {
+        en: "Take this map out of the project",
+        yue: "由 project 移除呢張地圖",
+    },
     "project.maps.deleteConfirm": { en: "Remove the map {id}", yue: "移除地圖 {id}" },
     "project.maps.delete": { en: "Remove this map", yue: "移除呢張地圖" },
 
@@ -1483,14 +1566,20 @@ export const PROJECT_FIXED = {
         en: "{shown} of {total} storages match.",
         yue: "{total} 個儲存空間入面有 {shown} 個符合。",
     },
-    "project.storages.listLabel": { en: "Storages in this project", yue: "呢個 project 入面嘅儲存空間" },
+    "project.storages.listLabel": {
+        en: "Storages in this project",
+        yue: "呢個 project 入面嘅儲存空間",
+    },
     "project.storages.search": { en: "Search storages", yue: "搜尋儲存空間" },
     "project.storages.searchHint": { en: "name or type", yue: "名稱或者類型" },
     "project.storages.secretChip": { en: "secret", yue: "有密碼" },
     "project.storages.new": { en: "Add a storage", yue: "新增儲存空間" },
     "project.storages.newTitle": { en: "Add a storage", yue: "新增儲存空間" },
     "project.storages.name": { en: "Storage name", yue: "儲存空間名稱" },
-    "project.storages.typeLabel": { en: "What this storage writes into", yue: "呢個儲存空間寫入邊度" },
+    "project.storages.typeLabel": {
+        en: "What this storage writes into",
+        yue: "呢個儲存空間寫入邊度",
+    },
     "project.storages.typeFile": { en: "A folder", yue: "資料夾" },
     "project.storages.typeSql": { en: "A database", yue: "資料庫" },
     "project.storages.cancel": { en: "Cancel", yue: "取消" },
@@ -1510,6 +1599,7 @@ export const PROJECT_FIXED = {
     "project.render.consentAction": { en: "Open the setting", yue: "打開呢項設定" },
     "project.create.title": { en: "Start a project for a world", yue: "幫個世界開個 project" },
     "project.create.world": { en: "World folder", yue: "世界資料夾" },
+    "project.create.route": { en: "Render this project on", yue: "呢個 project 喺邊度算圖" },
     "project.create.browse": { en: "Browse", yue: "瀏覽" },
     "project.create.cancel": { en: "Cancel", yue: "取消" },
     "project.create.confirm": { en: "Start the project", yue: "開始呢個 project" },
@@ -1542,6 +1632,18 @@ export const PROJECT_FACTS = {
     /* ---------------------------------------------------------------- */
 
     "project.render.threadsHint": { en: ["BlueMap", "machine"], yue: ["BlueMap", "機"] },
+    "project.render.routeHint": {
+        en: ["this computer", "GitHub Actions", "off"],
+        yue: ["呢部電腦", "GitHub Actions", "關"],
+    },
+    "project.create.routeHint": {
+        en: ["change", "GitHub Actions", "BlueMap", "dependencies"],
+        yue: ["改", "GitHub Actions", "BlueMap", "依賴"],
+    },
+    "project.autosave.queueFailed": {
+        en: ["edit", "screen", "automatic", "{message}"],
+        yue: ["改動", "畫面", "自動儲存", "{message}"],
+    },
     "project.render.forceHint": { en: ["every chunk", "Slow"], yue: ["每一個區塊", "慢"] },
     "project.render.fixEdgesHint": {
         en: ["boundary", "seams", "interrupted"],
@@ -1705,11 +1807,19 @@ export const PROJECT_FACTS = {
         yue: ["{id}", "唔喺呢個 project 入面"],
     },
     "project.storages.none": {
-        en: ["where rendered tiles are written", "no storage", "folder the app renders into", "Add one"],
+        en: [
+            "where rendered tiles are written",
+            "no storage",
+            "folder the app renders into",
+            "Add one",
+        ],
         yue: ["圖磚寫落嘅地方", "儲存空間", "算圖嘅資料夾", "加一個"],
     },
     "project.storages.noMatch": { en: ["No storage matches", "search"], yue: ["符合", "搜尋"] },
-    "project.storages.newNote": { en: ["template", "never in this file"], yue: ["範本", "唔會擺喺呢個檔案"] },
+    "project.storages.newNote": {
+        en: ["template", "never in this file"],
+        yue: ["範本", "唔會擺喺呢個檔案"],
+    },
     "project.storages.credentialled": {
         en: ["connection-properties", "world folder", "will not save"],
         yue: ["connection-properties", "世界資料夾", "唔會儲存"],
@@ -1719,13 +1829,19 @@ export const PROJECT_FACTS = {
         yue: ["{id}", "冇得復原"],
     },
     "project.storages.formSubtitle": { en: ["{id}", "tiles go"], yue: ["{id}", "圖磚去"] },
-    "project.storages.pick": { en: ["Pick a storage", "add one"], yue: ["揀一個儲存空間", "新增一個"] },
+    "project.storages.pick": {
+        en: ["Pick a storage", "add one"],
+        yue: ["揀一個儲存空間", "新增一個"],
+    },
 
     /* ---------------------------------------------------------------- */
     /* ProjectsScreen.vue                                                 */
     /* ---------------------------------------------------------------- */
 
-    "project.open.absent": { en: ["no project file", "world folder"], yue: ["冇 project 檔案", "世界資料夾"] },
+    "project.open.absent": {
+        en: ["no project file", "world folder"],
+        yue: ["冇 project 檔案", "世界資料夾"],
+    },
     "project.open.tooNew": {
         en: ["{version}", "silently drop", "Update the app"],
         yue: ["{version}", "靜靜雞", "更新程式"],
@@ -1738,14 +1854,17 @@ export const PROJECT_FACTS = {
     "project.open.unreadable": { en: ["could not be read"], yue: ["讀唔到"] },
     "project.save.done": { en: ["{file}", "project"], yue: ["{file}", "project"] },
     "project.create.needWorld": { en: ["Choose the world folder"], yue: ["揀個世界資料夾"] },
-    "project.create.relative": { en: ["relative", "Use a full path"], yue: ["相對路徑", "用完整路徑"] },
+    "project.create.relative": {
+        en: ["relative", "Use a full path"],
+        yue: ["相對路徑", "用完整路徑"],
+    },
     "project.create.exists": {
         en: ["already has a project", "exactly one project file"],
         yue: ["已經有 project", "淨係得一個 project 檔案"],
     },
     "project.create.started": {
-        en: ["not written yet", "save when it is ready"],
-        yue: ["未寫落去", "準備好就儲存"],
+        en: ["automatic saving is on", "Save now"],
+        yue: ["自動儲存", "立即儲存"],
     },
     "project.forget.done": { en: ["{gone}", "untouched"], yue: ["{gone}", "冇被郁過"] },
     "project.forget.failed": { en: ["not removed", "{failure}"], yue: ["冇被移除", "{failure}"] },
@@ -1758,8 +1877,8 @@ export const PROJECT_FACTS = {
         yue: ["冇辦法開始算圖", "桌面程式"],
     },
     "project.create.blurb": {
-        en: ["root of the world folder", "Nothing is written until you save"],
-        yue: ["世界資料夾嘅根目錄", "儲存之前乜都唔會寫"],
+        en: ["root of the world folder", "Automatic saving"],
+        yue: ["世界資料夾嘅根目錄", "自動儲存"],
     },
     "project.row.world": { en: ["{world}"], yue: ["{world}"] },
     "project.row.oneMap": { en: ["1 map"], yue: ["1 張地圖"] },

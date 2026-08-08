@@ -46,6 +46,7 @@ import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
 import type {
     CiBootstrapEvent,
+    CiBootstrapFailureCode,
     CiBootstrapFileOutcome,
     CiBootstrapPhase,
     CiBootstrapReport,
@@ -613,6 +614,15 @@ const canBootstrapAutomatically = computed(
 const bootstrapping = ref(false);
 const bootstrapReport = ref<CiBootstrapReport | null>(null);
 const bootstrapFailureMessage = ref<string | null>(null);
+const bootstrapFailureCode = ref<CiBootstrapFailureCode | null>(null);
+const bootstrapConflict = computed(
+    () =>
+        bootstrapFailureCode.value === "user-authored-conflict" ||
+        bootstrapFailureCode.value === "managed-file-modified" ||
+        bootstrapFailureCode.value === "newer-marker-version" ||
+        bootstrapFailureCode.value === "newer-template-version" ||
+        bootstrapFailureCode.value === "concurrent-update",
+);
 /** True only for the one failure a re-authorisation button actually fixes. */
 const bootstrapMissingScope = ref(false);
 /** The single line shown while a bootstrap runs: the current phase, or the latest log line. */
@@ -678,18 +688,22 @@ function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
  * pressed the button lands on the next real decision (starting a render) rather than back
  * where they began.
  */
-async function setupRepositoryAutomatically(): Promise<void> {
+async function setupRepositoryAutomatically(): Promise<boolean> {
+    // The disabled button is the visible guard; this check is the real re-entry guard for
+    // keyboard submission and direct calls while the first bootstrap is still in flight.
+    if (bootstrapping.value) return false;
     const targetOwner = owner.value.trim();
     const targetRepo = repo.value.trim();
-    if (targetOwner === "" || targetRepo === "") return;
+    if (targetOwner === "" || targetRepo === "") return false;
     if (bridge === null || !canBootstrapAutomatically.value) {
         openRepositorySetup();
-        return;
+        return false;
     }
 
     bootstrapping.value = true;
     bootstrapReport.value = null;
     bootstrapFailureMessage.value = null;
+    bootstrapFailureCode.value = null;
     bootstrapMissingScope.value = false;
     bootstrapProgressText.value = bootstrapPhaseLabel("checking-scopes");
     unsubscribeBootstrap?.();
@@ -713,14 +727,19 @@ async function setupRepositoryAutomatically(): Promise<void> {
             // The workflow now exists (or Actions is now known to be off) - re-read the
             // repository so the card reflects it rather than the stale "needs setup" state.
             await check();
+            return result.report.ready;
         } else {
             bootstrapFailureMessage.value = result.failure.message;
+            bootstrapFailureCode.value = result.failure.code;
             bootstrapMissingScope.value = result.failure.code === "missing-scope";
             bootstrapProgressText.value = null;
+            return false;
         }
     } catch (error) {
         bootstrapFailureMessage.value = error instanceof Error ? error.message : String(error);
+        bootstrapFailureCode.value = null;
         bootstrapProgressText.value = null;
+        return false;
     } finally {
         bootstrapping.value = false;
         unsubscribeBootstrap?.();
@@ -855,23 +874,41 @@ async function check(): Promise<void> {
     });
 }
 
+/** Covers bootstrap and dispatch together, so repeated clicks cannot start parallel setup runs. */
+const startRequestInFlight = ref(false);
+
 async function start(): Promise<void> {
-    const result = await renders.start({
-        worldFolder: worldFolder.value.trim(),
-        owner: owner.value.trim(),
-        repo: repo.value.trim(),
-        acknowledgeUpload: acknowledgeUpload.value,
-        acknowledgePublic: acknowledgePublic.value,
-        forceUpload: forceUpload.value,
-        output: publishToPages.value ? "artifact-and-pages" : "artifact",
-        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
-    });
-    if (result?.ok === true && result.outcome === "rendered") {
-        emit("rendered", {
-            renderId: result.summary.renderId,
-            dataRoot: result.summary.dataRoot,
-            mapId: result.summary.mapId,
+    if (startRequestInFlight.value) return;
+    startRequestInFlight.value = true;
+
+    try {
+        // The packaged templates are the source of truth for workflows this app owns. Run the
+        // idempotent bootstrap immediately before every manual dispatch: unchanged files cost
+        // only a read, an older managed workflow is upgraded automatically, and a user-authored
+        // conflict is refused before a render can start against stale instructions.
+        if (canBootstrapAutomatically.value && !(await setupRepositoryAutomatically())) return;
+
+        const result = await renders.start({
+            worldFolder: worldFolder.value.trim(),
+            owner: owner.value.trim(),
+            repo: repo.value.trim(),
+            acknowledgeUpload: acknowledgeUpload.value,
+            acknowledgePublic: acknowledgePublic.value,
+            forceUpload: forceUpload.value,
+            output: publishToPages.value ? "artifact-and-pages" : "artifact",
+            ...(effectiveAccountId.value === undefined
+                ? {}
+                : { accountId: effectiveAccountId.value }),
         });
+        if (result?.ok === true && result.outcome === "rendered") {
+            emit("rendered", {
+                renderId: result.summary.renderId,
+                dataRoot: result.summary.dataRoot,
+                mapId: result.summary.mapId,
+            });
+        }
+    } finally {
+        startRequestInFlight.value = false;
     }
 }
 
@@ -895,14 +932,23 @@ function jobSample(row: CiRow): string {
 /* -- scheduled re-rendering: on or off, a cadence, and the last check ------- */
 
 /**
- * The four cadences this screen offers, and nothing else - never a cron expression.
- * `CiScheduleCadence` names the same four in `render-actions`'s `cadence.ts`, which
- * `.github/workflows/scheduled-render.yml` reads; this array exists only to drive the
- * `<VSelect>` below without hard-coding the four strings a second place.
+ * Four guided presets plus a bounded custom whole-hour interval - never a cron expression.
+ * The main process and workflow validate the same `hours:N` representation again, so a
+ * renderer typo cannot become an unbounded Actions schedule.
  */
-const SCHEDULE_CADENCES: readonly CiScheduleCadence[] = ["hourly", "sixHourly", "daily", "weekly"];
+type CiPresetScheduleCadence = "hourly" | "sixHourly" | "daily" | "weekly";
+type ScheduleCadenceChoice = CiPresetScheduleCadence | "custom";
 
-function cadenceLabel(cadence: CiScheduleCadence): string {
+const SCHEDULE_CADENCES: readonly CiPresetScheduleCadence[] = [
+    "hourly",
+    "sixHourly",
+    "daily",
+    "weekly",
+];
+const CUSTOM_SCHEDULE_MIN_HOURS = 1;
+const CUSTOM_SCHEDULE_MAX_HOURS = 168;
+
+function cadenceLabel(cadence: CiPresetScheduleCadence): string {
     switch (cadence) {
         case "hourly":
             return t("cirender.schedule.cadence.hourly", "Every hour");
@@ -917,7 +963,49 @@ function cadenceLabel(cadence: CiScheduleCadence): string {
 
 /** Only one row's schedule panel is open at a time, an accordion rather than N copies. */
 const scheduleOpenSyncId = ref<string | null>(null);
-const scheduleCadenceDraft = ref<CiScheduleCadence>("daily");
+const scheduleCadenceChoice = ref<ScheduleCadenceChoice>("daily");
+const scheduleCustomHoursDraft = ref("12");
+const scheduleCadenceError = ref<string | null>(null);
+
+function customHours(cadence: CiScheduleCadence): number | null {
+    const match = /^hours:([1-9]\d{0,2})$/.exec(cadence);
+    if (match === null) return null;
+    const hours = Number(match[1]);
+    return Number.isInteger(hours) &&
+        hours >= CUSTOM_SCHEDULE_MIN_HOURS &&
+        hours <= CUSTOM_SCHEDULE_MAX_HOURS
+        ? hours
+        : null;
+}
+
+function loadCadenceDraft(cadence: CiScheduleCadence): void {
+    const hours = customHours(cadence);
+    if (hours === null) {
+        scheduleCadenceChoice.value = cadence as CiPresetScheduleCadence;
+    } else {
+        scheduleCadenceChoice.value = "custom";
+        scheduleCustomHoursDraft.value = String(hours);
+    }
+    scheduleCadenceError.value = null;
+}
+
+function selectedScheduleCadence(): CiScheduleCadence | null {
+    if (scheduleCadenceChoice.value !== "custom") return scheduleCadenceChoice.value;
+    const hours = Number(scheduleCustomHoursDraft.value);
+    if (
+        !Number.isInteger(hours) ||
+        hours < CUSTOM_SCHEDULE_MIN_HOURS ||
+        hours > CUSTOM_SCHEDULE_MAX_HOURS
+    ) {
+        scheduleCadenceError.value = t(
+            "cirender.schedule.custom.invalid",
+            "Enter a whole number from 1 to 168 hours.",
+        );
+        return null;
+    }
+    scheduleCadenceError.value = null;
+    return `hours:${hours}`;
+}
 
 function scheduleOwnerRepo(row: CiRow): { owner: string; repo: string } | null {
     const slash = row.repository.indexOf("/");
@@ -935,20 +1023,29 @@ async function toggleSchedule(row: CiRow): Promise<void> {
     if (target === null) return;
     await renders.loadSchedule(target.owner, target.repo, effectiveAccountId.value);
     const cadence = renders.schedule.value?.cadence;
-    if (cadence !== null && cadence !== undefined) scheduleCadenceDraft.value = cadence;
+    if (cadence !== null && cadence !== undefined) loadCadenceDraft(cadence);
 }
 
 async function saveScheduleFor(row: CiRow, enabled: boolean): Promise<void> {
     const target = scheduleOwnerRepo(row);
     if (target === null) return;
+    const cadence = enabled
+        ? selectedScheduleCadence()
+        : (renders.schedule.value?.cadence ?? selectedScheduleCadence() ?? "daily");
+    if (cadence === null) return;
     await renders.saveSchedule(
         row.syncId,
         target.owner,
         target.repo,
         enabled,
-        scheduleCadenceDraft.value,
+        cadence,
         effectiveAccountId.value,
     );
+}
+
+async function scheduleCadenceChoiceChanged(row: CiRow): Promise<void> {
+    scheduleCadenceError.value = null;
+    if (scheduleCadenceChoice.value !== "custom") await saveScheduleFor(row, true);
 }
 
 function scheduleResultText(result: CiScheduleCheckResultName): string {
@@ -1546,6 +1643,18 @@ onBeforeUnmount(() => {
                         class="mb-3"
                         data-test="bootstrap-failure"
                     >
+                        <p
+                            v-if="bootstrapConflict"
+                            class="font-weight-medium"
+                            data-test="bootstrap-conflict"
+                        >
+                            {{
+                                t(
+                                    "cirender.bootstrap.conflict",
+                                    "Managed workflow conflict: no repository files were changed.",
+                                )
+                            }}
+                        </p>
                         {{ bootstrapFailureMessage }}
                         <div v-if="bootstrapMissingScope" class="mt-2">
                             <VBtn
@@ -1702,8 +1811,8 @@ onBeforeUnmount(() => {
 
                     <VBtn
                         :prepend-icon="mdiCloudSyncOutline"
-                        :disabled="blockedBecause !== null"
-                        :loading="renders.starting.value"
+                        :disabled="blockedBecause !== null || startRequestInFlight || bootstrapping"
+                        :loading="startRequestInFlight || renders.starting.value || bootstrapping"
                         color="primary"
                         data-test="start"
                         @click="start"
@@ -2005,6 +2114,7 @@ onBeforeUnmount(() => {
                                     :model-value="renders.schedule.value.enabled"
                                     :label="t('cirender.schedule.enable', 'Check automatically')"
                                     :loading="renders.savingSchedule.value"
+                                    :disabled="renders.savingSchedule.value"
                                     density="compact"
                                     data-test="schedule-enable"
                                     @update:model-value="
@@ -2014,18 +2124,60 @@ onBeforeUnmount(() => {
                                 />
 
                                 <VSelect
-                                    v-model="scheduleCadenceDraft"
-                                    :items="
-                                        SCHEDULE_CADENCES.map((c) => ({
+                                    v-model="scheduleCadenceChoice"
+                                    :items="[
+                                        ...SCHEDULE_CADENCES.map((c) => ({
                                             title: cadenceLabel(c),
                                             value: c,
-                                        }))
-                                    "
+                                        })),
+                                        {
+                                            title: t(
+                                                'cirender.schedule.cadence.custom',
+                                                'Custom interval',
+                                            ),
+                                            value: 'custom',
+                                        },
+                                    ]"
                                     :label="t('cirender.schedule.cadence', 'How often')"
-                                    :disabled="!renders.schedule.value.enabled"
+                                    :disabled="
+                                        !renders.schedule.value.enabled ||
+                                        renders.savingSchedule.value
+                                    "
                                     density="compact"
                                     data-test="schedule-cadence"
-                                    @update:model-value="saveScheduleFor(row, true)"
+                                    @update:model-value="scheduleCadenceChoiceChanged(row)"
+                                />
+
+                                <VTextField
+                                    v-if="scheduleCadenceChoice === 'custom'"
+                                    v-model="scheduleCustomHoursDraft"
+                                    type="number"
+                                    :min="CUSTOM_SCHEDULE_MIN_HOURS"
+                                    :max="CUSTOM_SCHEDULE_MAX_HOURS"
+                                    step="1"
+                                    :label="
+                                        t(
+                                            'cirender.schedule.custom.hours',
+                                            'Run every this many hours',
+                                        )
+                                    "
+                                    :hint="
+                                        t(
+                                            'cirender.schedule.custom.hint',
+                                            'Choose a whole number from 1 to 168. GitHub checks the schedule while this computer is off.',
+                                        )
+                                    "
+                                    :error-messages="
+                                        scheduleCadenceError === null ? [] : [scheduleCadenceError]
+                                    "
+                                    :disabled="
+                                        !renders.schedule.value.enabled ||
+                                        renders.savingSchedule.value
+                                    "
+                                    persistent-hint
+                                    density="compact"
+                                    data-test="schedule-custom-hours"
+                                    @change="saveScheduleFor(row, true)"
                                 />
 
                                 <p class="text-medium-emphasis" data-test="schedule-help">

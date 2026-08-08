@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import {
-    mdiArrowLeft,
-    mdiContentSaveOutline,
-    mdiPlay,
-    mdiUndoVariant,
-} from "@mdi/js";
+import { mdiArrowLeft, mdiContentSaveOutline, mdiPlay, mdiUndoVariant } from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -14,6 +9,7 @@ import {
     VCardText,
     VChip,
     VProgressLinear,
+    VSelect,
     VSpacer,
     VSwitch,
     VTextField,
@@ -36,6 +32,7 @@ import {
     isRenderFieldDefault,
     openSingletonFile,
     orderedMaps,
+    projectRenderRoute,
     renderProblems,
     withName,
     withRender,
@@ -117,6 +114,7 @@ const isDirty = computed(() => props.dirty === true);
 const isSaving = computed(() => props.saving === true);
 const renderable = computed(() => props.canRender === true);
 const isRendering = computed(() => props.rendering === true);
+const selectedRenderRoute = computed(() => projectRenderRoute(props.project));
 const separatorValue = computed(() => props.separator ?? "/");
 const defaultRootValue = computed(() => props.defaultRoot ?? "");
 
@@ -137,9 +135,7 @@ const selectedStorage = ref<string | null>(null);
  * disk. Recomputed from `world` rather than resolved once, because a person can close one
  * project and open another without the editor unmounting.
  */
-const projectHistoryHost = computed(() =>
-    resolveProjectHistoryHost(props.world),
-);
+const projectHistoryHost = computed(() => resolveProjectHistoryHost(props.world));
 
 const maps = computed(() => orderedMaps(props.project));
 
@@ -151,7 +147,9 @@ const problemTexts = computed(() =>
     problems.value.map((problem) => t(problem.key, problem.vars ?? {}, problem.fallback)),
 );
 
-const canStart = computed(() => renderable.value && !isRendering.value && problems.value.length === 0);
+const canStart = computed(
+    () => renderable.value && !isRendering.value && problems.value.length === 0,
+);
 
 const singletonLabels: Record<SingletonKind, string> = {
     core: "Core",
@@ -192,7 +190,11 @@ const singletonTabs = computed(() =>
  * read on arrival rather than glanced at from the strip.
  */
 const pages = computed<TabPage[]>(() => [
-    { id: TAB_MAPS, label: t("project.editor.tab.maps", { maps: maps.value.length }, "Maps ({maps})"), icon: null },
+    {
+        id: TAB_MAPS,
+        label: t("project.editor.tab.maps", { maps: maps.value.length }, "Maps ({maps})"),
+        icon: null,
+    },
     {
         id: TAB_STORAGES,
         label: t(
@@ -224,15 +226,24 @@ function singletonFile(kind: SingletonKind) {
 }
 
 function onSingletonSet(kind: SingletonKind, field: FieldMeta, value: PlainValue): void {
-    emit("update:project", withSingleton(props.project, kind, setFieldValue(singletonFile(kind), field, value).text));
+    emit(
+        "update:project",
+        withSingleton(props.project, kind, setFieldValue(singletonFile(kind), field, value).text),
+    );
 }
 
 function onSingletonClear(kind: SingletonKind, field: FieldMeta): void {
-    emit("update:project", withSingleton(props.project, kind, clearFieldValue(singletonFile(kind), field).text));
+    emit(
+        "update:project",
+        withSingleton(props.project, kind, clearFieldValue(singletonFile(kind), field).text),
+    );
 }
 
 function onSingletonText(kind: SingletonKind, text: string): void {
-    emit("update:project", withSingleton(props.project, kind, replaceText(singletonFile(kind), text).text));
+    emit(
+        "update:project",
+        withSingleton(props.project, kind, replaceText(singletonFile(kind), text).text),
+    );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -251,15 +262,25 @@ const runQuery = ref("");
 const runRegex = ref(false);
 const runFlags = ref("im");
 
-const runMatcher = computed(() => createSettingMatcher(runQuery.value, runRegex.value, runFlags.value));
+const runMatcher = computed(() =>
+    createSettingMatcher(runQuery.value, runRegex.value, runFlags.value),
+);
 
 interface RunRow {
-    readonly id: "threads" | "force" | "fixEdges" | "metrics" | "outputFolder";
+    readonly id: "route" | "threads" | "force" | "fixEdges" | "metrics" | "outputFolder";
     readonly label: string;
     readonly hint: string;
 }
 
 const runRows = computed<RunRow[]>(() => [
+    {
+        id: "route",
+        label: t("project.render.route", "Where this project renders"),
+        hint: t(
+            "project.render.routeHint",
+            "Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.",
+        ),
+    },
     {
         id: "threads",
         label: t("project.render.threads", "Render threads"),
@@ -287,7 +308,10 @@ const runRows = computed<RunRow[]>(() => [
     {
         id: "metrics",
         label: t("project.render.metrics", "Send BlueMap's anonymous usage report"),
-        hint: t("project.render.metricsHint", "Off unless deliberately turned on. Nothing about your world is in it."),
+        hint: t(
+            "project.render.metricsHint",
+            "Off unless deliberately turned on. Nothing about your world is in it.",
+        ),
     },
     {
         id: "outputFolder",
@@ -327,7 +351,7 @@ const runSample = computed(() => runRows.value.map((row) => `${row.label} ${row.
  * Every real config setting shown elsewhere in this editor - a map's fields, a storage's
  * fields, the four whole-file singletons - already goes through `../config/ConfigField.vue`,
  * which has carried a "this is BlueMap's own default" line and a one-click reset since
- * before this task. These five (`threads`, `force`, `fixEdges`, `metrics`, `outputFolder`)
+ * before this task. These six (`route`, `threads`, `force`, `fixEdges`, `metrics`, `outputFolder`)
  * are project-level render options with no `FieldMeta` behind them, so they never got that
  * for free; this is that same idea, applied here.
  */
@@ -362,8 +386,44 @@ function setThreads(value: string): void {
 
 function setOutputFolder(value: string): void {
     const trimmed = value.trim();
-    emit("update:project", withRender(props.project, { outputFolder: trimmed === "" ? null : trimmed }));
+    emit(
+        "update:project",
+        withRender(props.project, { outputFolder: trimmed === "" ? null : trimmed }),
+    );
 }
+
+const renderRouteItems = computed(() => [
+    {
+        title: t("project.render.routeLocal", "This computer"),
+        value: "local" as const,
+    },
+    {
+        title: t(
+            "project.render.routeActions",
+            "GitHub Actions (works while this computer is off)",
+        ),
+        value: "github-actions" as const,
+    },
+]);
+
+function setRenderRoute(value: "local" | "github-actions" | null): void {
+    if (value === null) return;
+    emit("update:project", withRender(props.project, { route: value }));
+}
+
+const renderButtonLabel = computed(() =>
+    selectedRenderRoute.value === "github-actions"
+        ? t(
+              "project.editor.renderCloud",
+              { maps: maps.value.filter((map) => map.enabled).length },
+              "Render with GitHub Actions ({maps} maps)",
+          )
+        : t(
+              "project.editor.render",
+              { maps: maps.value.filter((map) => map.enabled).length },
+              "Render on this computer ({maps} maps)",
+          ),
+);
 </script>
 
 <template>
@@ -371,7 +431,12 @@ function setOutputFolder(value: string): void {
         <v-card class="mb-project-editor__head">
             <v-card-text>
                 <div class="mb-project-editor__headrow">
-                    <v-btn :prepend-icon="mdiArrowLeft" variant="text" size="small" @click="emit('close')">
+                    <v-btn
+                        :prepend-icon="mdiArrowLeft"
+                        variant="text"
+                        size="small"
+                        @click="emit('close')"
+                    >
                         {{ t("project.editor.back", "All projects") }}
                     </v-btn>
                     <v-spacer />
@@ -379,7 +444,7 @@ function setOutputFolder(value: string): void {
                         {{ t("project.editor.fromWizard", "made by the guide") }}
                     </v-chip>
                     <v-chip v-if="isDirty" size="small" color="warning" variant="tonal">
-                        {{ t("project.editor.unsaved", "unsaved changes") }}
+                        {{ t("project.editor.unsaved", "waiting to auto-save") }}
                     </v-chip>
                 </div>
 
@@ -390,7 +455,9 @@ function setOutputFolder(value: string): void {
                     density="compact"
                     hide-details="auto"
                     class="mt-2"
-                    @update:model-value="(value: string) => emit('update:project', withName(project, value))"
+                    @update:model-value="
+                        (value: string) => emit('update:project', withName(project, value))
+                    "
                 />
 
                 <p class="mb-project-editor__path">
@@ -407,7 +474,14 @@ function setOutputFolder(value: string): void {
 
                 <v-progress-linear v-if="isSaving" indeterminate color="primary" class="mt-2" />
 
-                <v-alert v-if="saveFailure" type="error" density="compact" variant="tonal" class="mt-2" role="alert">
+                <v-alert
+                    v-if="saveFailure"
+                    type="error"
+                    density="compact"
+                    variant="tonal"
+                    class="mt-2"
+                    role="alert"
+                >
                     {{ saveFailure }}
                 </v-alert>
 
@@ -430,20 +504,25 @@ function setOutputFolder(value: string): void {
                         variant="flat"
                         @click="emit('save')"
                     >
-                        {{ t("project.editor.save", "Save the project") }}
+                        {{ t("project.editor.save", "Save now") }}
                     </v-btn>
-                    <v-btn :prepend-icon="mdiUndoVariant" :disabled="!isDirty || isSaving" variant="text" @click="emit('revert')">
+                    <v-btn
+                        :prepend-icon="mdiUndoVariant"
+                        :disabled="!isDirty || isSaving"
+                        variant="text"
+                        @click="emit('revert')"
+                    >
                         {{ t("project.editor.revert", "Discard these changes") }}
                     </v-btn>
                     <v-spacer />
-                    <v-btn :prepend-icon="mdiPlay" :disabled="!canStart" color="primary" variant="tonal" @click="emit('render')">
-                        {{
-                            t(
-                                "project.editor.render",
-                                { maps: maps.filter((map) => map.enabled).length },
-                                "Render this project ({maps} maps)",
-                            )
-                        }}
+                    <v-btn
+                        :prepend-icon="mdiPlay"
+                        :disabled="!canStart"
+                        color="primary"
+                        variant="tonal"
+                        @click="emit('render')"
+                    >
+                        {{ renderButtonLabel }}
                     </v-btn>
                 </div>
 
@@ -494,7 +573,10 @@ function setOutputFolder(value: string): void {
             </template>
 
             <template #render>
-                <section class="mb-project-editor__run" :aria-label="t('project.editor.tab.render', 'How it renders')">
+                <section
+                    class="mb-project-editor__run"
+                    :aria-label="t('project.editor.tab.render', 'How it renders')"
+                >
                     <ConfigSearchField
                         v-model="runQuery"
                         v-model:regex="runRegex"
@@ -505,11 +587,46 @@ function setOutputFolder(value: string): void {
                         :summary="runSummary"
                     />
 
+                    <v-select
+                        v-if="showsRun('route')"
+                        :model-value="selectedRenderRoute"
+                        :items="renderRouteItems"
+                        :label="t('project.render.route', 'Where this project renders')"
+                        :hint="
+                            t(
+                                'project.render.routeHint',
+                                'Use this computer for a local render, or GitHub Actions for a click-and-run render that keeps going after this computer is off.',
+                            )
+                        "
+                        persistent-hint
+                        variant="outlined"
+                        density="compact"
+                        class="mt-3"
+                        @update:model-value="setRenderRoute"
+                    />
+                    <div v-if="showsRun('route')" class="mb-project-editor__fieldDefault">
+                        <span>{{ fieldDefaultText("route", selectedRenderRoute) }}</span>
+                        <v-btn
+                            v-if="!isRenderFieldDefault(project, 'route')"
+                            variant="text"
+                            size="x-small"
+                            density="comfortable"
+                            @click="resetRenderField('route')"
+                        >
+                            {{ t("project.fieldDefault.reset", "Reset to BlueMap's default") }}
+                        </v-btn>
+                    </div>
+
                     <v-text-field
                         v-if="showsRun('threads')"
                         :model-value="project.render.threads ?? ''"
                         :label="t('project.render.threads', 'Render threads')"
-                        :hint="t('project.render.threadsHint', 'How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.')"
+                        :hint="
+                            t(
+                                'project.render.threadsHint',
+                                'How many chunks are drawn at once. Left empty, BlueMap decides from the machine it is on, which is usually the right answer.',
+                            )
+                        "
                         persistent-hint
                         type="number"
                         min="1"
@@ -535,12 +652,23 @@ function setOutputFolder(value: string): void {
                         v-if="showsRun('force')"
                         :model-value="project.render.force"
                         :label="t('project.render.force', 'Draw everything again')"
-                        :hint="t('project.render.forceHint', 'Redraws every chunk rather than only the ones that changed. Slow, and what you want after changing how the map looks.')"
+                        :hint="
+                            t(
+                                'project.render.forceHint',
+                                'Redraws every chunk rather than only the ones that changed. Slow, and what you want after changing how the map looks.',
+                            )
+                        "
                         persistent-hint
                         color="primary"
                         density="compact"
                         inset
-                        @update:model-value="(value: boolean | null) => emit('update:project', withRender(project, { force: value === true }))"
+                        @update:model-value="
+                            (value: boolean | null) =>
+                                emit(
+                                    'update:project',
+                                    withRender(project, { force: value === true }),
+                                )
+                        "
                     />
                     <div v-if="showsRun('force')" class="mb-project-editor__fieldDefault">
                         <span>{{ fieldDefaultText("force", project.render.force) }}</span>
@@ -559,12 +687,23 @@ function setOutputFolder(value: string): void {
                         v-if="showsRun('fixEdges')"
                         :model-value="project.render.fixEdges"
                         :label="t('project.render.fixEdges', 'Redraw the edges too')"
-                        :hint="t('project.render.fixEdgesHint', 'Redraws the boundary between chunks as well as the chunks themselves, which is what fixes seams left by an interrupted render.')"
+                        :hint="
+                            t(
+                                'project.render.fixEdgesHint',
+                                'Redraws the boundary between chunks as well as the chunks themselves, which is what fixes seams left by an interrupted render.',
+                            )
+                        "
                         persistent-hint
                         color="primary"
                         density="compact"
                         inset
-                        @update:model-value="(value: boolean | null) => emit('update:project', withRender(project, { fixEdges: value === true }))"
+                        @update:model-value="
+                            (value: boolean | null) =>
+                                emit(
+                                    'update:project',
+                                    withRender(project, { fixEdges: value === true }),
+                                )
+                        "
                     />
                     <div v-if="showsRun('fixEdges')" class="mb-project-editor__fieldDefault">
                         <span>{{ fieldDefaultText("fixEdges", project.render.fixEdges) }}</span>
@@ -582,13 +721,26 @@ function setOutputFolder(value: string): void {
                     <v-switch
                         v-if="showsRun('metrics')"
                         :model-value="project.render.metrics"
-                        :label="t('project.render.metrics', 'Send BlueMap\'s anonymous usage report')"
-                        :hint="t('project.render.metricsHint', 'Off unless deliberately turned on. Nothing about your world is in it.')"
+                        :label="
+                            t('project.render.metrics', 'Send BlueMap\'s anonymous usage report')
+                        "
+                        :hint="
+                            t(
+                                'project.render.metricsHint',
+                                'Off unless deliberately turned on. Nothing about your world is in it.',
+                            )
+                        "
                         persistent-hint
                         color="primary"
                         density="compact"
                         inset
-                        @update:model-value="(value: boolean | null) => emit('update:project', withRender(project, { metrics: value === true }))"
+                        @update:model-value="
+                            (value: boolean | null) =>
+                                emit(
+                                    'update:project',
+                                    withRender(project, { metrics: value === true }),
+                                )
+                        "
                     />
                     <div v-if="showsRun('metrics')" class="mb-project-editor__fieldDefault">
                         <span>{{ fieldDefaultText("metrics", project.render.metrics) }}</span>
@@ -608,7 +760,9 @@ function setOutputFolder(value: string): void {
                         :model-value="project.render.outputFolder ?? ''"
                         field="the render output folder"
                         semantic="folder"
-                        :label="t('project.render.outputFolder', 'Where the rendered map is written')"
+                        :label="
+                            t('project.render.outputFolder', 'Where the rendered map is written')
+                        "
                         class="mt-3"
                         @update:model-value="setOutputFolder"
                     />
@@ -621,7 +775,9 @@ function setOutputFolder(value: string): void {
                         }}
                     </p>
                     <div v-if="showsRun('outputFolder')" class="mb-project-editor__fieldDefault">
-                        <span>{{ fieldDefaultText("outputFolder", project.render.outputFolder) }}</span>
+                        <span>{{
+                            fieldDefaultText("outputFolder", project.render.outputFolder)
+                        }}</span>
                         <v-btn
                             v-if="!isRenderFieldDefault(project, 'outputFolder')"
                             variant="text"
@@ -634,7 +790,12 @@ function setOutputFolder(value: string): void {
                     </div>
 
                     <p v-if="visibleRunRows.length === 0" class="mb-project-editor__note">
-                        {{ t("project.render.noMatches", "Nothing on this tab matches. The other tabs may still have results.") }}
+                        {{
+                            t(
+                                "project.render.noMatches",
+                                "Nothing on this tab matches. The other tabs may still have results.",
+                            )
+                        }}
                     </p>
                 </section>
             </template>

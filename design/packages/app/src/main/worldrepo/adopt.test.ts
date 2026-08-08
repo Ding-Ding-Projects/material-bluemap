@@ -41,6 +41,7 @@ import type { ProcessResult, ProcessRunner } from "../cirender/gh.js";
 interface Call {
     readonly command: string;
     readonly args: readonly string[];
+    readonly input: string | null;
 }
 
 interface Machine extends ProcessRunner {
@@ -51,11 +52,23 @@ interface Machine extends ProcessRunner {
 function machine(): Machine {
     const calls: Call[] = [];
     const api = new Map<string, unknown>();
+    const refs = new Map<string, string>();
+    let commitNumber = 0;
+    let headSha = "d".repeat(40);
+
+    function branchSha(ref: string): string | null {
+        const branch = ref.startsWith("refs/heads/") ? ref.slice("refs/heads/".length) : "";
+        const value = api.get(`repos/octocat/worlds/branches/${branch}`) as
+            | { readonly commit?: { readonly sha?: string } }
+            | undefined;
+        return refs.get(ref) ?? value?.commit?.sha ?? null;
+    }
+
     return {
         calls,
         api,
-        run(command, args): Promise<ProcessResult> {
-            calls.push({ command, args: [...args] });
+        run(command, args, options): Promise<ProcessResult> {
+            calls.push({ command, args: [...args], input: options?.input ?? null });
             if (command === "gh" && args[0] === "auth") {
                 return Promise.resolve({
                     started: true,
@@ -89,13 +102,54 @@ function machine(): Machine {
                     stderr: "",
                 });
             }
+            if (command === "git" && args.includes("hash-object")) {
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: `${"a".repeat(40)}\n`,
+                    stderr: "",
+                });
+            }
+            if (command === "git" && args.includes("commit")) {
+                commitNumber += 1;
+                headSha = commitNumber.toString(16).padStart(40, "0");
+                return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" });
+            }
             if (command === "git" && args.includes("rev-parse")) {
                 return Promise.resolve({
                     started: true,
                     code: 0,
-                    stdout: `${"d".repeat(40)}\n`,
+                    stdout: `${headSha}\n`,
                     stderr: "",
                 });
+            }
+            if (command === "git" && args.includes("rev-list")) {
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: `${headSha}\n`,
+                    stderr: "",
+                });
+            }
+            if (
+                command === "git" &&
+                args.includes("cat-file") &&
+                args.includes("--batch-check=%(objectname) %(objecttype) %(objectsize)")
+            ) {
+                const lines = (options?.input ?? "")
+                    .split(/\r?\n/)
+                    .filter((line) => line.length > 0)
+                    .map((object) => `${object} commit 256`)
+                    .join("\n");
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: `${lines}\n`,
+                    stderr: "",
+                });
+            }
+            if (command === "git" && args.includes("cat-file") && args.includes("-e")) {
+                return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" });
             }
             if (command === "git" && args.includes("--version")) {
                 return Promise.resolve({
@@ -104,6 +158,41 @@ function machine(): Machine {
                     stdout: "git version 2.47.0\n",
                     stderr: "",
                 });
+            }
+            if (command === "git" && args.includes("ls-remote")) {
+                const ref = args.at(-1) ?? "";
+                const sha = branchSha(ref);
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: sha === null ? "" : `${sha}\t${ref}\n`,
+                    stderr: "",
+                });
+            }
+            if (command === "git" && args.includes("push")) {
+                const refspec = args.at(-1) ?? "";
+                const separator = refspec.indexOf(":");
+                const source = separator < 0 ? "" : refspec.slice(0, separator);
+                const destination = separator < 0 ? "" : refspec.slice(separator + 1);
+                const lease = args.find((arg) =>
+                    arg.startsWith(`--force-with-lease=${destination}:`),
+                );
+                const expected = lease?.slice(`--force-with-lease=${destination}:`.length) ?? "";
+                const current = branchSha(destination);
+                if (
+                    (expected.length === 0 && current !== null) ||
+                    (expected.length > 0 && current !== expected)
+                ) {
+                    return Promise.resolve({
+                        started: true,
+                        code: 1,
+                        stdout: "",
+                        stderr: "stale info\n",
+                    });
+                }
+                if (source.length === 0) refs.delete(destination);
+                else refs.set(destination, source);
+                return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" });
             }
             return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" });
         },
@@ -660,7 +749,7 @@ describe("buildAdoptionPlan", () => {
 /* -------------------------------------------------------------------------------------- */
 
 describe("marker privacy", () => {
-    it("carries no absolute path, username, host or credential - only tool, version, branch, updatedAt", async () => {
+    it("carries no absolute path, username, host or credential - only bounded sync metadata", async () => {
         // A real sync, through the same machine the rest of this suite uses, into a world
         // folder placed under this OS's own temp directory - which on a real Windows
         // machine sits under the profile path and so genuinely contains the account's
@@ -680,12 +769,25 @@ describe("marker privacy", () => {
             repo: "worlds",
             acknowledgeSync: true,
         });
-        expect(result.ok).toBe(true);
+        expect(result.ok, JSON.stringify(result)).toBe(true);
 
-        const written = await readFile(join(worldFolder, WORLD_REPO_MARKER_FILE), "utf8");
+        const localMarker = readFile(join(worldFolder, WORLD_REPO_MARKER_FILE), "utf8");
+        await expect(localMarker).rejects.toMatchObject({ code: "ENOENT" });
+
+        const markerWrite = runner.calls.find(
+            (call) =>
+                call.command === "git" &&
+                call.args.includes("hash-object") &&
+                call.input?.includes(`"tool": "${WORLD_REPO_MARKER_TOOL}"`) === true,
+        );
+        expect(markerWrite).toBeDefined();
+        const written = markerWrite?.input ?? "";
         const parsed: unknown = JSON.parse(written);
         expect(Object.keys(parsed as Record<string, unknown>).sort()).toEqual([
+            "batchCount",
             "branch",
+            "bytes",
+            "snapshotId",
             "tool",
             "updatedAt",
             "version",

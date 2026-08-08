@@ -40,7 +40,11 @@
 
 import { inject, provide, type InjectionKey } from "vue";
 import type { ProjectFile, ProjectReadFailure } from "@worldlens/config";
-import type { HistoryRestoreResult, HistoryRevision, HistoryWrite } from "../history/historyHost.js";
+import type {
+    HistoryRestoreResult,
+    HistoryRevision,
+    HistoryWrite,
+} from "../history/historyHost.js";
 import type { SimpleHistoryHost, SimpleHistoryListing } from "../history/simpleHistoryHost.js";
 
 /* -------------------------------------------------------------------------- */
@@ -118,6 +122,21 @@ export type ProjectWriteAnswer =
       }
     | { readonly ok: false; readonly message: string };
 
+export interface ProjectAutosaveEvent {
+    readonly worldFolder: string;
+    readonly reason: "quiet" | "boundary" | "destructive" | "quit";
+    readonly result:
+        | {
+              readonly ok: true;
+              readonly path: string;
+              readonly project: ProjectFile;
+              readonly historyOk: boolean;
+              readonly historyMessage: string;
+              readonly revision: HistoryRevision | null;
+          }
+        | { readonly ok: false; readonly reason: string };
+}
+
 /* -------------------------------------------------------------------------- */
 /* The host                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -143,6 +162,15 @@ export interface ProjectHost {
     /** Writes the file at the root of that world, replacing whatever is there. */
     writeProject(world: string, project: ProjectFile): Promise<ProjectWriteAnswer>;
 
+    /** Queues this complete project for the main process's quiet autosave scheduler. */
+    notifyAutosaveChange?(world: string, project: ProjectFile): Promise<void>;
+    /** Writes a pending autosave before navigation, rendering, or another boundary. */
+    flushAutosave?(
+        world: string,
+        reason: "boundary" | "destructive" | "quit",
+    ): Promise<ProjectWriteAnswer | null>;
+    onAutosaveEvent?(listener: (event: ProjectAutosaveEvent) => void): () => void;
+
     /**
      * Takes the project file off the disk. **Destructive**, and the only call here that is.
      *
@@ -166,11 +194,32 @@ interface BridgeProjectApi {
     listProjects(): Promise<ProjectListing>;
     readProject(world: string): Promise<ProjectReadAnswer>;
     writeProject(world: string, project: ProjectFile): Promise<ProjectWriteAnswer>;
+    notifyAutosaveChange?(world: string, project: ProjectFile): Promise<void>;
+    flushAutosave?(
+        world: string,
+        reason: "boundary" | "destructive" | "quit",
+    ): Promise<
+        | {
+              readonly ok: true;
+              readonly path?: string;
+              readonly file?: string;
+              readonly historyOk?: boolean;
+              readonly historyMessage?: string;
+              readonly revision?: HistoryRevision | null;
+          }
+        | { readonly ok: false; readonly reason?: string; readonly message?: string }
+        | null
+    >;
+    onAutosaveEvent?(listener: (event: ProjectAutosaveEvent) => void): () => void;
     deleteProject?(world: string): Promise<ProjectWriteAnswer>;
 }
 
 /** The three a project surface cannot exist without, named once so the probe cannot drift. */
-const REQUIRED: readonly (keyof BridgeProjectApi)[] = ["listProjects", "readProject", "writeProject"];
+const REQUIRED: readonly (keyof BridgeProjectApi)[] = [
+    "listProjects",
+    "readProject",
+    "writeProject",
+];
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
     return typeof value === "function";
@@ -200,6 +249,49 @@ export function projectHostFromBridge(bridge: unknown): ProjectHost | null {
         listProjects: () => ready.listProjects(),
         readProject: (world) => ready.readProject(world),
         writeProject: (world, project) => ready.writeProject(world, project),
+        ...(isFunction(ready.notifyAutosaveChange)
+            ? {
+                  notifyAutosaveChange: (world: string, project: ProjectFile) =>
+                      ready.notifyAutosaveChange?.(world, project) as Promise<void>,
+              }
+            : {}),
+        ...(isFunction(ready.flushAutosave)
+            ? {
+                  flushAutosave: async (
+                      world: string,
+                      reason: "boundary" | "destructive" | "quit",
+                  ): Promise<ProjectWriteAnswer | null> => {
+                      const result = await ready.flushAutosave?.(world, reason);
+                      if (result === undefined || result === null) return null;
+                      if (!result.ok) {
+                          return {
+                              ok: false,
+                              message:
+                                  result.message ??
+                                  result.reason ??
+                                  "The autosave could not be flushed.",
+                          };
+                      }
+                      return {
+                          ok: true,
+                          file: result.file ?? result.path ?? "",
+                          ...(result.historyOk === undefined
+                              ? {}
+                              : { historyOk: result.historyOk }),
+                          ...(result.historyMessage === undefined
+                              ? {}
+                              : { historyMessage: result.historyMessage }),
+                          ...(result.revision === undefined ? {} : { revision: result.revision }),
+                      };
+                  },
+              }
+            : {}),
+        ...(isFunction(ready.onAutosaveEvent)
+            ? {
+                  onAutosaveEvent: (listener: (event: ProjectAutosaveEvent) => void) =>
+                      ready.onAutosaveEvent?.(listener) as () => void,
+              }
+            : {}),
         // Spread rather than assigned, because `exactOptionalPropertyTypes` makes
         // `deleteProject: undefined` a different thing from an absent `deleteProject`, and
         // the surface asks the second question - "is this method here?" - not the first.
@@ -233,7 +325,11 @@ export function useProjectHost(): ProjectHost | null {
 
 /** The bridge on `window`, probed. Exported for the surfaces that resolve their own. */
 export function resolveProjectHost(): ProjectHost | null {
-    return projectHostFromBridge(typeof globalThis === "undefined" ? null : (globalThis as { worldlens?: unknown }).worldlens);
+    return projectHostFromBridge(
+        typeof globalThis === "undefined"
+            ? null
+            : (globalThis as { worldlens?: unknown }).worldlens,
+    );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -273,7 +369,10 @@ interface BridgeProjectHistoryApi {
  * since (unlike the profile list or the application settings) a project's history is scoped to
  * a particular world rather than to one global store.
  */
-export function projectHistoryHostFor(bridge: unknown, worldFolder: string): SimpleHistoryHost | null {
+export function projectHistoryHostFor(
+    bridge: unknown,
+    worldFolder: string,
+): SimpleHistoryHost | null {
     if (typeof bridge !== "object" || bridge === null) return null;
     const api = (bridge as { project?: unknown }).project;
     if (typeof api !== "object" || api === null) return null;
@@ -297,7 +396,9 @@ export function projectHistoryHostFor(bridge: unknown, worldFolder: string): Sim
 /** The bridge on `window`, probed and bound to `worldFolder`. */
 export function resolveProjectHistoryHost(worldFolder: string): SimpleHistoryHost | null {
     return projectHistoryHostFor(
-        typeof globalThis === "undefined" ? null : (globalThis as { worldlens?: unknown }).worldlens,
+        typeof globalThis === "undefined"
+            ? null
+            : (globalThis as { worldlens?: unknown }).worldlens,
         worldFolder,
     );
 }

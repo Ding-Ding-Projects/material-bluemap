@@ -75,7 +75,7 @@ module.exports = {
             to: "jars",
             filter: ["**/*"],
         },
-        // The two render workflow files a CI-render bootstrap commits to a repository -
+        // The complete managed workflow set a CI-render bootstrap commits to a repository -
         // see cirender/workflowTemplates.ts's `loadCiWorkflowTemplates`, which reads them
         // back from `resourcesPath/workflows/` in a packaged build. Without this entry a
         // shipped installer has no `.github/workflows` to walk up to (the packaged app's
@@ -88,7 +88,7 @@ module.exports = {
         {
             from: "../../../.github/workflows",
             to: "workflows",
-            filter: ["render-world.yml", "render-shard-wave.yml"],
+            filter: ["render-world.yml", "render-shard-wave.yml", "scheduled-render.yml"],
         },
         // Recovery mode is deliberately independent of the ordinary renderer bundle and
         // preload. These two local assets let the minimal no-script recovery window retain

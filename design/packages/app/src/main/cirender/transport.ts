@@ -57,6 +57,8 @@ import {
     artifactZipUrl,
     dispatchWorkflow,
     findDispatchedRun,
+    githubApiJson,
+    githubApiSendJson,
     isRepositoryEmpty,
     listRunArtifacts,
     parseArtifacts,
@@ -86,7 +88,14 @@ import type {
     WorkflowRun,
     WorkflowSummary,
 } from "./actions.js";
-import { GH_COMMAND, GH_LOGIN_COMMAND, ghApiJson, ghApiPost, ghApiSend, ghApiToFile } from "./gh.js";
+import {
+    GH_COMMAND,
+    GH_LOGIN_COMMAND,
+    ghApiJson,
+    ghApiPost,
+    ghApiSend,
+    ghApiToFile,
+} from "./gh.js";
 import type { GhStatus, ProcessRunner } from "./gh.js";
 import { listGhCliAccounts, switchGhCliAccount } from "../ghcli/accounts.js";
 import type { GhCliAccountSummary, GhCliAccountsStatus } from "../ghcli/accounts.js";
@@ -102,6 +111,33 @@ export interface CiRepositoryFacts {
     /** True only when GitHub says this credential has push access. Never assumed. */
     readonly canWrite: boolean;
     readonly htmlUrl: string;
+}
+
+/** The exact default-branch tip against which a managed workflow update is planned. */
+export interface CiRepositoryHead {
+    readonly branch: string;
+    readonly sha: string | null;
+}
+
+export interface CiAtomicRepositoryFile {
+    readonly path: string;
+    readonly contentBase64: string;
+}
+
+export interface CiAtomicCommitRequest {
+    readonly branch: string;
+    /** A real parent commit. GitHub's Git Data API cannot create a ref in an empty repository. */
+    readonly expectedHeadSha: string;
+    readonly files: readonly CiAtomicRepositoryFile[];
+    readonly message: string;
+}
+
+/** A typed optimistic-concurrency refusal; callers may safely invite a retry. */
+export class CiAtomicCommitConflictError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "CiAtomicCommitConflictError";
+    }
 }
 
 /** The release a world's assets go on. Only what either route can answer for both. */
@@ -172,8 +208,17 @@ export interface CiTransport {
     ): Promise<WorkflowRun | null>;
     readRun(owner: string, repo: string, runId: number): Promise<WorkflowRun>;
     readRunJobs(owner: string, repo: string, runId: number): Promise<readonly WorkflowJob[]>;
-    readJobLogTail(owner: string, repo: string, jobId: number, maxLines?: number): Promise<string | null>;
-    listRunArtifacts(owner: string, repo: string, runId: number): Promise<readonly WorkflowArtifact[]>;
+    readJobLogTail(
+        owner: string,
+        repo: string,
+        jobId: number,
+        maxLines?: number,
+    ): Promise<string | null>;
+    listRunArtifacts(
+        owner: string,
+        repo: string,
+        runId: number,
+    ): Promise<readonly WorkflowArtifact[]>;
     downloadArtifact(
         owner: string,
         repo: string,
@@ -218,7 +263,11 @@ export interface CiTransport {
      * The one call that makes resuming cheap: without it a dropped connection costs the
      * whole world again rather than the part that was in flight.
      */
-    listReleaseAssets(owner: string, repo: string, tag: string): Promise<ReadonlyMap<string, CiReleaseAsset>>;
+    listReleaseAssets(
+        owner: string,
+        repo: string,
+        tag: string,
+    ): Promise<ReadonlyMap<string, CiReleaseAsset>>;
     /** Puts one staged file on the release under `assetName`. */
     uploadReleaseAsset(upload: CiAssetUpload): Promise<void>;
 
@@ -251,8 +300,13 @@ export interface CiTransport {
      * than "none", exactly the distinction {@link RouteGhReport} already draws elsewhere.
      */
     readTokenScopes(): Promise<{ readonly scopes: readonly string[] | null }>;
-    /** One file's content at a path, on the default branch, or null when it does not exist. */
-    readFile(owner: string, repo: string, path: string): Promise<RepositoryFile | null>;
+    /** One file's content at a path, optionally pinned to an exact commit, or null when absent. */
+    readFile(
+        owner: string,
+        repo: string,
+        path: string,
+        ref?: string,
+    ): Promise<RepositoryFile | null>;
     /**
      * Creates or updates one file at a path, on the default branch - including the very
      * first commit of a repository that has none yet. `sha` is required to update a file
@@ -266,6 +320,14 @@ export interface CiTransport {
         message: string,
         sha?: string,
     ): Promise<{ readonly sha: string; readonly commitSha: string | null }>;
+    /** Reads the default branch and its exact current tip; null is a genuinely empty repository. */
+    readRepositoryHead?: ((owner: string, repo: string) => Promise<CiRepositoryHead>) | undefined;
+    /** Makes every supplied file visible in one guarded Git commit, or makes none visible. */
+    commitFilesAtomically?: (
+        owner: string,
+        repo: string,
+        request: CiAtomicCommitRequest,
+    ) => Promise<{ readonly commitSha: string }>;
 }
 
 export interface SessionTransportOptions {
@@ -284,6 +346,124 @@ export interface SessionTransportOptions {
     readonly account?: string | null | undefined;
 }
 
+interface GitDataApi {
+    get(endpoint: string): Promise<unknown>;
+    send(endpoint: string, method: "POST" | "PATCH", body: unknown): Promise<unknown>;
+}
+
+function recordOf(value: unknown): Record<string, unknown> {
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+function requiredString(value: unknown, what: string): string {
+    if (typeof value === "string" && value.length > 0) return value;
+    throw new ActionsCallError(`GitHub did not answer with ${what}.`, 0, what);
+}
+
+function repositoryPath(owner: string, repo: string): string {
+    return `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+}
+
+function refPath(branch: string): string {
+    return `heads/${branch.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+async function readHeadWithApi(
+    api: GitDataApi,
+    owner: string,
+    repo: string,
+): Promise<CiRepositoryHead> {
+    const root = repositoryPath(owner, repo);
+    const repository = recordOf(await api.get(root));
+    const branch = requiredString(
+        repository["default_branch"],
+        `the default branch for ${owner}/${repo}`,
+    );
+    try {
+        const ref = recordOf(await api.get(`${root}/git/ref/${refPath(branch)}`));
+        const object = recordOf(ref["object"]);
+        return {
+            branch,
+            sha: requiredString(object["sha"], `the tip of ${owner}/${repo}:${branch}`),
+        };
+    } catch (error) {
+        if (error instanceof ActionsCallError && error.status === 404) return { branch, sha: null };
+        throw error;
+    }
+}
+
+/**
+ * Builds blobs, a tree and a commit out of sight, then advances one ref with `force:false`.
+ * Object creation may fail or leave unreachable objects, but repository-visible bytes change
+ * only at the final ref update, which GitHub applies atomically against the expected parent.
+ */
+async function commitFilesWithApi(
+    api: GitDataApi,
+    owner: string,
+    repo: string,
+    request: CiAtomicCommitRequest,
+): Promise<{ readonly commitSha: string }> {
+    const root = repositoryPath(owner, repo);
+    const current = await readHeadWithApi(api, owner, repo);
+    if (current.branch !== request.branch || current.sha !== request.expectedHeadSha) {
+        throw new CiAtomicCommitConflictError(
+            `${owner}/${repo}:${request.branch} moved while the managed workflows were being checked. Nothing was committed.`,
+        );
+    }
+
+    const treeEntries: { path: string; mode: "100644"; type: "blob"; sha: string }[] = [];
+    for (const file of request.files) {
+        const blob = recordOf(
+            await api.send(`${root}/git/blobs`, "POST", {
+                content: file.contentBase64,
+                encoding: "base64",
+            }),
+        );
+        treeEntries.push({
+            path: file.path,
+            mode: "100644",
+            type: "blob",
+            sha: requiredString(blob["sha"], `the blob sha for ${file.path}`),
+        });
+    }
+
+    const parent = recordOf(
+        await api.get(`${root}/git/commits/${encodeURIComponent(request.expectedHeadSha)}`),
+    );
+    const parentTree = recordOf(parent["tree"]);
+    const baseTree = requiredString(parentTree["sha"], `the tree for ${request.expectedHeadSha}`);
+    const tree = recordOf(
+        await api.send(`${root}/git/trees`, "POST", {
+            base_tree: baseTree,
+            tree: treeEntries,
+        }),
+    );
+    const treeSha = requiredString(tree["sha"], "the managed workflow tree sha");
+    const commit = recordOf(
+        await api.send(`${root}/git/commits`, "POST", {
+            message: request.message,
+            tree: treeSha,
+            parents: [request.expectedHeadSha],
+        }),
+    );
+    const commitSha = requiredString(commit["sha"], "the managed workflow commit sha");
+
+    try {
+        await api.send(`${root}/git/refs/${refPath(request.branch)}`, "PATCH", {
+            sha: commitSha,
+            force: false,
+        });
+    } catch (error) {
+        if (error instanceof ActionsCallError && (error.status === 409 || error.status === 422)) {
+            throw new CiAtomicCommitConflictError(
+                `${owner}/${repo}:${request.branch} changed before the managed workflow commit could land. Nothing was overwritten.`,
+            );
+        }
+        throw error;
+    }
+    return { commitSha };
+}
+
 /** The application's own sign-in, over the REST API. The ordinary route. */
 export function sessionTransport(options: SessionTransportOptions): CiTransport {
     const call = {
@@ -292,6 +472,10 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
         ...(options.signal === undefined ? {} : { signal: options.signal }),
         ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
         ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
+    };
+    const gitDataApi: GitDataApi = {
+        get: (endpoint) => githubApiJson(endpoint, call),
+        send: (endpoint, method, body) => githubApiSendJson(endpoint, method, body, call),
     };
 
     /*
@@ -331,7 +515,8 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
         readDefaultBranch: (owner, repo) => readDefaultBranch(owner, repo, call),
         dispatchWorkflow: (owner, repo, file, ref, inputs) =>
             dispatchWorkflow(owner, repo, file, ref, inputs, call),
-        findDispatchedRun: (owner, repo, file, since) => findDispatchedRun(owner, repo, file, since, call),
+        findDispatchedRun: (owner, repo, file, since) =>
+            findDispatchedRun(owner, repo, file, since, call),
         readRun: (owner, repo, runId) => readRun(owner, repo, runId, call),
         readRunJobs: (owner, repo, runId) => readRunJobs(owner, repo, runId, call),
         readJobLogTail: (owner, repo, jobId, maxLines) =>
@@ -368,7 +553,9 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
 
         async findRelease(owner, repo, tag): Promise<CiRelease | null> {
             const release = await findReleaseByTag(owner, repo, tag, call);
-            return release === null ? null : { id: release.id, tag: release.tag, htmlUrl: release.htmlUrl };
+            return release === null
+                ? null
+                : { id: release.id, tag: release.tag, htmlUrl: release.htmlUrl };
         },
 
         async createRelease(owner, repo, tag, name, body): Promise<CiRelease> {
@@ -391,29 +578,40 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
                 assets: [],
                 createdAt: "",
             };
-            await uploadAsset(release, upload.owner, upload.repo, upload.assetName, upload.filePath, {
-                ...call,
-                ...(upload.onProgress === undefined
-                    ? {}
-                    : {
-                          onProgress: (progress) =>
-                              upload.onProgress?.({
-                                  bytesSent: progress.bytesSent,
-                                  bytesTotal: progress.bytesTotal,
-                              }),
-                      }),
-            });
+            await uploadAsset(
+                release,
+                upload.owner,
+                upload.repo,
+                upload.assetName,
+                upload.filePath,
+                {
+                    ...call,
+                    ...(upload.onProgress === undefined
+                        ? {}
+                        : {
+                              onProgress: (progress) =>
+                                  upload.onProgress?.({
+                                      bytesSent: progress.bytesSent,
+                                      bytesTotal: progress.bytesTotal,
+                                  }),
+                          }),
+                },
+            );
         },
 
         readVariable: (owner, repo, name) => readRepositoryVariable(owner, repo, name, call),
-        writeVariable: (owner, repo, name, value) => writeRepositoryVariable(owner, repo, name, value, call),
+        writeVariable: (owner, repo, name, value) =>
+            writeRepositoryVariable(owner, repo, name, value, call),
 
         isRepositoryEmpty: (owner, repo) => isRepositoryEmpty(owner, repo, call),
         readActionsPolicy: (owner, repo) => readActionsPolicy(owner, repo, call),
         readTokenScopes: () => readTokenScopes(call),
-        readFile: (owner, repo, path) => readRepositoryFile(owner, repo, path, call),
+        readFile: (owner, repo, path, ref) => readRepositoryFile(owner, repo, path, call, ref),
         writeFile: (owner, repo, path, contentBase64, message, sha) =>
             writeRepositoryFile(owner, repo, path, contentBase64, message, call, sha),
+        readRepositoryHead: (owner, repo) => readHeadWithApi(gitDataApi, owner, repo),
+        commitFilesAtomically: (owner, repo, request) =>
+            commitFilesWithApi(gitDataApi, owner, repo, request),
     };
 }
 
@@ -458,7 +656,8 @@ async function ensureGhIdentity(options: GhTransportOptions, what: string): Prom
             stored.host,
             stored.login,
         );
-        if (!switched.ok) throw ghAccountRecoveryError(`${switched.message} ${what} was not attempted.`, what);
+        if (!switched.ok)
+            throw ghAccountRecoveryError(`${switched.message} ${what} was not attempted.`, what);
     }
 
     // This uses the same host and credential resolution as the release command. The
@@ -470,8 +669,15 @@ async function ensureGhIdentity(options: GhTransportOptions, what: string): Prom
         options.signal === undefined ? {} : { signal: options.signal },
     );
     const actual = identity.stdout.trim();
-    if (!identity.started || identity.code !== 0 || actual.toLowerCase() !== options.account.toLowerCase()) {
-        const detail = actual === "" ? firstGhLine(identity.stderr) : `gh authenticated as ${actual}, not ${options.account}`;
+    if (
+        !identity.started ||
+        identity.code !== 0 ||
+        actual.toLowerCase() !== options.account.toLowerCase()
+    ) {
+        const detail =
+            actual === ""
+                ? firstGhLine(identity.stderr)
+                : `gh authenticated as ${actual}, not ${options.account}`;
         throw ghAccountRecoveryError(
             `The active gh identity on ${options.host} could not be verified as ${options.account}, so ${what} was not attempted.` +
                 (detail === "" ? "" : ` ${detail}.`),
@@ -508,6 +714,22 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
     };
     const path = (owner: string, repo: string): string =>
         `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+    const gitDataApi: GitDataApi = {
+        get: (endpoint) => ghApiJson(endpoint, api),
+        async send(endpoint, method, body): Promise<unknown> {
+            const raw = await ghApiSend(endpoint, method, body, api);
+            if (raw.trim().length === 0) return null;
+            try {
+                return JSON.parse(raw) as unknown;
+            } catch {
+                throw new ActionsCallError(
+                    `${GH_COMMAND} accepted ${method} ${endpoint} but answered something that was not JSON.`,
+                    0,
+                    endpoint,
+                );
+            }
+        },
+    };
 
     /**
      * `gh release` has no `--hostname` flag. Its inherited `--repo` flag accepts
@@ -544,10 +766,17 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
         if (result.code !== 0) throw ghCommandFailure(result.stderr, what);
     };
 
-    const readRelease = async (owner: string, repo: string, tag: string): Promise<unknown | null> => {
+    const readRelease = async (
+        owner: string,
+        repo: string,
+        tag: string,
+    ): Promise<unknown | null> => {
         await ensureReleaseIdentity(`reading the release tagged ${tag}`);
         try {
-            return await ghApiJson(`${path(owner, repo)}/releases/tags/${encodeURIComponent(tag)}`, api);
+            return await ghApiJson(
+                `${path(owner, repo)}/releases/tags/${encodeURIComponent(tag)}`,
+                api,
+            );
         } catch (error) {
             // 404 is "there is no release under that tag", which is an answer rather than a
             // failure. Anything else is a real refusal and is not swallowed: reporting a
@@ -584,22 +813,27 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
             // Only `uploaded`. An asset stuck in `starter` or `new` is a truncated upload,
             // and skipping it because the name matched is how a backup becomes unrestorable.
             if (typeof name !== "string" || record["state"] !== "uploaded") continue;
-            found.set(name, { name, size: typeof record["size"] === "number" ? record["size"] : -1 });
+            found.set(name, {
+                name,
+                size: typeof record["size"] === "number" ? record["size"] : -1,
+            });
         }
         return found;
     };
 
     return {
         route: "gh",
-        describe:
-            `the ${GH_COMMAND} command-line tool (${options.account} on ${options.host})`,
+        describe: `the ${GH_COMMAND} command-line tool (${options.account} on ${options.host})`,
         // The transfer below is route-aware, so somebody signed in to `gh` and not to this
         // application can publish a world as well as render one. The packer is still the
         // single one in `main/backup/`; only the four calls that move bytes differ.
         canUpload: true,
 
         async readWorkflow(owner, repo, file): Promise<WorkflowSummary> {
-            const body = await ghApiJson(`${path(owner, repo)}/actions/workflows/${encodeURIComponent(file)}`, api);
+            const body = await ghApiJson(
+                `${path(owner, repo)}/actions/workflows/${encodeURIComponent(file)}`,
+                api,
+            );
             const summary = parseWorkflow(body);
             if (summary === null) {
                 throw new ActionsCallError(`${GH_COMMAND} described ${file} unreadably.`, 0, file);
@@ -643,7 +877,9 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
             ),
 
         async readRun(owner, repo, runId): Promise<WorkflowRun> {
-            const run = parseRun(await ghApiJson(`${path(owner, repo)}/actions/runs/${String(runId)}`, api));
+            const run = parseRun(
+                await ghApiJson(`${path(owner, repo)}/actions/runs/${String(runId)}`, api),
+            );
             if (run === null) {
                 throw new ActionsCallError(
                     `${GH_COMMAND} described run ${String(runId)} unreadably.`,
@@ -655,7 +891,12 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
         },
 
         readRunJobs: async (owner, repo, runId): Promise<readonly WorkflowJob[]> =>
-            parseJobs(await ghApiJson(`${path(owner, repo)}/actions/runs/${String(runId)}/jobs?per_page=100`, api)),
+            parseJobs(
+                await ghApiJson(
+                    `${path(owner, repo)}/actions/runs/${String(runId)}/jobs?per_page=100`,
+                    api,
+                ),
+            ),
 
         async readJobLogTail(owner, repo, jobId, maxLines): Promise<string | null> {
             // The same rule as the API route: a log that cannot be read answers null, not
@@ -663,7 +904,10 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
             // to explain.
             let raw: unknown;
             try {
-                raw = await ghApiJson(`${path(owner, repo)}/actions/jobs/${String(jobId)}/logs`, api);
+                raw = await ghApiJson(
+                    `${path(owner, repo)}/actions/jobs/${String(jobId)}/logs`,
+                    api,
+                );
             } catch {
                 return await ghLogText(owner, repo, jobId, api, maxLines ?? LOG_TAIL_LINES);
             }
@@ -672,7 +916,10 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
 
         listRunArtifacts: async (owner, repo, runId): Promise<readonly WorkflowArtifact[]> =>
             parseArtifacts(
-                await ghApiJson(`${path(owner, repo)}/actions/runs/${String(runId)}/artifacts?per_page=100`, api),
+                await ghApiJson(
+                    `${path(owner, repo)}/actions/runs/${String(runId)}/artifacts?per_page=100`,
+                    api,
+                ),
                 artifactZipUrl("", owner, repo),
             ),
 
@@ -767,7 +1014,10 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
             // create` prints a URL, and the id is what an upload needs. Reading it also
             // proves the release really exists before anything is streamed at it.
             const created = await readRelease(owner, repo, tag);
-            const id = typeof created === "object" && created !== null ? (created as Record<string, unknown>)["id"] : null;
+            const id =
+                typeof created === "object" && created !== null
+                    ? (created as Record<string, unknown>)["id"]
+                    : null;
             if (typeof id !== "number") {
                 throw new ActionsCallError(
                     `${GH_COMMAND} reported that it created the release tagged ${tag} on ${owner}/${repo}, ` +
@@ -835,8 +1085,14 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
 
         async readVariable(owner, repo, name): Promise<string | null> {
             try {
-                const body = await ghApiJson(`${path(owner, repo)}/actions/variables/${encodeURIComponent(name)}`, api);
-                const value = typeof body === "object" && body !== null ? (body as Record<string, unknown>)["value"] : null;
+                const body = await ghApiJson(
+                    `${path(owner, repo)}/actions/variables/${encodeURIComponent(name)}`,
+                    api,
+                );
+                const value =
+                    typeof body === "object" && body !== null
+                        ? (body as Record<string, unknown>)["value"]
+                        : null;
                 return typeof value === "string" ? value : null;
             } catch (error) {
                 // Same rule as `readRelease` above: 404 is "not set", an answer rather than
@@ -874,18 +1130,27 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
         async readActionsPolicy(owner, repo): Promise<ActionsPolicy> {
             try {
                 const body = await ghApiJson(`${path(owner, repo)}/actions/permissions`, api);
-                const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+                const record =
+                    typeof body === "object" && body !== null
+                        ? (body as Record<string, unknown>)
+                        : {};
                 if (record["enabled"] === true) return { state: "enabled" };
                 if (record["enabled"] === false) {
                     const allowed = record["allowed_actions"];
-                    return { state: "disabled", allowedActions: typeof allowed === "string" ? allowed : null };
+                    return {
+                        state: "disabled",
+                        allowedActions: typeof allowed === "string" ? allowed : null,
+                    };
                 }
                 return {
                     state: "unknown",
                     reason: `${GH_COMMAND} described the Actions setting in a way this build could not read.`,
                 };
             } catch (error) {
-                if (error instanceof ActionsCallError && (error.status === 403 || error.status === 404)) {
+                if (
+                    error instanceof ActionsCallError &&
+                    (error.status === 403 || error.status === 404)
+                ) {
                     return {
                         state: "unknown",
                         reason:
@@ -902,13 +1167,17 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
         // rather than an empty list.
         readTokenScopes: () => Promise.resolve({ scopes: null }),
 
-        async readFile(owner, repo, filePath): Promise<RepositoryFile | null> {
+        async readFile(owner, repo, filePath, ref): Promise<RepositoryFile | null> {
             try {
                 const body = await ghApiJson(
-                    `${path(owner, repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}`,
+                    `${path(owner, repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}` +
+                        (ref === undefined ? "" : `?ref=${encodeURIComponent(ref)}`),
                     api,
                 );
-                const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+                const record =
+                    typeof body === "object" && body !== null
+                        ? (body as Record<string, unknown>)
+                        : {};
                 const sha = record["sha"];
                 const content = record["content"];
                 if (typeof sha !== "string" || typeof content !== "string") return null;
@@ -937,11 +1206,20 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
                     filePath,
                 );
             }
-            const record = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+            const record =
+                typeof parsed === "object" && parsed !== null
+                    ? (parsed as Record<string, unknown>)
+                    : {};
             const content = record["content"];
-            const newSha = typeof content === "object" && content !== null ? (content as Record<string, unknown>)["sha"] : null;
+            const newSha =
+                typeof content === "object" && content !== null
+                    ? (content as Record<string, unknown>)["sha"]
+                    : null;
             const commit = record["commit"];
-            const commitSha = typeof commit === "object" && commit !== null ? (commit as Record<string, unknown>)["sha"] : null;
+            const commitSha =
+                typeof commit === "object" && commit !== null
+                    ? (commit as Record<string, unknown>)["sha"]
+                    : null;
             if (typeof newSha !== "string") {
                 throw new ActionsCallError(
                     `${GH_COMMAND} accepted the write to ${filePath} on ${owner}/${repo} but did not` +
@@ -951,6 +1229,14 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
                 );
             }
             return { sha: newSha, commitSha: typeof commitSha === "string" ? commitSha : null };
+        },
+        async readRepositoryHead(owner, repo) {
+            await ensureGhIdentity(options, `reading the branch head for ${owner}/${repo}`);
+            return await readHeadWithApi(gitDataApi, owner, repo);
+        },
+        async commitFilesAtomically(owner, repo, request) {
+            await ensureGhIdentity(options, `updating managed workflows on ${owner}/${repo}`);
+            return await commitFilesWithApi(gitDataApi, owner, repo, request);
         },
     };
 }
@@ -1053,7 +1339,11 @@ export interface RouteReport {
     /** What the interface shows: which credential is driving, or why none can. */
     readonly describe: string;
     /** The in-app sign-in's own state, so the surface can offer the right button. */
-    readonly session: { readonly signedIn: boolean; readonly usable: boolean; readonly reason: string | null };
+    readonly session: {
+        readonly signedIn: boolean;
+        readonly usable: boolean;
+        readonly reason: string | null;
+    };
     readonly gh: RouteGhReport;
     /** False when neither credential can drive a render, with both reasons above. */
     readonly ready: boolean;
@@ -1091,7 +1381,8 @@ export interface ResolveTransportOptions {
      * the credential can see the repository at all, which is everything a write needs to
      * start with.
      */
-    readonly probe?: ((transport: CiTransport, owner: string, repo: string) => Promise<unknown>) | undefined;
+    readonly probe?:
+        ((transport: CiTransport, owner: string, repo: string) => Promise<unknown>) | undefined;
 }
 
 interface GhAccountChoice {
@@ -1118,9 +1409,12 @@ function chooseGhAccount(
         const matching = healthy.filter(
             (candidate) =>
                 candidate.login.toLowerCase() === target.login.toLowerCase() &&
-                (target.host === undefined || candidate.host.toLowerCase() === target.host.toLowerCase()),
+                (target.host === undefined ||
+                    candidate.host.toLowerCase() === target.host.toLowerCase()),
         );
-        const onGithubCom = matching.filter((candidate) => candidate.host.toLowerCase() === "github.com");
+        const onGithubCom = matching.filter(
+            (candidate) => candidate.host.toLowerCase() === "github.com",
+        );
         const active = matching.filter((candidate) => candidate.active);
         const picked =
             matching.length === 1
@@ -1151,13 +1445,19 @@ function chooseGhAccount(
     }
 
     const active = healthy.filter((candidate) => candidate.active);
-    const activeGithubCom = active.filter((candidate) => candidate.host.toLowerCase() === "github.com");
-    const picked = activeGithubCom.length === 1 ? activeGithubCom[0]! : active.length === 1 ? active[0]! : null;
+    const activeGithubCom = active.filter(
+        (candidate) => candidate.host.toLowerCase() === "github.com",
+    );
+    const picked =
+        activeGithubCom.length === 1
+            ? activeGithubCom[0]!
+            : active.length === 1
+              ? active[0]!
+              : null;
     if (picked !== null) return { account: picked, reason: null, recovery: null };
     return {
         account: null,
-        reason:
-            "gh has more than one possible active host and no exact account was selected, so the application will not guess which identity should publish the release. Choose an account in GitHub settings, then check again.",
+        reason: "gh has more than one possible active host and no exact account was selected, so the application will not guess which identity should publish the release. Choose an account in GitHub settings, then check again.",
         recovery: "github-settings",
     };
 }
@@ -1202,7 +1502,9 @@ export interface ResolvedTransport {
  * the other route's reason for not being used, so somebody debugging a permission problem
  * can see which of their two GitHub sign-ins was refused and why.
  */
-export async function resolveTransport(options: ResolveTransportOptions): Promise<ResolvedTransport> {
+export async function resolveTransport(
+    options: ResolveTransportOptions,
+): Promise<ResolvedTransport> {
     const probe =
         options.probe ??
         ((transport, owner, repo) => transport.readWorkflow(owner, repo, options.workflowFile));
@@ -1218,12 +1520,15 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                   token: options.token,
                   ...(options.signal === undefined ? {} : { signal: options.signal }),
                   ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-                  ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
+                  ...(options.uploadsBase === undefined
+                      ? {}
+                      : { uploadsBase: options.uploadsBase }),
                   ...(options.account === undefined ? {} : { account: options.account }),
               });
 
     if (session === null) {
-        sessionReason = "nobody is signed in to GitHub inside this application - sign in from Settings";
+        sessionReason =
+            "nobody is signed in to GitHub inside this application - sign in from Settings";
     } else if (wantsGh) {
         sessionReason = `The ${GH_COMMAND} route was asked for explicitly.`;
     } else {
@@ -1271,11 +1576,14 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
     const selected = chooseGhAccount(
         ghAccounts,
         options.ghTarget ??
-            (options.account !== null && options.account !== undefined ? { login: options.account } : null),
+            (options.account !== null && options.account !== undefined
+                ? { login: options.account }
+                : null),
     );
     const gh = ghStatusFrom(ghAccounts, selected.account);
     let ghUsable = false;
-    let ghReason: string | null = selected.reason ?? (gh.availability === "ready" ? null : gh.message);
+    let ghReason: string | null =
+        selected.reason ?? (gh.availability === "ready" ? null : gh.message);
     let ghRecovery = selected.recovery;
 
     let ghRoute: CiTransport | null = null;
@@ -1293,7 +1601,8 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
             ghUsable = true;
         } catch (error) {
             ghReason = error instanceof Error ? error.message : String(error);
-            if (error instanceof ActionsCallError && error.needsSignIn) ghRecovery = "github-settings";
+            if (error instanceof ActionsCallError && error.needsSignIn)
+                ghRecovery = "github-settings";
             ghRoute = null;
         }
     }
@@ -1305,7 +1614,9 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                 route: "gh",
                 describe:
                     `Using ${ghRoute.describe}` +
-                    (sessionReason === null ? "." : `, because the sign-in in this application could not: ${sessionReason}`),
+                    (sessionReason === null
+                        ? "."
+                        : `, because the sign-in in this application could not: ${sessionReason}`),
                 session: { signedIn: options.token !== null, usable: false, reason: sessionReason },
                 gh: { ...gh, usable: true, reason: null, recovery: null },
                 ready: true,
@@ -1324,7 +1635,9 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                 "Neither GitHub route can start a render on this repository. " +
                 `The sign-in in this application: ${sessionReason ?? "unavailable"}. ` +
                 `${GH_COMMAND}: ${ghReason ?? gh.message}` +
-                (gh.availability === "signed-out" ? ` Run \`${GH_LOGIN_COMMAND}\` in a terminal.` : ""),
+                (gh.availability === "signed-out"
+                    ? ` Run \`${GH_LOGIN_COMMAND}\` in a terminal.`
+                    : ""),
             session: { signedIn: options.token !== null, usable: false, reason: sessionReason },
             gh: { ...gh, usable: false, reason: ghReason, recovery: ghRecovery },
             ready: false,

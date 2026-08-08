@@ -35,6 +35,7 @@ import {
     previewMapId,
     projectDetailLine,
     projectFromWizard,
+    projectRenderRoute,
     projectSearchText,
     projectToRenderRequest,
     renderProblems,
@@ -248,8 +249,18 @@ describe("a map's identity and its config file", () => {
 describe("the order maps are listed in", () => {
     function three(): ProjectFile {
         let project = seeded();
-        project = withMapAdded(project, { id: "nether", name: "N", dimension: "minecraft:the_nether", world: WORLD });
-        project = withMapAdded(project, { id: "end", name: "E", dimension: "minecraft:the_end", world: WORLD });
+        project = withMapAdded(project, {
+            id: "nether",
+            name: "N",
+            dimension: "minecraft:the_nether",
+            world: WORLD,
+        });
+        project = withMapAdded(project, {
+            id: "end",
+            name: "E",
+            dimension: "minecraft:the_end",
+            world: WORLD,
+        });
         return project;
     }
 
@@ -297,7 +308,12 @@ describe("the order maps are listed in", () => {
 
 describe("removing a map", () => {
     it("takes it out and leaves the others alone", () => {
-        const two = withMapAdded(seeded(), { id: "nether", name: "N", dimension: "minecraft:the_nether", world: WORLD });
+        const two = withMapAdded(seeded(), {
+            id: "nether",
+            name: "N",
+            dimension: "minecraft:the_nether",
+            world: WORLD,
+        });
         const left = withMapRemoved(two, "nether");
 
         expect(left.maps.map((map) => map.id)).toEqual(["overworld"]);
@@ -312,13 +328,21 @@ describe("storages", () => {
     });
 
     it("adds one from upstream's template and reads its type back", () => {
-        const project = withStorageAdded(seeded(), "archive", "storage-type: file\nroot: \"/tmp/tiles\"\n");
+        const project = withStorageAdded(
+            seeded(),
+            "archive",
+            'storage-type: file\nroot: "/tmp/tiles"\n',
+        );
         expect(storageIds(project)).toEqual(["file", "archive"]);
         expect(storageTypeOf(project.storages[0]!)).toBe("file");
     });
 
     it("rewrites the file when the type changes, rather than leaving the other type's keys", () => {
-        let project = withStorageAdded(seeded(), "archive", "storage-type: file\nroot: \"/tmp/tiles\"\n");
+        let project = withStorageAdded(
+            seeded(),
+            "archive",
+            'storage-type: file\nroot: "/tmp/tiles"\n',
+        );
         project = withStorageType(project, "archive", "sql", "/tmp/tiles");
 
         expect(storageTypeOf(project.storages[0]!)).toBe("sql");
@@ -328,8 +352,12 @@ describe("storages", () => {
     it("refuses nothing by itself but reports a credentialled body, which the file format bans", () => {
         // A project file travels inside a world folder that people zip up and send to each
         // other, and this block is where a database user name and password live.
-        expect(storageCarriesCredentials("storage-type: sql\nconnection-properties: {\n user: me\n}\n")).toBe(true);
-        expect(storageCarriesCredentials("storage-type: file\nroot: \"/tiles\"\n")).toBe(false);
+        expect(
+            storageCarriesCredentials(
+                "storage-type: sql\nconnection-properties: {\n user: me\n}\n",
+            ),
+        ).toBe(true);
+        expect(storageCarriesCredentials('storage-type: file\nroot: "/tiles"\n')).toBe(false);
     });
 
     it("names the maps that would be left pointing at nothing", () => {
@@ -363,7 +391,11 @@ describe("the four whole-file settings", () => {
     it("store an emptied body as absent again rather than as an empty file", () => {
         // Null is "this project never touched it"; an empty file is "this project wants a
         // file with nothing in it". Only the first is ever what clearing the form meant.
-        const project = withSingleton(withSingleton(seeded(), "core", "accept-download: true\n"), "core", "   ");
+        const project = withSingleton(
+            withSingleton(seeded(), "core", "accept-download: true\n"),
+            "core",
+            "   ",
+        );
         expect(project.core).toBeNull();
     });
 
@@ -376,6 +408,17 @@ describe("the four whole-file settings", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("rendering a project", () => {
+    it("keeps old projects local and persists an explicit GitHub Actions route", () => {
+        const original = createProject("Survival", STAMP);
+        const oldProject = { ...original, render: { ...original.render } };
+        delete oldProject.render.route;
+
+        expect(projectRenderRoute(oldProject)).toBe("local");
+        expect(projectRenderRoute(withRender(original, { route: "github-actions" }))).toBe(
+            "github-actions",
+        );
+    });
+
     it("carries every map's whole config, not the handful of named fields", () => {
         // A request narrowed to the five settings with a field on it is a settings screen
         // that says it applied ninety-two settings and applies six.
@@ -387,20 +430,34 @@ describe("rendering a project", () => {
     });
 
     it("leaves out the maps that are switched off, which is what the switch means", () => {
-        let project = withMapAdded(seeded(), { id: "nether", name: "N", dimension: "minecraft:the_nether", world: WORLD });
+        let project = withMapAdded(seeded(), {
+            id: "nether",
+            name: "N",
+            dimension: "minecraft:the_nether",
+            world: WORLD,
+        });
         project = withMapEnabled(project, "nether", false);
 
-        expect(projectToRenderRequest(project, WORLD).maps.map((map) => map.id)).toEqual(["overworld"]);
+        expect(projectToRenderRequest(project, WORLD).maps.map((map) => map.id)).toEqual([
+            "overworld",
+        ]);
     });
 
     it("takes the world from where the file was found rather than from the file", () => {
         // The project has no world path in it on purpose: storing one would create a second
         // source of truth that goes wrong the moment somebody moves or copies the folder.
-        expect(projectToRenderRequest(seeded(), "D:/elsewhere/Survival").maps[0]?.world).toBe("D:/elsewhere/Survival");
+        expect(projectToRenderRequest(seeded(), "D:/elsewhere/Survival").maps[0]?.world).toBe(
+            "D:/elsewhere/Survival",
+        );
     });
 
     it("applies the project's own run settings, so a second render repeats the first", () => {
-        const project = withRender(seeded(), { force: true, fixEdges: true, metrics: true, threads: 3 });
+        const project = withRender(seeded(), {
+            force: true,
+            fixEdges: true,
+            metrics: true,
+            threads: 3,
+        });
         const request = projectToRenderRequest(project, WORLD);
 
         expect(request.force).toBe(true);
@@ -416,13 +473,21 @@ describe("rendering a project", () => {
 
     it("says why it cannot run rather than starting something that would draw nothing", () => {
         expect(renderProblems(createProject("Empty", STAMP))[0]?.key).toBe("project.render.noMaps");
-        expect(renderProblems(withMapEnabled(seeded(), "overworld", false))[0]?.key).toBe("project.render.noneEnabled");
+        expect(renderProblems(withMapEnabled(seeded(), "overworld", false))[0]?.key).toBe(
+            "project.render.noneEnabled",
+        );
         expect(renderProblems(seeded())).toEqual([]);
     });
 
     it("refuses a project whose storage carries a credential", () => {
-        const project = withStorageAdded(seeded(), "db", "storage-type: sql\nconnection-properties: {\n user: me\n}\n");
-        expect(renderProblems(project).map((problem) => problem.key)).toContain("project.render.credentialled");
+        const project = withStorageAdded(
+            seeded(),
+            "db",
+            "storage-type: sql\nconnection-properties: {\n user: me\n}\n",
+        );
+        expect(renderProblems(project).map((problem) => problem.key)).toContain(
+            "project.render.credentialled",
+        );
     });
 });
 
@@ -435,7 +500,7 @@ describe("what the guide writes", () => {
         mapName: "Overworld",
         dimension: "minecraft:overworld",
         sorting: 0,
-        config: "name: \"Overworld\"\n",
+        config: 'name: "Overworld"\n',
         outputFolder: "C:/renders",
         force: true,
         threads: 2,
@@ -445,7 +510,7 @@ describe("what the guide writes", () => {
         const project = projectFromWizard(answers, STAMP);
 
         expect(project.maps).toHaveLength(1);
-        expect(project.maps[0]?.config).toBe("name: \"Overworld\"\n");
+        expect(project.maps[0]?.config).toBe('name: "Overworld"\n');
         expect(project.render.outputFolder).toBe("C:/renders");
         expect(project.render.force).toBe(true);
         expect(project.render.threads).toBe(2);
@@ -463,7 +528,9 @@ describe("what the guide writes", () => {
     });
 
     it("stops claiming that the moment anything is saved", () => {
-        const edited = touch(projectFromWizard(answers, STAMP), { now: "2026-08-05T10:00:00+01:00" });
+        const edited = touch(projectFromWizard(answers, STAMP), {
+            now: "2026-08-05T10:00:00+01:00",
+        });
 
         expect(edited.fromWizard).toBe(false);
         expect(edited.updatedAt).toBe("2026-08-05T10:00:00+01:00");
@@ -531,7 +598,8 @@ function t(_key: string, second: unknown, third?: unknown): string {
     const fallback = typeof second === "string" ? second : String(third ?? "");
     const vars = typeof second === "string" ? {} : (second as Record<string, unknown>);
     let filled = fallback;
-    for (const [name, value] of Object.entries(vars)) filled = filled.split(`{${name}}`).join(String(value));
+    for (const [name, value] of Object.entries(vars))
+        filled = filled.split(`{${name}}`).join(String(value));
     return filled;
 }
 
@@ -628,7 +696,11 @@ describe("syncing a config that was never generated", () => {
 /* -------------------------------------------------------------------------- */
 
 /** One setting out of a singleton's config text, which is what BlueMap would actually read. */
-function singletonSetting(project: ProjectFile, kind: "core" | "webapp" | "webserver" | "plugin", path: string): unknown {
+function singletonSetting(
+    project: ProjectFile,
+    kind: "core" | "webapp" | "webserver" | "plugin",
+    path: string,
+): unknown {
     const file = openSingletonFile(project, kind);
     const field = file.descriptor.fields.find((candidate) => candidate.path === path);
     if (field === undefined) throw new Error(`no field ${path}`);
@@ -652,7 +724,10 @@ describe("the four presets, said plainly", () => {
 
 describe("applying the single-overworld preset", () => {
     it("adds exactly one map and the shared file storage, nothing else", () => {
-        const application = applyPreset(EMPTY, findPreset("overworldOnly"), { world: WORLD, storageRoot: "C:/renders" });
+        const application = applyPreset(EMPTY, findPreset("overworldOnly"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
 
         expect(application.mapsAdded).toEqual(["overworld"]);
         expect(application.mapsSkipped).toEqual([]);
@@ -662,7 +737,9 @@ describe("applying the single-overworld preset", () => {
         expect(application.project.storages.map((storage) => storage.id)).toEqual(["file"]);
         // Written from the real template, exactly like "Add a map" does - not a blank file.
         expect(settingIn(application.project, "overworld", "name")).toBe("Overworld");
-        expect(settingIn(application.project, "overworld", "dimension")).toBe("minecraft:overworld");
+        expect(settingIn(application.project, "overworld", "dimension")).toBe(
+            "minecraft:overworld",
+        );
         // Nothing invented: no singleton was touched by this preset.
         expect(application.project.webserver).toBeNull();
         expect(application.project.core).toBeNull();
@@ -671,7 +748,10 @@ describe("applying the single-overworld preset", () => {
 
 describe("applying the all-dimensions preset", () => {
     it("adds all three maps, named and sorted the way BlueMap's own CLI would generate them", () => {
-        const application = applyPreset(EMPTY, findPreset("allDimensions"), { world: WORLD, storageRoot: "C:/renders" });
+        const application = applyPreset(EMPTY, findPreset("allDimensions"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
 
         expect(application.mapsAdded.toSorted()).toEqual(["end", "nether", "overworld"]);
         expect(findMap(application.project, "overworld")?.name).toBe("Overworld");
@@ -684,7 +764,12 @@ describe("applying the all-dimensions preset", () => {
 
     it("skips a map id the project already has, rather than overwriting it", () => {
         const withCustomOverworld = withMapConfig(
-            withMapAdded(EMPTY, { id: "overworld", name: "Custom", dimension: "minecraft:overworld", world: WORLD }),
+            withMapAdded(EMPTY, {
+                id: "overworld",
+                name: "Custom",
+                dimension: "minecraft:overworld",
+                world: WORLD,
+            }),
             "overworld",
             'name: "Hand Edited"\nsky-color: "#ff00ff"\n',
         );
@@ -697,11 +782,17 @@ describe("applying the all-dimensions preset", () => {
         expect(application.mapsAdded.toSorted()).toEqual(["end", "nether"]);
         expect(application.mapsSkipped).toEqual(["overworld"]);
         // The hand-edited map is untouched: applying a preset composes, it never overwrites.
-        expect(findMap(application.project, "overworld")?.config).toBe('name: "Hand Edited"\nsky-color: "#ff00ff"\n');
+        expect(findMap(application.project, "overworld")?.config).toBe(
+            'name: "Hand Edited"\nsky-color: "#ff00ff"\n',
+        );
     });
 
     it("leaves an already-present file storage exactly as it was", () => {
-        const withCustomStorage = withStorageAdded(EMPTY, "file", "storage-type: file\nroot: \"D:/custom\"\n");
+        const withCustomStorage = withStorageAdded(
+            EMPTY,
+            "file",
+            'storage-type: file\nroot: "D:/custom"\n',
+        );
 
         const application = applyPreset(withCustomStorage, findPreset("allDimensions"), {
             world: WORLD,
@@ -709,13 +800,18 @@ describe("applying the all-dimensions preset", () => {
         });
 
         expect(application.storageAdded).toBe(false);
-        expect(findStorage(application.project, "file")?.config).toBe('storage-type: file\nroot: "D:/custom"\n');
+        expect(findStorage(application.project, "file")?.config).toBe(
+            'storage-type: file\nroot: "D:/custom"\n',
+        );
     });
 });
 
 describe("applying the web-server-off preset", () => {
     it("writes webserver.conf with enabled set to false, and nothing else in it", () => {
-        const application = applyPreset(EMPTY, findPreset("webServerOff"), { world: WORLD, storageRoot: "C:/renders" });
+        const application = applyPreset(EMPTY, findPreset("webServerOff"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
 
         expect(application.webserverWritten).toBe(true);
         expect(application.project.webserver).not.toBeNull();
@@ -746,7 +842,10 @@ describe("applying the web-server-off preset", () => {
 
 describe("applying the faster-renders preset", () => {
     it("switches off the hires layer on every map it creates", () => {
-        const application = applyPreset(EMPTY, findPreset("fastRender"), { world: WORLD, storageRoot: "C:/renders" });
+        const application = applyPreset(EMPTY, findPreset("fastRender"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
 
         for (const id of application.mapsAdded) {
             expect(settingIn(application.project, id, "enable-hires")).toBe(false);
@@ -755,7 +854,12 @@ describe("applying the faster-renders preset", () => {
 
     it("does not touch enable-hires on a map the preset only skipped", () => {
         const withCustomOverworld = withMapConfig(
-            withMapAdded(EMPTY, { id: "overworld", name: "Custom", dimension: "minecraft:overworld", world: WORLD }),
+            withMapAdded(EMPTY, {
+                id: "overworld",
+                name: "Custom",
+                dimension: "minecraft:overworld",
+                world: WORLD,
+            }),
             "overworld",
             'name: "Custom"\nenable-hires: true\n',
         );
@@ -783,8 +887,14 @@ describe("presetApplicationLines, saying what actually happened", () => {
 
     it("says plainly when nothing was added, rather than claiming credit for work it did not do", () => {
         const preset = findPreset("overworldOnly");
-        const already = applyPreset(EMPTY, preset, { world: WORLD, storageRoot: "C:/renders" }).project;
-        const application = applyPreset(already, preset, { world: WORLD, storageRoot: "C:/renders" });
+        const already = applyPreset(EMPTY, preset, {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        }).project;
+        const application = applyPreset(already, preset, {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
         const lines = presetApplicationLines(preset, application, t);
 
         expect(lines.join(" ")).toContain("already in the project");
@@ -802,7 +912,10 @@ describe("presetApplicationLines, saying what actually happened", () => {
     it("says the web server was left untouched when the project already had its own", () => {
         const withCustomWebserver = withSingleton(EMPTY, "webserver", "port: 9999\n");
         const preset = findPreset("webServerOff");
-        const application = applyPreset(withCustomWebserver, preset, { world: WORLD, storageRoot: "C:/renders" });
+        const application = applyPreset(withCustomWebserver, preset, {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
         const lines = presetApplicationLines(preset, application, t);
 
         expect(lines.join(" ")).toContain("already carries its own webserver.conf");
@@ -818,7 +931,9 @@ describe("withMapFieldSet and withSingletonFieldSet, the primitives a preset com
     });
 
     it("does nothing to a map id that is not there", () => {
-        expect(withMapFieldSet(seeded(), "does-not-exist", "enable-hires", false)).toEqual(seeded());
+        expect(withMapFieldSet(seeded(), "does-not-exist", "enable-hires", false)).toEqual(
+            seeded(),
+        );
     });
 
     it("writes exactly one field into a singleton, starting from an absent file", () => {

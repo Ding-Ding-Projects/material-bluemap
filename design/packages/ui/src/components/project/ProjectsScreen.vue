@@ -10,6 +10,7 @@ import {
     VCardText,
     VCardTitle,
     VDivider,
+    VSelect,
     VSpacer,
     VTextField,
 } from "vuetify/components";
@@ -19,13 +20,20 @@ import ProjectList from "./ProjectList.vue";
 import DiscoveredWorldsPanel from "./DiscoveredWorldsPanel.vue";
 import {
     createProject,
+    projectRenderRoute,
     projectToRenderRequest,
     renderProblems,
     touch,
+    withRender,
     worldLeaf,
     type ProjectRow,
 } from "./projectModel.js";
-import { hostMissingReason, resolveProjectHost, type ProjectHost, type ProjectListing } from "./projectHost.js";
+import {
+    hostMissingReason,
+    resolveProjectHost,
+    type ProjectHost,
+    type ProjectListing,
+} from "./projectHost.js";
 import RenderRunPanel from "../world/RenderRunPanel.vue";
 import { createRenderRun } from "../world/renderRun.js";
 import { consentIsAccepted, refreshConsent } from "../world/consentState.js";
@@ -38,7 +46,11 @@ import {
     type SettingsTarget,
     type WorldBridge,
 } from "../world/worldBridge.js";
-import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../config/configHost.js";
+import {
+    createBridgeConfigHost,
+    provideConfigHost,
+    type ConfigHost,
+} from "../config/configHost.js";
 import { provideSettingsOpener } from "../downloads/index.js";
 import { raiseNotice } from "../../stores/notices.js";
 
@@ -94,13 +106,16 @@ const emit = defineEmits<{
     settings: [target: SettingsTarget];
     /** A render finished and somebody asked to see it. */
     openMap: [dataRoot: string, mapIds: readonly string[]];
+    /** Opens the click-and-run GitHub Actions surface with this project's world prefilled. */
+    cloudRender: [world: string];
 }>();
 
 const { t } = useI18n();
 
 const host = props.host === undefined ? resolveProjectHost() : props.host;
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
-const optional = props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
+const optional =
+    props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
 const worldCatalogBridge =
     props.worldCatalogBridge === undefined ? resolveWorldCatalogBridge() : props.worldCatalogBridge;
 const configHost = props.configHost === undefined ? createBridgeConfigHost() : props.configHost;
@@ -169,7 +184,10 @@ async function reload(): Promise<void> {
  * screen goes on refusing. See `../world/consentState.ts` for why this is an event rather
  * than the shared store it should eventually be.
  */
-watch(() => props.settingsEpoch, () => void refreshConsent(bridge));
+watch(
+    () => props.settingsEpoch,
+    () => void refreshConsent(bridge),
+);
 
 onMounted(async () => {
     void reload();
@@ -211,6 +229,77 @@ const dirty = computed(
         (savedProject.value === null ||
             serializeProjectFile(openProject.value) !== serializeProjectFile(savedProject.value)),
 );
+
+let stopAutosaveEvents: (() => void) | null = null;
+
+/**
+ * Every project edit reaches the main process's debounced autosave scheduler. The complete
+ * project is sent each time, so a later edit replaces an earlier pending snapshot instead
+ * of building a queue of stale writes. A failed notification is surfaced, but never makes
+ * the field edit itself fail.
+ */
+watch([openWorld, openProject], ([world, project]) => {
+    if (
+        world === null ||
+        project === null ||
+        !dirty.value ||
+        host?.notifyAutosaveChange === undefined
+    )
+        return;
+    void host.notifyAutosaveChange(world, project).catch((error: unknown) => {
+        raiseNotice(
+            "error",
+            t(
+                "project.autosave.queueFailed",
+                { message: error instanceof Error ? error.message : String(error) },
+                "This edit is still on screen, but it could not be queued for automatic saving: {message}",
+            ),
+        );
+    });
+});
+
+onMounted(() => {
+    stopAutosaveEvents =
+        host?.onAutosaveEvent?.((event) => {
+            if (event.worldFolder !== openWorld.value || !event.result.ok) return;
+            // The scheduler returns the exact snapshot it wrote. If another edit arrived while
+            // that write was in flight, `openProject` is newer and the dirty comparison remains
+            // true; otherwise the saved indicator clears without pretending an older value won.
+            savedProject.value = event.result.project;
+        }) ?? null;
+});
+
+onBeforeUnmount(() => {
+    stopAutosaveEvents?.();
+    stopAutosaveEvents = null;
+});
+
+async function flushPendingAutosave(): Promise<boolean> {
+    const world = openWorld.value;
+    const project = openProject.value;
+    if (world === null || project === null || !dirty.value) return true;
+    if (host?.flushAutosave === undefined) {
+        await save();
+        return !dirty.value;
+    }
+    try {
+        const result = await host.flushAutosave(world, "boundary");
+        if (result === null) return true;
+        if (!result.ok) {
+            saveFailure.value = result.message;
+            raiseNotice("error", result.message);
+            return false;
+        }
+        savedProject.value = project;
+        saveFailure.value = null;
+        return true;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        saveFailure.value = message;
+        raiseNotice("error", message);
+        return false;
+    }
+}
 
 async function open(world: string): Promise<void> {
     if (host === null) return;
@@ -262,10 +351,18 @@ watch(
  * a newer file must say so and stop rather than guess, because the failure mode of guessing
  * is silently discarding the settings it did not understand the moment it saves.
  */
-function describeFailure(failure: { kind: string; message?: string; version?: number; problems?: readonly string[] }): string {
+function describeFailure(failure: {
+    kind: string;
+    message?: string;
+    version?: number;
+    problems?: readonly string[];
+}): string {
     switch (failure.kind) {
         case "absent":
-            return t("project.open.absent", "There is no project file in that world folder any more.");
+            return t(
+                "project.open.absent",
+                "There is no project file in that world folder any more.",
+            );
         case "too-new":
             return t(
                 "project.open.tooNew",
@@ -285,11 +382,15 @@ function describeFailure(failure: { kind: string; message?: string; version?: nu
                 "That project file is not readable as JSON: {message}",
             );
         default:
-            return failure.message ?? t("project.open.unreadable", "That project file could not be read.");
+            return (
+                failure.message ??
+                t("project.open.unreadable", "That project file could not be read.")
+            );
     }
 }
 
-function closeEditor(): void {
+async function closeEditor(flush = true): Promise<void> {
+    if (flush && !(await flushPendingAutosave())) return;
     openWorld.value = null;
     openProject.value = null;
     savedProject.value = null;
@@ -319,7 +420,10 @@ async function save(): Promise<void> {
         }
         openProject.value = stamped;
         savedProject.value = stamped;
-        raiseNotice("success", t("project.save.done", { file: answer.file }, "Saved the project to {file}."));
+        raiseNotice(
+            "success",
+            t("project.save.done", { file: answer.file }, "Saved the project to {file}."),
+        );
         // The file write above is the thing somebody asked for by pressing Save, and it
         // already succeeded - `answer.ok` said so. `historyOk` is a second, independent
         // promise: that a revision of this save was kept in the local history. When that one
@@ -351,17 +455,39 @@ async function save(): Promise<void> {
 
 const createOpen = ref(false);
 const createWorld = ref("");
+const createRoute = ref<"local" | "github-actions">("local");
+
+const createRouteItems = computed(() => [
+    {
+        title: t("project.render.routeLocal", "This computer"),
+        value: "local" as const,
+    },
+    {
+        title: t(
+            "project.render.routeActions",
+            "GitHub Actions (works while this computer is off)",
+        ),
+        value: "github-actions" as const,
+    },
+]);
 
 const createProblem = computed(() => {
     const path = createWorld.value.trim();
-    if (path === "") return t("project.create.needWorld", "Choose the world folder this project belongs to.");
+    if (path === "")
+        return t("project.create.needWorld", "Choose the world folder this project belongs to.");
     if (!/^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(path)) {
         return t(
             "project.create.relative",
             "That path is relative, so where it points depends on where the app was started. Use a full path.",
         );
     }
-    if (rows.value.some((row) => row.world.replace(/\\/g, "/").toLowerCase() === path.replace(/\\/g, "/").toLowerCase())) {
+    if (
+        rows.value.some(
+            (row) =>
+                row.world.replace(/\\/g, "/").toLowerCase() ===
+                path.replace(/\\/g, "/").toLowerCase(),
+        )
+    ) {
         return t(
             "project.create.exists",
             "That world already has a project. Open it rather than starting a second one, because a world holds exactly one project file.",
@@ -386,8 +512,8 @@ async function pickWorld(): Promise<void> {
  * does not show it until it has been saved - a row for a file that is not there would be
  * the list asserting something untrue.
  */
-function openNewProjectFor(world: string): void {
-    const project = createProject(worldLeaf(world));
+function openNewProjectFor(world: string, route: "local" | "github-actions" = "local"): void {
+    const project = withRender(createProject(worldLeaf(world)), { route });
 
     openWorld.value = world;
     openProject.value = project;
@@ -398,7 +524,7 @@ function openNewProjectFor(world: string): void {
         "info",
         t(
             "project.create.started",
-            "The project is open but not written yet. Add its maps, set anything you want, and save when it is ready.",
+            "The project is open and automatic saving is on. Add maps or change settings; a quiet pause saves it, and Save now is always available.",
         ),
     );
 }
@@ -406,9 +532,11 @@ function openNewProjectFor(world: string): void {
 function confirmCreate(): void {
     if (createProblem.value !== null) return;
     const world = createWorld.value.trim();
+    const route = createRoute.value;
     createOpen.value = false;
     createWorld.value = "";
-    openNewProjectFor(world);
+    createRoute.value = "local";
+    openNewProjectFor(world, route);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -464,11 +592,22 @@ async function useDiscoveredWorlds(worlds: readonly string[]): Promise<void> {
     if (created > 0) {
         raiseNotice(
             "success",
-            t("project.discovered.createdMany", { created }, "Started {created} projects, with their default maps. Open one to change anything."),
+            t(
+                "project.discovered.createdMany",
+                { created },
+                "Started {created} projects, with their default maps. Open one to change anything.",
+            ),
         );
     }
     for (const failure of failures) {
-        raiseNotice("error", t("project.discovered.createFailed", { failure }, "This one could not be started: {failure}"));
+        raiseNotice(
+            "error",
+            t(
+                "project.discovered.createFailed",
+                { failure },
+                "This one could not be started: {failure}",
+            ),
+        );
     }
     void reload();
 }
@@ -508,13 +647,23 @@ async function forget(worlds: readonly string[]): Promise<void> {
     }
     busy.value = false;
 
-    if (openWorld.value !== null && worlds.includes(openWorld.value)) closeEditor();
+    if (openWorld.value !== null && worlds.includes(openWorld.value)) void closeEditor(false);
 
     if (gone > 0) {
-        raiseNotice("success", t("project.forget.done", { gone }, "Removed {gone} project files. The worlds themselves are untouched."));
+        raiseNotice(
+            "success",
+            t(
+                "project.forget.done",
+                { gone },
+                "Removed {gone} project files. The worlds themselves are untouched.",
+            ),
+        );
     }
     for (const failure of failures) {
-        raiseNotice("error", t("project.forget.failed", { failure }, "This one was not removed: {failure}"));
+        raiseNotice(
+            "error",
+            t("project.forget.failed", { failure }, "This one was not removed: {failure}"),
+        );
     }
     void reload();
 }
@@ -531,12 +680,17 @@ async function forget(worlds: readonly string[]): Promise<void> {
  * decisions were made in the editor and this reads them.
  */
 async function startRender(world: string, project: ProjectFile): Promise<void> {
+    if (projectRenderRoute(project) === "github-actions") {
+        emit("cloudRender", world);
+        return;
+    }
     if (run.active.value) return;
 
     const problems = renderProblems(project);
     if (problems.length > 0) {
         const first = problems[0];
-        if (first !== undefined) raiseNotice("warning", t(first.key, first.vars ?? {}, first.fallback));
+        if (first !== undefined)
+            raiseNotice("warning", t(first.key, first.vars ?? {}, first.fallback));
         return;
     }
 
@@ -565,17 +719,21 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
     if (result === null && run.failure.value === null) {
         raiseNotice(
             "error",
-            t("project.render.noBridge", "This build cannot start a render. Local rendering needs the desktop app."),
+            t(
+                "project.render.noBridge",
+                "This build cannot start a render. Local rendering needs the desktop app.",
+            ),
         );
     }
 }
 
 /** Renders the project that is open, without re-reading it. */
-function renderOpen(): void {
+async function renderOpen(): Promise<void> {
     const world = openWorld.value;
     const project = openProject.value;
     if (world === null || project === null) return;
-    void startRender(world, project);
+    if (!(await flushPendingAutosave())) return;
+    await startRender(world, project);
 }
 
 /**
@@ -614,11 +772,25 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             @again="run.reset"
         />
 
-        <v-alert v-if="listFailure" type="error" density="compact" variant="tonal" class="mb-2" role="alert">
+        <v-alert
+            v-if="listFailure"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mb-2"
+            role="alert"
+        >
             {{ listFailure }}
         </v-alert>
 
-        <v-alert v-if="openFailure" type="error" density="compact" variant="tonal" class="mb-2" role="alert">
+        <v-alert
+            v-if="openFailure"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mb-2"
+            role="alert"
+        >
             {{ openFailure }}
         </v-alert>
 
@@ -629,7 +801,7 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :dirty="dirty"
             :saving="saving"
             :save-failure="saveFailure"
-            :can-render="bridge !== null"
+            :can-render="bridge !== null || projectRenderRoute(openProject) === 'github-actions'"
             :rendering="run.active.value"
             :separator="separator"
             :default-root="defaultRoot"
@@ -677,13 +849,15 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
 
         <!-- Starting one asks for a folder, so it is a decision dialog rather than a notice. -->
         <v-card v-if="createOpen" class="mb-projects-screen__create">
-            <v-card-title>{{ t("project.create.title", "Start a project for a world") }}</v-card-title>
+            <v-card-title>{{
+                t("project.create.title", "Start a project for a world")
+            }}</v-card-title>
             <v-card-text>
                 <p class="mb-projects-screen__note">
                     {{
                         t(
                             "project.create.blurb",
-                            "The project file is written at the root of the world folder you choose, so the world carries its own settings wherever it goes. Nothing is written until you save.",
+                            "The project file lives at the root of the world folder, so the world carries its settings wherever it goes. Automatic saving starts as soon as the project opens.",
                         )
                     }}
                 </p>
@@ -697,19 +871,46 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
                         spellcheck="false"
                         hide-details="auto"
                     />
-                    <v-btn :prepend-icon="mdiFolderOpenOutline" :disabled="configHost === null" variant="tonal" @click="pickWorld">
+                    <v-btn
+                        :prepend-icon="mdiFolderOpenOutline"
+                        :disabled="configHost === null"
+                        variant="tonal"
+                        @click="pickWorld"
+                    >
                         {{ t("project.create.browse", "Browse") }}
                     </v-btn>
                 </div>
+                <v-select
+                    v-model="createRoute"
+                    :items="createRouteItems"
+                    :label="t('project.create.route', 'Render this project on')"
+                    :hint="
+                        t(
+                            'project.create.routeHint',
+                            'You can change this later. GitHub Actions installs BlueMap and its dependencies inside the workflow.',
+                        )
+                    "
+                    persistent-hint
+                    variant="outlined"
+                    density="compact"
+                    class="mt-4"
+                />
                 <p v-if="configHost === null" class="mb-projects-screen__note">
                     {{ hostMissingReason() }}
                 </p>
             </v-card-text>
             <v-divider />
             <v-card-actions>
-                <v-btn variant="text" @click="createOpen = false">{{ t("project.create.cancel", "Cancel") }}</v-btn>
+                <v-btn variant="text" @click="createOpen = false">{{
+                    t("project.create.cancel", "Cancel")
+                }}</v-btn>
                 <v-spacer />
-                <v-btn color="primary" variant="flat" :disabled="createProblem !== null" @click="confirmCreate">
+                <v-btn
+                    color="primary"
+                    variant="flat"
+                    :disabled="createProblem !== null"
+                    @click="confirmCreate"
+                >
                     {{ t("project.create.confirm", "Start the project") }}
                 </v-btn>
             </v-card-actions>

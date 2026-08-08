@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
     CI_SCHEDULE_CADENCES,
     cadenceIntervalMs,
+    customScheduleCadence,
+    customScheduleHours,
     describeCadenceCost,
     isCadenceDue,
     isCiScheduleCadence,
@@ -13,11 +15,18 @@ describe("the cadence set is small and honest", () => {
         expect(CI_SCHEDULE_CADENCES).toEqual(["hourly", "sixHourly", "daily", "weekly"]);
     });
 
-    it("recognises only those four strings", () => {
+    it("recognises the four presets and canonical custom-hour intervals", () => {
         for (const cadence of CI_SCHEDULE_CADENCES) expect(isCiScheduleCadence(cadence)).toBe(true);
+        expect(isCiScheduleCadence("hours:1")).toBe(true);
+        expect(isCiScheduleCadence("hours:37")).toBe(true);
+        expect(isCiScheduleCadence("hours:168")).toBe(true);
         expect(isCiScheduleCadence("0 */3 * * *")).toBe(false);
         expect(isCiScheduleCadence("")).toBe(false);
         expect(isCiScheduleCadence("hourlyish")).toBe(false);
+        expect(isCiScheduleCadence("hours:0")).toBe(false);
+        expect(isCiScheduleCadence("hours:01")).toBe(false);
+        expect(isCiScheduleCadence("hours:169")).toBe(false);
+        expect(isCiScheduleCadence("hours:1.5")).toBe(false);
     });
 
     it("orders the intervals from shortest to longest", () => {
@@ -32,6 +41,16 @@ describe("the cadence set is small and honest", () => {
         expect(cadenceIntervalMs("sixHourly")).toBe(6 * 60 * 60 * 1000);
         expect(cadenceIntervalMs("daily")).toBe(24 * 60 * 60 * 1000);
         expect(cadenceIntervalMs("weekly")).toBe(7 * 24 * 60 * 60 * 1000);
+        expect(cadenceIntervalMs("hours:37")).toBe(37 * 60 * 60 * 1000);
+    });
+
+    it("builds and reads custom intervals without accepting rounded or out-of-range values", () => {
+        expect(customScheduleCadence(37)).toBe("hours:37");
+        expect(customScheduleHours("hours:37")).toBe(37);
+        expect(customScheduleHours("daily")).toBeNull();
+        expect(() => customScheduleCadence(0)).toThrow(RangeError);
+        expect(() => customScheduleCadence(1.5)).toThrow(RangeError);
+        expect(() => customScheduleCadence(169)).toThrow(RangeError);
     });
 });
 
@@ -80,6 +99,7 @@ describe("describeCadenceCost", () => {
         expect(describeCadenceCost("sixHourly").checksPerMonth).toBe(120);
         expect(describeCadenceCost("daily").checksPerMonth).toBe(30);
         expect(describeCadenceCost("weekly").checksPerMonth).toBe(4);
+        expect(describeCadenceCost("hours:12").checksPerMonth).toBe(60);
     });
 
     it("names the count in its own sentence, so the two can never disagree", () => {
