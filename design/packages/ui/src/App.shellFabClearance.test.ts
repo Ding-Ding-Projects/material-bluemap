@@ -194,6 +194,18 @@ describe("the stack clears the tab strip as well as the page", () => {
         expect(strip).toMatch(/placement === "left"/);
     });
 
+    it("is published by the shell's strip alone, not by the four this app draws", () => {
+        // The document has one custom property and this application renders four strips -
+        // the shell's, the settings sheet's, the config editor's and the project editor's.
+        // Ungated, whichever mounted last overwrote the shell's measurement with a
+        // panel-sized number, which a real capture showed as buttons offset far past the
+        // strip they were meant to clear.
+        expect(strip).toContain("props.publishesInset");
+        expect(read("./components/tabs/TabbedNavigation.vue")).toContain("publishesInset: false");
+        // The shell is the one caller that opts in.
+        expect(app).toContain("publishes-inset");
+    });
+
     it("re-publishes when the strip resizes and when the strip itself changes", () => {
         // A number measured once is wrong the first time somebody renames a group, moves
         // the strip to another edge, or resizes the window.

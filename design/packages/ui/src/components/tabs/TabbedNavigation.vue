@@ -140,6 +140,12 @@ const props = withDefaults(
          * empty state is explicitly interactive so its reopen buttons remain usable.
          */
         panelPassThrough?: boolean;
+        /**
+         * Whether this strip publishes its left-edge inset as `--mb-tabs-strip-inline-size`,
+         * for the shell chrome that floats over it. True for the shell's own strip and no
+         * other: the document has one custom property, and this application draws four.
+         */
+        publishesInset?: boolean;
     }>(),
     {
         windowLabel: "",
@@ -148,6 +154,7 @@ const props = withDefaults(
         pinnedPageIds: () => [],
         initialGroups: () => [],
         panelPassThrough: false,
+        publishesInset: false,
     },
 );
 
@@ -462,6 +469,7 @@ function applyPlan(
             :panel-id="panelId"
             :id-prefix="idPrefix"
             :pages="pages"
+            :publishes-inset="publishesInset"
             @set-placement="update(setTabPlacement(strip, $event))"
             @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
             @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"

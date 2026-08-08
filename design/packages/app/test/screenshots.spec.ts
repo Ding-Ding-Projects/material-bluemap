@@ -664,15 +664,27 @@ async function ensureOptionsEditorClosed(): Promise<void> {
  * earlier build restores - simply finds nothing to do.
  */
 async function expandShellTabGroups(): Promise<void> {
-    const heads = page.locator(".mb-shell-tabs .mb-tabs-strip__group-head");
-    const count = await heads.count();
-    for (let index = 0; index < count; index += 1) {
-        const head = heads.nth(index);
-        if ((await head.getAttribute("aria-expanded")) === "false") {
-            await head.click({ timeout: ELEMENT_TIMEOUT });
-        }
+    // Re-queried every pass rather than iterated over a snapshot, because expanding one
+    // group changes the strip: the tabs it reveals take height, and on a short window that
+    // pushes a later group out of the strip and into the overflow menu, where its header no
+    // longer exists. A loop holding a stale handle then waits the full timeout on an element
+    // that has been gone since the first click - which is exactly how this helper turned one
+    // real defect into three false ones on its first outing.
+    for (let guard = 0; guard < 8; guard += 1) {
+        const collapsed = page
+            .locator('.mb-shell-tabs .mb-tabs-strip__group-head[aria-expanded="false"]')
+            .first();
+        if ((await collapsed.count()) === 0) return;
+        // Short timeout and swallowed: a header that scrolls or overflows away mid-click is
+        // the strip behaving correctly, and the caller has its own overflow fallback for the
+        // tab it actually wants.
+        const clicked = await collapsed
+            .click({ timeout: 2_000 })
+            .then(() => true)
+            .catch(() => false);
+        if (!clicked) return;
+        await page.waitForTimeout(150);
     }
-    if (count > 0) await page.waitForTimeout(200);
 }
 
 async function closeSideSheet(): Promise<void> {

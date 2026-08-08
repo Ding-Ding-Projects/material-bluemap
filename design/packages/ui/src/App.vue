@@ -829,6 +829,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         panel-pass-through
                         :pages="pages"
                         :pinned-page-ids="[PAGE_HOME]"
+                        publishes-inset
                         :initial-groups="initialGroups"
                     >
                         <!--

@@ -154,6 +154,16 @@ const props = defineProps<{
     idPrefix: string;
     /** The pages a new tab may show. */
     pages: readonly TabPage[];
+    /**
+     * Whether this strip publishes its own left-edge inset for the chrome that floats over
+     * it, as `--mb-tabs-strip-inline-size`.
+     *
+     * False for every strip but the shell's. The document has one custom property and this
+     * application draws four strips, so a strip inside the settings sheet or an editor
+     * would otherwise overwrite the shell's measurement with a panel-sized number the
+     * shell's own buttons have nothing to do with.
+     */
+    publishesInset?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -316,10 +326,23 @@ const stripRowEl = ref<HTMLElement | null>(null);
  * left edge alone, so the buttons stay where they were on a top, bottom or right strip.
  */
 function publishStripInset(): void {
+    // Four strips exist in this application - the shell's, the settings sheet's, the config
+    // editor's and the project editor's - and they all render this component. The document
+    // has one custom property, so without this gate whichever strip mounted last would
+    // overwrite the shell's measurement with its own: a real capture showed the shell's
+    // buttons offset by a panel-sized strip they have nothing to do with. Only the shell
+    // asks to publish.
+    if (!props.publishesInset) return;
     if (typeof document === "undefined") return;
     const element = stripRowEl.value;
+    // `getBoundingClientRect().right` rather than `offsetWidth`: what the floating buttons
+    // need is the viewport x the strip ends at, which is the same thing only while the strip
+    // starts at zero and carries no transform - and asking for the number wanted directly is
+    // cheaper than assuming both.
     const inset =
-        element !== null && props.strip.placement === "left" ? element.offsetWidth : 0;
+        element !== null && props.strip.placement === "left"
+            ? Math.max(0, Math.round(element.getBoundingClientRect().right))
+            : 0;
     document.documentElement.style.setProperty("--mb-tabs-strip-inline-size", `${inset}px`);
 }
 const available = ref(0);
