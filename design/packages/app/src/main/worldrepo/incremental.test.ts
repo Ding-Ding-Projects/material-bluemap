@@ -21,14 +21,21 @@
  * the wire, not an inference about it.
  */
 
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
-import { WorldRepoHost } from "./repo.js";
-import { WORLD_REPO_MARKER_FILE, WORLD_REPO_MARKER_TOOL } from "./repo.js";
+import {
+    WORLD_REPO_MARKER_FILE,
+    WORLD_REPO_MARKER_TOOL,
+    WORLD_REPO_MAX_INTRODUCED_BYTES,
+    WORLD_REPO_MAX_PUSH_BYTES,
+    WORLD_REPO_UPLOAD_MARKER_FILE,
+    WorldRepoHost,
+    targetKey,
+} from "./repo.js";
 import { nodeProcessRunner } from "../cirender/gh.js";
 import type { ProcessResult, ProcessRunner } from "../cirender/gh.js";
 
@@ -49,7 +56,8 @@ function hybridRunner(): { runner: ProcessRunner; markPublished: () => void } {
     let published = false;
 
     function answerGh(args: readonly string[]): ProcessResult {
-        if (args[0] === "--version") return { started: true, code: 0, stdout: "gh version 2.62.0\n", stderr: "" };
+        if (args[0] === "--version")
+            return { started: true, code: 0, stdout: "gh version 2.62.0\n", stderr: "" };
         if (args[0] === "auth") {
             return {
                 started: true,
@@ -61,7 +69,8 @@ function hybridRunner(): { runner: ProcessRunner; markPublished: () => void } {
         if (args[0] === "repo") return { started: true, code: 0, stdout: "", stderr: "" };
         if (args[0] === "api") {
             const endpoint = args[args.length - 1] ?? "";
-            if (args.includes("-X") && !args.includes("GET")) return { started: true, code: 0, stdout: "", stderr: "" };
+            if (args.includes("-X") && !args.includes("GET"))
+                return { started: true, code: 0, stdout: "", stderr: "" };
             if (endpoint === "repos/octocat/worlds") {
                 return {
                     started: true,
@@ -76,7 +85,12 @@ function hybridRunner(): { runner: ProcessRunner; markPublished: () => void } {
                 };
             }
             if (endpoint === "repos/octocat/worlds/branches/world" && published) {
-                return { started: true, code: 0, stdout: JSON.stringify({ commit: { sha: "irrelevant" } }), stderr: "" };
+                return {
+                    started: true,
+                    code: 0,
+                    stdout: JSON.stringify({ commit: { sha: "irrelevant" } }),
+                    stderr: "",
+                };
             }
             if (
                 endpoint === `repos/octocat/worlds/contents/${WORLD_REPO_MARKER_FILE}?ref=world` &&
@@ -87,7 +101,11 @@ function hybridRunner(): { runner: ProcessRunner; markPublished: () => void } {
                     code: 0,
                     stdout: JSON.stringify({
                         content: Buffer.from(
-                            JSON.stringify({ tool: WORLD_REPO_MARKER_TOOL, version: 1, branch: "world" }),
+                            JSON.stringify({
+                                tool: WORLD_REPO_MARKER_TOOL,
+                                version: 1,
+                                branch: "world",
+                            }),
                         ).toString("base64"),
                     }),
                     stderr: "",
@@ -119,7 +137,8 @@ function hybridRunner(): { runner: ProcessRunner; markPublished: () => void } {
 const cleanupDirs: string[] = [];
 
 afterAll(async () => {
-    for (const dir of cleanupDirs) await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    for (const dir of cleanupDirs)
+        await rm(dir, { recursive: true, force: true }).catch(() => undefined);
 });
 
 async function tempDir(prefix: string): Promise<string> {
@@ -153,10 +172,100 @@ async function bareObjects(bareDir: string): Promise<Set<string>> {
         "--batch-all-objects",
         "--unordered",
     ]);
-    return new Set(result.stdout.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0));
+    return new Set(
+        result.stdout
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0),
+    );
 }
 
 describe.skipIf(!hasGit)("a real git repository, on real disk", { timeout: 60_000 }, () => {
+    it("publishes a complete final tree through three or more bounded linear commits", async () => {
+        const bareDir = join(await tempDir("mbm-worldrepo-batches-bare-"), "world.git");
+        await realGit.run("git", ["init", "--quiet", "--bare", bareDir]);
+
+        const world = await tempDir("mbm-worldrepo-batches-world-");
+        await makeWorld(world, 8);
+        const work = await tempDir("mbm-worldrepo-batches-work-");
+        const { runner } = hybridRunner();
+        const host = new WorldRepoHost({
+            workRoot: () => work,
+            runner,
+            remoteUrl: () => bareDir,
+            planningTargetBytes: 50_000,
+        });
+
+        const result = await host.sync({
+            worldPath: world,
+            owner: "octocat",
+            repo: "worlds",
+            acknowledgeSync: true,
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.report.batchCount).toBeGreaterThanOrEqual(3);
+        expect(result.report.maxCommitBytes).toBeLessThanOrEqual(WORLD_REPO_MAX_INTRODUCED_BYTES);
+        expect(result.report.maxPushBytes).toBeLessThanOrEqual(WORLD_REPO_MAX_PUSH_BYTES);
+
+        const count = await realGit.run("git", [
+            "--git-dir",
+            bareDir,
+            "rev-list",
+            "--count",
+            "refs/heads/world",
+        ]);
+        expect(Number(count.stdout.trim())).toBe(result.report.batchCount);
+
+        const tree = await realGit.run("git", [
+            "--git-dir",
+            bareDir,
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "refs/heads/world",
+        ]);
+        const paths = tree.stdout.split(/\r?\n/).filter((path) => path.length > 0);
+        expect(paths).toContain("level.dat");
+        expect(paths).toContain("region/r.7.0.mca");
+        expect(paths).toContain(WORLD_REPO_MARKER_FILE);
+        expect(paths).not.toContain(WORLD_REPO_UPLOAD_MARKER_FILE);
+        expect(await stat(join(world, WORLD_REPO_MARKER_FILE)).catch(() => null)).toBeNull();
+        expect(await stat(join(world, WORLD_REPO_UPLOAD_MARKER_FILE)).catch(() => null)).toBeNull();
+
+        const state = JSON.parse(
+            await readFile(
+                join(work, targetKey("octocat", "worlds", "world"), "sync.json"),
+                "utf8",
+            ),
+        ) as {
+            readonly version: number;
+            readonly batches: readonly {
+                readonly introducedBytes: number;
+                readonly pushBytes: number;
+            }[];
+        };
+        expect(state.version).toBe(2);
+        expect(state.batches).toHaveLength(result.report.batchCount);
+        expect(
+            state.batches.every(
+                (batch) => batch.introducedBytes <= WORLD_REPO_MAX_INTRODUCED_BYTES,
+            ),
+        ).toBe(true);
+        expect(state.batches.every((batch) => batch.pushBytes <= WORLD_REPO_MAX_PUSH_BYTES)).toBe(
+            true,
+        );
+
+        const staging = await realGit.run("git", [
+            "--git-dir",
+            bareDir,
+            "for-each-ref",
+            "--format=%(refname)",
+            "refs/heads/worldlens-upload",
+        ]);
+        expect(staging.stdout.trim()).toBe("");
+    });
+
     it("pushes only the changed blob on a second sync of the same target", async () => {
         const bareDir = join(await tempDir("mbm-worldrepo-bare-"), "world.git");
         await realGit.run("git", ["init", "--quiet", "--bare", bareDir]);
@@ -220,7 +329,11 @@ describe.skipIf(!hasGit)("a real git repository, on real disk", { timeout: 60_00
 
         const workA = await tempDir("mbm-worldrepo-workA-");
         const first = hybridRunner();
-        const hostA = new WorldRepoHost({ workRoot: () => workA, runner: first.runner, remoteUrl: () => bareDir });
+        const hostA = new WorldRepoHost({
+            workRoot: () => workA,
+            runner: first.runner,
+            remoteUrl: () => bareDir,
+        });
         const firstResult = await hostA.sync({
             worldPath: world,
             owner: "octocat",
@@ -239,7 +352,11 @@ describe.skipIf(!hasGit)("a real git repository, on real disk", { timeout: 60_00
         const workB = await tempDir("mbm-worldrepo-workB-");
         const second = hybridRunner();
         second.markPublished();
-        const hostB = new WorldRepoHost({ workRoot: () => workB, runner: second.runner, remoteUrl: () => bareDir });
+        const hostB = new WorldRepoHost({
+            workRoot: () => workB,
+            runner: second.runner,
+            remoteUrl: () => bareDir,
+        });
         const secondResult = await hostB.sync({
             worldPath: world,
             owner: "octocat",

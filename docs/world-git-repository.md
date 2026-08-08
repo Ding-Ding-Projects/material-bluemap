@@ -43,29 +43,34 @@ and a durable resume record. `WorldRepoHost`
 (`design/packages/app/src/main/worldrepo/repo.ts`) reuses every one of those, in the same
 shape.
 
-What is worth stating precisely is why an **orphan commit is still correct for a world**,
-and is not merely inherited from copying the map's code:
+What is worth stating precisely is why a **bounded orphan commit chain** is correct for a
+world, rather than one unbounded commit or an ever-growing history:
 
-- **The remote never grows.** Every sync force-replaces the target branch with one fresh
-  commit, so a world synced daily for a year is one commit on GitHub, not 365. That is the
-  exact trap the Pages publisher's own design note warns about — a plain repository that
-  keeps every historical version of every changed file forever — solved the same way a
-  second time.
-- **The push still only sends what changed.** git's push negotiation excludes every object
+- **Every generated commit and push is bounded.** Paths are sorted by their UTF-8 bytes and
+  planned below decimal 1.4 GB. Each commit's introduced objects and conservative no-delta
+  pack bound are then measured and refused if either exceeds decimal 1.5 GB. The existing
+  100 MiB per-file check remains an earlier hard refusal.
+- **The target branch stays atomic.** The commits form one linear root chain on a unique
+  temporary staging ref. Each commit advances that ref under an exact force-with-lease and is
+  read back before the next starts. The target is replaced only after every batch is on the
+  server and the final tree is complete.
+- **The repository does not retain one extra chain per sync.** The staging ref is deleted
+  after target readback, and replacing the target makes the previous snapshot unreachable.
+  A shallow clone still receives only the final complete tree.
+- **Each push still only sends what changed.** git's push negotiation excludes every object
   reachable from a ref the remote currently advertises, **independent of whether the new
   commit is a child of the old one**. All the client needs is to still know those old
   objects locally, and `WorldRepoHost` keeps the same git directory — the same object
   database — across every sync of the same target, deleting only the branch ref and the
-  index before each one. That is what makes an "orphan" commit still cost only the bytes
+  index before each one. That is what makes a new root chain still cost only the bytes
   that changed, and it is proven directly in `incremental.test.ts` (see
   [Verification](#verification) below), not merely argued.
 - **The one gap that leaves** is a local git directory that has never seen the remote's
   current state — the first sync from a new computer, or a repository something else
   already published to. `WorldRepoHost` closes it with the one thing `pages/hosting.ts`
   does not need: before resetting the branch, it fetches the remote branch's objects into
-  the local database first, best-effort. A failure there costs one sync's worth of
-  bandwidth; it never costs correctness, because the orphan reset and force-push after it
-  are correct either way.
+  the local database first. This fetch is now mandatory: falling back to an unbounded
+  transfer would break the per-push promise, so a failed fetch refuses before upload.
 
 ## Publishing and updating from the application
 
@@ -84,20 +89,23 @@ server's save folder — and a repository to keep it in:
    this application's marker or somebody else's.
 2. **Sync** (`WorldRepoHost.sync`) requires an explicit acknowledgement of that preflight —
    the same `acknowledgeSync`/`acknowledgePublish` pattern the Pages publisher uses — then
-   fetches the remote's objects if needed, stages the world's files in batches, commits,
-   force-pushes, and reads the branch back from GitHub to confirm the push actually landed
-   rather than assuming a zero exit code meant it did.
-3. **Resume** picks an interrupted sync back up from a durable stage record, the same way
-   an interrupted Pages publish does.
+   fetches the current target when needed, constructs deterministic bounded commits, uploads
+   them one at a time to a leased staging ref, reads every update back, and atomically updates
+   the target only after the complete chain is verified.
+3. **Resume** validates the world fingerprint, original target lease, exact staging tip and
+   saved commit chain. A command whose response was lost is reconciled from the ref itself,
+   so a batch the server accepted is never uploaded twice. The version-two state file is
+   replaced atomically after every verified batch.
 4. **Remove** deletes the target branch — but only after reading it back and confirming it
    still carries this application's marker, checked again independently of whatever the
    preflight said minutes earlier.
 
-The current marker (`.worldlens-world.json`) is written into the world folder itself; the legacy
-`.material-bluemap-world.json` marker remains readable during migration. It sits beside
-`level.dat`, because it has to be part of the pushed tree for the guard to read it
-back through GitHub's contents API — the same reason the Pages publisher's marker lives
-inside the rendered map rather than beside it.
+The current completion marker (`.worldlens-world.json`) and partial
+`.worldlens-upload.json` marker are synthesized directly into Git's private index. Neither
+is written into the live world folder. The final commit removes the partial marker and adds
+the version-two completion marker with the snapshot ID, batch count and total source bytes.
+The legacy `.material-bluemap-world.json` marker and version-one current marker remain
+readable during migration.
 
 On screen, those four steps read as: a world folder chosen through the native browse
 affordance every path field in this application offers; an owner picked from a real list
@@ -120,16 +128,16 @@ longer proves ownership, the row stays tracked and the exact failure remains vis
 `Render world` (`.github/workflows/render-world.yml`) takes a fourth `world-source` choice,
 `git`, alongside `repository`, `url` and `release-asset`:
 
-| Input | Value |
-|---|---|
-| `world-source` | `git` |
-| `world-repository` | `cafepromenade/Andyville-World` |
-| `world` | `world` (a branch), or `world:worlds/main` (a branch, and a subpath inside it) |
+| Input              | Value                                                                          |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `world-source`     | `git`                                                                          |
+| `world-repository` | `cafepromenade/Andyville-World`                                                |
+| `world`            | `world` (a branch), or `world:worlds/main` (a branch, and a subpath inside it) |
 
 The fetch step does a **shallow, single-branch clone** — `git clone --depth 1
 --single-branch --branch <branch>` — which is the whole saving a plain clone misses: no
-history at all, just the one commit's worth of tree, which is also all there ever is on a
-branch this application publishes to. `git-repository` reuses the existing
+history beyond the requested depth, and the checked-out tip always carries the complete
+world tree even when the snapshot required several bounded commits. `git-repository` reuses the existing
 `world-source`/`world`/`world-repository` triad rather than adding an eleventh
 `workflow_dispatch` input past [GitHub's documented cap of
 ten](./world-sources.md#using-one-in-github-actions).
@@ -172,7 +180,7 @@ already works rather than a limitation of sparse checkout itself:
   architecture this project actually has.
 - Separately, the `plan` job's own measurement (`design/packages/render-actions/src/world/measure.ts`)
   reads the real chunk-location table out of every region file's header to build the shard
-  plan in the first place — real bytes, not just file names — so even the *first* fetch
+  plan in the first place — real bytes, not just file names — so even the _first_ fetch
   cannot be narrowed by sparse-checkout without changing the plan step to run before the
   world is fully present, which is a materially larger change than this feature's scope.
 
@@ -190,6 +198,10 @@ not with git's own capabilities.
   clone and work with well past that. `preflight` warns past 1 GB and warns more strongly
   past 5 GB, and says plainly that a world that large may not belong in a repository at
   all — the release-asset route this application also offers has no such limit.
+- **Worldlens permits at most decimal 1,500,000,000 bytes per generated commit and per Git
+  pack.** Planning targets 1,400,000,000 bytes, exact introduced objects are measured after
+  commit creation, and a conservative pack upper bound is checked before upload. A target
+  update happens only after every bounded batch has been read back.
 - **A push GitHub refuses** — a branch protection rule, an expired sign-in, an
   organization policy — is reported with GitHub's own stderr text attached, the same way
   the Pages publisher reports it, never guessed at or summarised into something vaguer.
@@ -200,16 +212,21 @@ not with git's own capabilities.
 
 ## Failure modes
 
-| What happened | What is reported |
-|---|---|
-| the world folder does not exist | `world-missing`, naming the path |
-| a file is past GitHub's 100 MB limit | `file-too-large`, naming the file and its size |
-| the branch already carries a world this application did not publish | `not-ours`, refusing to touch it |
-| `gh` is not installed or not signed in | `gh-missing` / `gh-signed-out`, with the exact command to run |
-| `git` is not on this computer | `git-missing` |
-| the repository cannot be created | `repo-refused`, with GitHub's own message |
-| GitHub refuses the push | `push-refused`, with GitHub's own stderr |
-| syncing was stopped | `cancelled`, which is not an error |
+| What happened                                                       | What is reported                                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| the world folder does not exist                                     | `world-missing`, naming the path                              |
+| a file is past GitHub's 100 MB limit                                | `file-too-large`, naming the file and its size                |
+| the branch already carries a world this application did not publish | `not-ours`, refusing to touch it                              |
+| `gh` is not installed or not signed in                              | `gh-missing` / `gh-signed-out`, with the exact command to run |
+| `git` is not on this computer                                       | `git-missing`                                                 |
+| the repository cannot be created                                    | `repo-refused`, with GitHub's own message                     |
+| GitHub refuses the push                                             | `push-refused`, with GitHub's own stderr                      |
+| a generated commit or pack exceeds decimal 1.5 GB                   | `commit-too-large` / `push-too-large`, before upload          |
+| the target changes after preparation                                | `target-diverged`, leaving the newer commit untouched         |
+| the temporary staging ref has an unexpected tip                     | `staging-diverged`, leaving the target untouched              |
+| the saved version-two chain is incomplete, nonlinear or over limit  | `resume-state-invalid`, with no ref update attempted          |
+| the world changes while commits are prepared                        | `world-changed`, before upload                                |
+| syncing was stopped                                                 | `cancelled`, which is not an error                            |
 
 ## Security notes
 
@@ -228,13 +245,14 @@ not with git's own capabilities.
 
 ## Verification
 
-`design/packages/app/src/main/worldrepo/` has 29 tests:
+The focused WorldRepo suite covers the bounded protocol directly:
 
-| File | What it proves |
-|---|---|
-| `repo.test.ts` | preflight blockers and warnings (oversized file, non-world folder, gh states, git missing, a branch this application did not write); sync refuses without acknowledgement, refuses a branch it does not own, reports a push GitHub refuses with GitHub's own words, resumes an interrupted sync, and the marker round-trips |
-| `ipc.test.ts` | every channel registers and disposes exactly, and `acknowledgeSync` is read strictly — a truthy string is not an agreement |
-| `incremental.test.ts` | **real git**, against a real local bare repository: a second sync after changing one region file lands only a handful of new objects in the bare repository's own object database, both when the local git directory persisted between syncs and when it did not (the fetch-before-orphan step) |
+| File                  | What it proves                                                                                                                                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `batches.test.ts`     | decimal limit constants, synthetic 1.4/1.5 GB boundaries without allocating gigabyte fixtures, deterministic UTF-8 ordering, three-plus batches, pack overhead and an empty snapshot                                                                         |
+| `repo.test.ts`        | preflight blockers and warnings; exact staging and target leases; response-loss readback; cancellation followed by resume without a duplicate batch; staging and target divergence; corrupted version-two state rejection; version-one and version-two markers; byte and batch progress |
+| `ipc.test.ts`         | every channel registers and disposes exactly, and `acknowledgeSync` is read strictly — a truthy string is not an agreement                                                                                                                                   |
+| `incremental.test.ts` | **real git**, against a real local bare repository: a three-plus-commit chain has a complete final tree, no marker in the live world, no leftover staging ref, and measured limits; incremental transfer still holds with both warm and lost local Git state |
 
 `design/packages/render-actions/src/schedule/changeCheck.test.ts` covers the new `"git"`
 comparator: unchanged when two branch-tip SHAs match, changed when they differ, and an

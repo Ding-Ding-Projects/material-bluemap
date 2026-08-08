@@ -70,6 +70,9 @@ export interface WorldRepoMarker {
     readonly version: number;
     readonly branch: string;
     readonly updatedAt: string;
+    readonly snapshotId?: string;
+    readonly batchCount?: number;
+    readonly bytes?: number;
 }
 
 /** Mirrors `GhStatus` in `main/cirender/gh.ts`, read through `WorldRepoPreflight.gh`. */
@@ -139,6 +142,9 @@ export interface WorldRepoSyncReport {
     readonly pushVerified: boolean;
     readonly bytes: number;
     readonly fileCount: number;
+    readonly batchCount: number;
+    readonly maxCommitBytes: number;
+    readonly maxPushBytes: number;
     readonly notes: readonly string[];
 }
 
@@ -177,6 +183,9 @@ export type WorldRepoEvent =
           readonly description: string;
           readonly done: number;
           readonly total: number;
+          readonly unit?: "files" | "bytes" | "batches";
+          readonly batch?: number;
+          readonly batches?: number;
           readonly at: string;
       }
     | {
@@ -330,7 +339,7 @@ export interface WorldRepoBridge {
     owners(): Promise<Answer<readonly WorldRepoOwner[]>>;
     /** What a sync would do, before it does any of it. */
     preflight(target: WorldRepoTarget): Promise<Answer<WorldRepoPreflight>>;
-    /** Pushes the world folder itself as one commit, force-replacing the branch each time. */
+    /** Uploads bounded commits through a leased staging ref, then atomically replaces the target branch. */
     sync(request: WorldRepoSyncRequest): Promise<WorldRepoSyncResult>;
     /** Deletes the branch this application made for a world. Never touches the world folder. */
     remove(target: WorldRepoTarget): Promise<WorldRepoRemoveResult>;
