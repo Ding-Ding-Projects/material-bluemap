@@ -2,7 +2,8 @@
  * Keeping a Minecraft world in a git repository, so a render never has to re-zip it.
  *
  * ```
- * repo.ts   prepare, guard, fetch-if-needed, stage, commit, push, verify - and forget again
+ * repo.ts   prepare, batch, lease, upload, read back, atomically publish, and resume
+ * batches.ts deterministic byte planning and conservative Git-pack bounds
  * ipc.ts    the channel the interface drives it through, and the events it pushes back
  * ```
  *
@@ -19,6 +20,10 @@ export {
     WORLD_REPO_MARKER_FILE,
     WORLD_REPO_MARKER_TOOL,
     WORLD_REPO_MARKER_VERSION,
+    WORLD_REPO_MAX_INTRODUCED_BYTES,
+    WORLD_REPO_MAX_PUSH_BYTES,
+    WORLD_REPO_PLANNING_TARGET_BYTES,
+    WORLD_REPO_UPLOAD_MARKER_FILE,
     WorldRepoHost,
     WorldRepoRefusal,
     normaliseBranch,

@@ -1329,6 +1329,9 @@ export interface WorldRepoMarker {
     version: number;
     branch: string;
     updatedAt: string;
+    snapshotId?: string;
+    batchCount?: number;
+    bytes?: number;
 }
 
 /** Mirrors `GhStatus` in `main/cirender/gh.ts`, read here through `WorldRepoPreflight.gh`. */
@@ -1407,6 +1410,9 @@ export interface WorldRepoSyncReport {
     pushVerified: boolean;
     bytes: number;
     fileCount: number;
+    batchCount: number;
+    maxCommitBytes: number;
+    maxPushBytes: number;
     notes: string[];
 }
 
@@ -1439,6 +1445,9 @@ export type WorldRepoEvent =
           description: string;
           done: number;
           total: number;
+          unit?: "files" | "bytes" | "batches";
+          batch?: number;
+          batches?: number;
           at: string;
       }
     | { type: "log"; key: string; level: "info" | "warning" | "error"; message: string; at: string }
@@ -1563,7 +1572,7 @@ export interface WorldRepoBridge {
     owners(): Promise<WorldRepoAnswer<readonly WorldRepoOwner[]>>;
     /** What a sync would do, before it does any of it. */
     preflight(target: WorldRepoTarget): Promise<WorldRepoAnswer<WorldRepoPreflight>>;
-    /** Pushes the world folder itself as one commit, force-replacing the branch each time. */
+    /** Uploads bounded commits to a leased staging ref, then atomically replaces the world branch. */
     sync(request: WorldRepoSyncRequest): Promise<WorldRepoSyncResult>;
     /** Deletes the branch this application made for a world. Never touches the world folder. */
     remove(target: WorldRepoTarget): Promise<WorldRepoRemoveResult>;
