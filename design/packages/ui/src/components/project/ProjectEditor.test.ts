@@ -81,7 +81,15 @@ beforeEach(() => {
 const vuetify = createVuetify({ components, directives });
 
 function i18n() {
-    return createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, messages: {} });
+    return createI18n({
+        legacy: false,
+        missingWarn: false,
+        fallbackWarn: false,
+        locale: "none",
+        fallbackLocale: "none",
+        silentFallbackWarn: true,
+        messages: {},
+    });
 }
 
 const STAMP = { now: "2026-08-04T09:00:00+01:00", id: "p1", appVersion: null };
@@ -103,7 +111,10 @@ function seeded(): ProjectFile {
  * what makes an assertion about the *next* render true rather than an assertion about an
  * event nobody applied.
  */
-async function editor(project: ProjectFile = seeded(), extra: Record<string, unknown> = {}): Promise<VueWrapper> {
+async function editor(
+    project: ProjectFile = seeded(),
+    extra: Record<string, unknown> = {},
+): Promise<VueWrapper> {
     const wrapper = mount(ProjectEditor, {
         props: {
             project,
@@ -148,7 +159,9 @@ function buttonNamed(wrapper: VueWrapper, text: string): HTMLButtonElement | und
  * these helpers can reach it without going hunting in a teleported overlay.
  */
 function createForm(wrapper: VueWrapper): ParentNode {
-    const form = (wrapper.element as unknown as ParentNode).querySelector(".mb-project-maps__create");
+    const form = (wrapper.element as unknown as ParentNode).querySelector(
+        ".mb-project-maps__create",
+    );
     if (form === null) throw new Error("the add-a-map form is not open");
     return form;
 }
@@ -190,7 +203,10 @@ describe("every map setting, before the render starts", () => {
         const wrapper = await editor();
 
         expect(wrapper.text()).toContain("Web server");
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("Core"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("Core"))
+            ?.trigger("click");
         await flushPromises();
 
         expect(wrapper.text()).toContain("carries no core.conf of its own");
@@ -255,7 +271,12 @@ describe("the live map id preview", () => {
 
     it("previews a rename of the map that is open, and refuses one onto a taken id", async () => {
         let project = seeded();
-        project = withMapAdded(project, { id: "nether", name: "The Nether", dimension: "minecraft:the_nether", world: WORLD });
+        project = withMapAdded(project, {
+            id: "nether",
+            name: "The Nether",
+            dimension: "minecraft:the_nether",
+            world: WORLD,
+        });
         const wrapper = await editor(project);
 
         const idField = wrapper
@@ -322,7 +343,9 @@ describe("adding and removing maps", () => {
         // Scoped to the maps panel on purpose: the tab strip above it carries its own
         // `ConfigSuperConfirm` for the bulk-close gate, and a bare `findComponent` by
         // name returns whichever of the two the tree happens to render first.
-        const gate = wrapper.findComponent(ProjectMapsPanel).findComponent({ name: "ConfigSuperConfirm" });
+        const gate = wrapper
+            .findComponent(ProjectMapsPanel)
+            .findComponent({ name: "ConfigSuperConfirm" });
         expect(gate.exists()).toBe(true);
         expect((gate.props("affected") as string[]).join(" ")).toContain("are NOT deleted");
         wrapper.unmount();
@@ -337,22 +360,22 @@ describe("starting the render", () => {
         // The empty state teaches what a map is before it says to add one, not just that
         // there is not one yet.
         expect(wrapper.text()).toContain("one dimension");
-        expect(buttonNamed(wrapper, "Render this project")?.disabled).toBe(true);
+        expect(buttonNamed(wrapper, "Render on this computer")?.disabled).toBe(true);
         wrapper.unmount();
     });
 
     it("offers it once there is a map, and counts the ones that will actually be drawn", async () => {
         const wrapper = await editor();
 
-        expect(buttonNamed(wrapper, "Render this project (1 maps)")).toBeDefined();
-        expect(buttonNamed(wrapper, "Render this project (1 maps)")?.disabled).toBe(false);
+        expect(buttonNamed(wrapper, "Render on this computer (1 maps)")).toBeDefined();
+        expect(buttonNamed(wrapper, "Render on this computer (1 maps)")?.disabled).toBe(false);
         wrapper.unmount();
     });
 
     it("emits the render rather than starting one itself", async () => {
         const wrapper = await editor();
 
-        buttonNamed(wrapper, "Render this project (1 maps)")?.click();
+        buttonNamed(wrapper, "Render on this computer (1 maps)")?.click();
         await flushPromises();
 
         expect(wrapper.emitted("render")).toHaveLength(1);
@@ -371,13 +394,13 @@ describe("starting the render", () => {
 describe("saving", () => {
     it("offers Save only once something has changed", async () => {
         const clean = await editor(seeded(), { dirty: false });
-        expect(buttonNamed(clean, "Save the project")?.disabled).toBe(true);
+        expect(buttonNamed(clean, "Save now")?.disabled).toBe(true);
         clean.unmount();
 
         const changed = await editor(seeded(), { dirty: true });
         await flushPromises();
-        expect(buttonNamed(changed, "Save the project")?.disabled).toBe(false);
-        expect(changed.text()).toContain("unsaved changes");
+        expect(buttonNamed(changed, "Save now")?.disabled).toBe(false);
+        expect(changed.text()).toContain("waiting to auto-save");
         changed.unmount();
     });
 
@@ -431,7 +454,9 @@ describe("the guided empty state", () => {
 
         // Fully editable afterwards: the overworld map (selected first) can be renamed
         // through the ordinary identity field, exactly as a hand-added map could be.
-        const nameField = wrapper.findAll("input").find((input) => (input.element as HTMLInputElement).value === "Overworld");
+        const nameField = wrapper
+            .findAll("input")
+            .find((input) => (input.element as HTMLInputElement).value === "Overworld");
         expect(nameField).toBeDefined();
         await nameField!.setValue("My Overworld");
         await flushPromises();
@@ -446,7 +471,10 @@ describe("a render option's own default indicator", () => {
     it("says a value already matches BlueMap's default, with no reset button, until something changes it", async () => {
         const wrapper = await editor();
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
         await flushPromises();
 
         expect(wrapper.text()).toContain("This already matches BlueMap's own default.");
@@ -457,7 +485,10 @@ describe("a render option's own default indicator", () => {
     it("shows what it was set to, and a working reset back to BlueMap's default, once changed", async () => {
         const wrapper = await editor(withRender(seeded(), { force: true }));
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
         await flushPromises();
 
         expect(wrapper.text()).toContain("Set to on. BlueMap's default is off.");
@@ -478,12 +509,18 @@ describe("the render output folder", () => {
     it("carries the shared browse affordance rather than a plain text box", async () => {
         const wrapper = await editor();
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
         await flushPromises();
 
         const browse = wrapper
             .findAll("button")
-            .find((candidate) => candidate.attributes("aria-label") === "Browse for the render output folder");
+            .find(
+                (candidate) =>
+                    candidate.attributes("aria-label") === "Browse for the render output folder",
+            );
         expect(browse).toBeDefined();
         expect(wrapper.find(".mb-path-field input").exists()).toBe(true);
         wrapper.unmount();
@@ -492,7 +529,10 @@ describe("the render output folder", () => {
     it("writes a typed path through the same event a pick would", async () => {
         const wrapper = await editor();
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
         await flushPromises();
 
         await wrapper.find(".mb-path-field input").setValue("D:/rendered/out");
@@ -504,19 +544,44 @@ describe("the render output folder", () => {
     });
 });
 
+describe("the render location", () => {
+    it("persists GitHub Actions and changes the one-click render action", async () => {
+        const wrapper = await editor();
+
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
+        await flushPromises();
+
+        const route = wrapper
+            .findAllComponents({ name: "VSelect" })
+            .find((candidate) => candidate.text().includes("This computer"));
+        expect(route).toBeDefined();
+        route?.vm.$emit("update:modelValue", "github-actions");
+        await flushPromises();
+
+        const { project } = wrapper.props() as { project: ProjectFile };
+        expect(project.render.route).toBe("github-actions");
+        expect(wrapper.text()).toContain("Render with GitHub Actions (1 maps)");
+        wrapper.unmount();
+    });
+});
+
 describe("the render tab", () => {
     it("carries its own search, because a small surface is not an exempt one", async () => {
         const wrapper = await editor();
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
         await flushPromises();
 
         expect(wrapper.text()).toContain("Render threads");
         expect(wrapper.text()).toContain("Redraw the edges too");
 
-        const search = wrapper
-            .findAll(".mb-config-search input")
-            .at(-1);
+        const search = wrapper.findAll(".mb-config-search input").at(-1);
         await search?.setValue("threads");
         await flushPromises();
 
@@ -561,7 +626,10 @@ describe("the history tab", () => {
 
         expect(history).not.toHaveBeenCalled();
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("History"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("History"))
+            ?.trigger("click");
         await flushPromises();
 
         expect(history).toHaveBeenCalledWith(WORLD, undefined);
@@ -574,7 +642,10 @@ describe("the history tab", () => {
 
         const wrapper = await editor();
 
-        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("History"))?.trigger("click");
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("History"))
+            ?.trigger("click");
         await flushPromises();
 
         expect(wrapper.text()).toContain("no version history");

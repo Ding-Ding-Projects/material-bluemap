@@ -196,12 +196,21 @@ export function defaultStamp(): ProjectStamp {
 }
 
 export const EMPTY_RENDER: ProjectRender = {
+    route: "local",
     threads: null,
     force: false,
     fixEdges: false,
     metrics: false,
     outputFolder: null,
 };
+
+/**
+ * The execution route a project asks for. Project format version 1 predates the field, so
+ * absence deliberately means the original local behaviour rather than forcing a migration.
+ */
+export function projectRenderRoute(project: ProjectFile): "local" | "github-actions" {
+    return project.render.route ?? "local";
+}
 
 /**
  * A project with nothing in it but a name.
@@ -761,6 +770,7 @@ export type RenderFieldKey = keyof ProjectRender;
  * module's own default rather than a delegation to `@worldlens/config`.
  */
 export function isRenderFieldDefault(project: ProjectFile, key: RenderFieldKey): boolean {
+    if (key === "route") return projectRenderRoute(project) === "local";
     return project.render[key] === EMPTY_RENDER[key];
 }
 

@@ -21,6 +21,7 @@ import CiRenderScreen from "./CiRenderScreen.vue";
 import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
     Answer,
+    CiBootstrapResult,
     CiPreflight,
     CiRenderBridge,
     CiRepositoryNameAvailability,
@@ -1748,6 +1749,108 @@ describe("preparing a repository automatically, rather than sending somebody to 
         const result = wrapper.find('[data-test="bootstrap-result"]');
         expect(result.text()).toContain("turned off");
     });
+
+    it("refreshes every managed workflow immediately before a manual render dispatch", async () => {
+        const started: CiSyncResult[] = [];
+        let bootstraps = 0;
+        const bridge = fakeBridge(
+            preflight({ uploadNeeded: false, worldChanged: false }),
+            started,
+            {
+                bootstrapCiRepository: () => {
+                    bootstraps += 1;
+                    return Promise.resolve({
+                        ok: true,
+                        report: {
+                            owner: "o",
+                            repo: "r",
+                            route: "gh",
+                            credentialDescribe: "Using gh.",
+                            files: [
+                                {
+                                    path: ".github/workflows/render-world.yml",
+                                    action: "updated",
+                                    reason: null,
+                                },
+                                {
+                                    path: ".github/workflows/render-shard-wave.yml",
+                                    action: "unchanged",
+                                    reason: null,
+                                },
+                                {
+                                    path: ".github/workflows/scheduled-render.yml",
+                                    action: "updated",
+                                    reason: null,
+                                },
+                            ],
+                            markerWritten: true,
+                            actionsEnabled: true,
+                            actionsMessage: "GitHub Actions is enabled for this repository.",
+                            ready: true,
+                            notes: [],
+                        },
+                    });
+                },
+                onCiBootstrapEvent: () => () => {},
+            },
+        );
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+
+        expect(bootstraps).toBe(1);
+        expect(started).toHaveLength(1);
+    });
+
+    it("ignores a repeated render click while repository setup is still running", async () => {
+        const started: CiSyncResult[] = [];
+        let bootstraps = 0;
+        let finishBootstrap = (): void => undefined;
+        const bootstrapGate = new Promise<CiBootstrapResult>((resolve) => {
+            finishBootstrap = () =>
+                resolve({
+                    ok: true,
+                    report: {
+                        owner: "o",
+                        repo: "r",
+                        route: "gh",
+                        credentialDescribe: "Using gh.",
+                        files: [],
+                        markerWritten: false,
+                        actionsEnabled: true,
+                        actionsMessage: "GitHub Actions is enabled for this repository.",
+                        ready: true,
+                        notes: [],
+                    },
+                });
+        });
+        const bridge = fakeBridge(
+            preflight({ uploadNeeded: false, worldChanged: false }),
+            started,
+            {
+                bootstrapCiRepository: () => {
+                    bootstraps += 1;
+                    return bootstrapGate;
+                },
+                onCiBootstrapEvent: () => () => {},
+            },
+        );
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        const startButton = wrapper.find('[data-test="start"]');
+        void startButton.trigger("click");
+        void startButton.trigger("click");
+        await Promise.resolve();
+        expect(bootstraps).toBe(1);
+        expect(started).toHaveLength(0);
+
+        finishBootstrap();
+        await flushPromises();
+        expect(started).toHaveLength(1);
+    });
 });
 
 describe("the repository name: suggested once a world is chosen, checked live", () => {
@@ -2062,6 +2165,27 @@ describe("scheduled re-rendering, on a row that knows its own repository", () =>
             "GitHub reports the same asset digest as last time.",
         );
         expect(wrapper.find('[data-test="schedule-lastCheck"]').text()).toContain("not changed");
+    });
+
+    it("offers a bounded custom interval and writes its canonical whole-hour value", async () => {
+        const { wrapper, bridge } = await rowWithRepository();
+        await wrapper.find('[data-test="schedule-toggle"]').trigger("click");
+        await flushPromises();
+
+        const cadence = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.attributes("data-test") === "schedule-cadence");
+        expect(cadence).toBeDefined();
+        cadence?.vm.$emit("update:modelValue", "custom");
+        await flushPromises();
+
+        const custom = wrapper.find('[data-test="schedule-custom-hours"] input');
+        expect(custom.exists()).toBe(true);
+        await custom.setValue("37");
+        await custom.trigger("change");
+        await flushPromises();
+
+        expect(bridge.ciRenderScheduleWrite).toHaveBeenCalledWith("s", true, "hours:37", undefined);
     });
 
     it("surfaces a write refusal - a world that was never uploaded - without pretending it saved", async () => {

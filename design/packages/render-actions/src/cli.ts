@@ -955,9 +955,9 @@ const SCHEDULE_DUE_USAGE = `schedule-due --cadence <name> [options]
 Says whether a scheduled check is due yet. GitHub's schedule trigger cannot read a
 repository variable to pick its own cron, so the workflow always wakes up on the
 finest cadence (hourly) and asks this command whether the *configured* cadence -
-hourly, sixHourly, daily or weekly - says a check should actually happen this time.
+a guided preset or a custom whole-hour interval - says a check should actually happen.
 
-  --cadence <name>        hourly | sixHourly | daily | weekly
+  --cadence <name>        hourly | sixHourly | daily | weekly | hours:N (1 <= N <= 168)
   --last-check-at <iso>   when the last check ran; empty or omitted means never
   --now <iso>             the current time (default: the real clock)
   --github-output <path>  also write due/next-check-at for Actions
@@ -1083,7 +1083,7 @@ export async function commandScheduleDue(args: Args): Promise<number> {
         process.stderr.write(
             "--cadence must be one of " +
                 CI_SCHEDULE_CADENCES.join(", ") +
-                ", got " +
+                ", or hours:N where N is a whole number from 1 to 168; got " +
                 rawCadence +
                 "\n",
         );

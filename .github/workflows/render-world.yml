@@ -10,10 +10,9 @@ name: Render world
 #
 # When the world is too big for one *matrix* - more than 256 shards - the shards are
 # rendered in sequential waves, each wave a matrix of at most 256 and each waiting for
-# the one before it. Nothing is truncated to fit. Every shard caches its own render
-# state and writes a completion marker, so re-dispatching this workflow skips the shards
-# that are already done and renders only the rest: a run that dies in wave 7 costs wave
-# 7 and not the waves before it. See docs/resumable-renders.md.
+# the one before it. Nothing is truncated to fit. Every shard writes a completion marker
+# into its artifact so the merge can reject incomplete output. Cross-run caches are
+# deliberately disabled: a new dispatch starts from repository and artifact state.
 #
 # When the merged map is too large for one runner's disk, the merge becomes a tree: each
 # group of shards merges its own share, hires tiles are final at that point because they
@@ -68,7 +67,7 @@ on:
           release-asset and git only. owner/name of the repository the world lives in.
           Blank means this repository (release-asset only - git always needs one named).
         type: string
-        default: ''
+        default: ""
       dimension:
         description: Dimension to render
         type: choice
@@ -95,15 +94,15 @@ on:
       budget-minutes:
         description: Rendering minutes one job may spend before the world is split
         type: string
-        default: '240'
+        default: "240"
       max-jobs:
         description: Cap on parallel render jobs (GitHub itself refuses more than 256)
         type: string
-        default: '64'
+        default: "64"
       force-shards:
         description: Optional. Use exactly this many shards and skip the estimate.
         type: string
-        default: ''
+        default: ""
 
 permissions:
   contents: read
@@ -128,17 +127,28 @@ jobs:
     name: Build the BlueMap CLI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - uses: actions/setup-java@v4
+      - name: Verify the BlueMap source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f vendor/BlueMap/gradlew ]; then
+            echo "::error::vendor/BlueMap is missing. Refresh the managed workflow and retry; it must check out submodules recursively."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           # Matches `build-jars.yml`, which compiles at 25. See render-shard-wave.yml.
-          java-version: '25'
+          java-version: "25"
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
 
       # Bare project paths: the vendored build declares the CLI as `:cli`, not
       # `:implementations:cli`, and the wrong path fails with "project not found".
@@ -159,7 +169,7 @@ jobs:
           mkdir -p cli-out
           cp "$jar" cli-out/bluemap-cli.jar
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bluemap-cli
           path: cli-out/bluemap-cli.jar
@@ -213,17 +223,16 @@ jobs:
       wave12-shards: ${{ steps.plan.outputs.wave12-shards }}
       wave12-needed: ${{ steps.plan.outputs.wave12-needed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          package-manager-cache: false
 
       - name: Install
         working-directory: design
@@ -534,7 +543,7 @@ jobs:
       # The world is uploaded once here rather than re-fetched by every shard, so a
       # thirty-way split does not download the same archive thirty times from someone
       # else's server.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: world
           path: world-in
@@ -544,7 +553,7 @@ jobs:
       # Deliberately not named "shard-something": the merge job collects the shards with
       # the pattern `shard-*`, and an artifact called shard-plan would be swept up with
       # them and then fail as a shard with no map directory.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: render-plan
           path: shard-plan.json
@@ -764,7 +773,22 @@ jobs:
   # ---------------------------------------------------------------------------------
   merge:
     name: Merge group ${{ matrix.group }}
-    needs: [plan, wave1, wave2, wave3, wave4, wave5, wave6, wave7, wave8, wave9, wave10, wave11, wave12]
+    needs:
+      [
+        plan,
+        wave1,
+        wave2,
+        wave3,
+        wave4,
+        wave5,
+        wave6,
+        wave7,
+        wave8,
+        wave9,
+        wave10,
+        wave11,
+        wave12,
+      ]
     # `always()` because most runs skip most wave jobs, and a skipped `needs` would
     # otherwise skip this too. The wave results are checked explicitly instead, so a
     # failed wave still stops the merge rather than publishing a map with a hole in it.
@@ -789,17 +813,16 @@ jobs:
       matrix:
         group: ${{ fromJSON(needs.plan.outputs.group-ids) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          package-manager-cache: false
 
       - name: Install
         working-directory: design
@@ -809,19 +832,19 @@ jobs:
         working-directory: design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: render-plan
 
       # Only this group's shards. A group runner holds its own share of the map and
       # never the whole of it, which is what makes a 40 GB map mergeable on a runner
       # with 14 GB of free disk.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: shard-g${{ matrix.group }}-*
           path: shards
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: matrix.group == 0
         with:
           name: webapp
@@ -858,7 +881,7 @@ jobs:
             fi
           done
           if [ -n "$unfinished" ]; then
-            echo "::error::These shards did not finish and were not merged:$unfinished. Their render state is cached; re-dispatch this workflow with the same inputs to carry them on."
+            echo "::error::These shards did not finish and were not merged:$unfinished. Caching is disabled, so re-dispatching starts those shards again from the uploaded world."
             exit 1
           fi
 
@@ -921,7 +944,7 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.plan.outputs.single-group == 'true'
         with:
           name: rendered-map
@@ -969,7 +992,7 @@ jobs:
           echo "documentation site: $(find pages-root -maxdepth 1 -type f | wc -l) root files"
           echo "rendered map:       $(find pages-root/map -type f | wc -l) files under /map/"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
         with:
           path: pages-root
@@ -977,7 +1000,7 @@ jobs:
       # A multi-group render ships in parts. Hires tiles are disjoint across the whole
       # plan, so this group's hires output is already its final share of the map and
       # nothing downstream opens it again.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.plan.outputs.single-group != 'true'
         with:
           name: partial-hires-${{ matrix.group }}
@@ -987,7 +1010,7 @@ jobs:
 
       # Lod 1 is not disjoint: a lowres tile is 500 blocks square on an unoffset grid and
       # straddles group boundaries. Only this small part travels to the final job.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.plan.outputs.single-group != 'true'
         with:
           name: partial-lowres-${{ matrix.group }}
@@ -1009,17 +1032,16 @@ jobs:
     if: needs.plan.outputs.single-group != 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          package-manager-cache: false
 
       - name: Install
         working-directory: design
@@ -1029,16 +1051,16 @@ jobs:
         working-directory: design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: render-plan
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: partial-lowres-*
           path: partials-raw
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: webapp
           path: site
@@ -1108,7 +1130,7 @@ jobs:
             echo "> exists to avoid."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: map-lowres
           path: site
@@ -1141,4 +1163,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

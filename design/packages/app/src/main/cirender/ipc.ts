@@ -52,7 +52,11 @@ import type { CiSyncState } from "./state.js";
 import type { ProcessRunner } from "./gh.js";
 import { resolveTransport } from "./transport.js";
 import type { CiRoute, CiTransport, RouteReport } from "./transport.js";
-import { checkCiRepositoryNameAvailability, listCiOwnerChoices, suggestCiRepositoryName } from "./setup.js";
+import {
+    checkCiRepositoryNameAvailability,
+    listCiOwnerChoices,
+    suggestCiRepositoryName,
+} from "./setup.js";
 import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
 import { CiWorkflowTemplateError, loadCiWorkflowTemplates } from "./workflowTemplates.js";
 
@@ -107,7 +111,8 @@ export interface CiRenderIpcOptions {
      * Takes the same optional account id `token` does, so the message names the account a
      * request actually chose rather than always the active one.
      */
-    readonly account?: ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
+    readonly account?:
+        ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
     /** How `gh` is run. Left out, real child processes; injected in every test. */
     readonly runner?: ProcessRunner | undefined;
     /** Overridable so a test can watch what was broadcast. */
@@ -132,7 +137,8 @@ export interface CiRenderIpc {
 }
 
 /** Everything a channel answers with, so a rejection never crosses as a raw stack. */
-type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+type Answer<T> =
+    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
 
 export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     const syncOptions: CiRenderSyncOptions = {
@@ -155,13 +161,17 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
     };
     const sync = new CiRenderSync(syncOptions);
+    const scheduleWrites = new Set<string>();
 
     options.ipcMain.handle(
         "cirender:preflight",
         async (_event: IpcMainInvokeEvent, request: unknown): Promise<Answer<CiPreflight>> => {
             const parsed = readRequest(request);
             if (parsed === null) {
-                return { ok: false, message: "A world folder, a repository owner and a name are required." };
+                return {
+                    ok: false,
+                    message: "A world folder, a repository owner and a name are required.",
+                };
             }
             try {
                 const result = await sync.preflight(parsed);
@@ -346,8 +356,13 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 return { ok: false, message: "A repository owner and name are required." };
             }
             try {
-                const routed = await resolveScheduleTransport(owner, repo, readText(request?.accountId));
-                if (routed.transport === null) return { ok: false, message: routed.report.describe };
+                const routed = await resolveScheduleTransport(
+                    owner,
+                    repo,
+                    readText(request?.accountId),
+                );
+                if (routed.transport === null)
+                    return { ok: false, message: routed.report.describe };
                 return { ok: true, value: await readCiSchedule(routed.transport, owner, repo) };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
@@ -357,8 +372,14 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
 
     options.ipcMain.handle(
         "cirender:scheduleWrite",
-        async (_event: IpcMainInvokeEvent, request: unknown): Promise<Answer<CiScheduleWriteResult>> => {
-            const record = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
+        async (
+            _event: IpcMainInvokeEvent,
+            request: unknown,
+        ): Promise<Answer<CiScheduleWriteResult>> => {
+            const record =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
             const syncId = readText(record["syncId"]);
             const cadence = readText(record["cadence"]);
             const enabled = record["enabled"] === true;
@@ -366,20 +387,36 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 return {
                     ok: false,
                     message:
-                        "A sync id and a cadence - hourly, sixHourly, daily or weekly - are required.",
+                        "A sync id and a cadence - hourly, sixHourly, daily, weekly or hours:N from 1 to 168 - are required.",
                 };
             }
             const state = await sync.readState(syncId);
             if (state === null) {
                 return { ok: false, message: `There is no CI render recorded under ${syncId}.` };
             }
+            const operationKey = `${state.owner.toLowerCase()}/${state.repo.toLowerCase()}/${syncId}`;
+            if (scheduleWrites.has(operationKey)) {
+                return {
+                    ok: false,
+                    message:
+                        "This schedule is already being saved. Wait for that save to finish before trying again.",
+                };
+            }
+            scheduleWrites.add(operationKey);
             try {
-                const routed = await resolveScheduleTransport(state.owner, state.repo, readText(record["accountId"]));
-                if (routed.transport === null) return { ok: false, message: routed.report.describe };
+                const routed = await resolveScheduleTransport(
+                    state.owner,
+                    state.repo,
+                    readText(record["accountId"]),
+                );
+                if (routed.transport === null)
+                    return { ok: false, message: routed.report.describe };
                 const result = await writeCiSchedule(routed.transport, state, { enabled, cadence });
                 return { ok: true, value: result };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
+            } finally {
+                scheduleWrites.delete(operationKey);
             }
         },
     );
@@ -392,7 +429,9 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         "cirender:bootstrap",
         async (
             _event: IpcMainInvokeEvent,
-            request: { owner?: unknown; repo?: unknown; accountId?: unknown; prefer?: unknown } | undefined,
+            request:
+                | { owner?: unknown; repo?: unknown; accountId?: unknown; prefer?: unknown }
+                | undefined,
         ): Promise<CiBootstrapResult> => {
             const owner = readText(request?.owner);
             const repo = readText(request?.repo);
@@ -401,13 +440,17 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     ok: false,
                     failure: {
                         code: "invalid-request",
-                        message: "A repository owner and name are required to prepare a repository.",
+                        message:
+                            "A repository owner and name are required to prepare a repository.",
                         missingScopes: null,
                     },
                 };
             }
             const accountId = readText(request?.accountId);
-            const prefer = request?.prefer === "session" || request?.prefer === "gh" ? request.prefer : undefined;
+            const prefer =
+                request?.prefer === "session" || request?.prefer === "gh"
+                    ? request.prefer
+                    : undefined;
 
             let loaded: Awaited<ReturnType<typeof loadCiWorkflowTemplates>>;
             try {
@@ -485,7 +528,9 @@ function readRequest(value: unknown): CiSyncRequest | null {
         acknowledgePublic: record["acknowledgePublic"] === true,
         forceUpload: record["forceUpload"] === true,
         follow: record["follow"] !== false,
-        ...(typeof record["budgetMinutes"] === "number" ? { budgetMinutes: record["budgetMinutes"] } : {}),
+        ...(typeof record["budgetMinutes"] === "number"
+            ? { budgetMinutes: record["budgetMinutes"] }
+            : {}),
         ...(typeof record["maxJobs"] === "number" ? { maxJobs: record["maxJobs"] } : {}),
         ...(output === "artifact" || output === "artifact-and-pages" ? { output } : {}),
         // Only the two names this build knows. Anything else is not a route, and is

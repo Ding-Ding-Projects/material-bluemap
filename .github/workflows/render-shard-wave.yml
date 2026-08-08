@@ -7,14 +7,10 @@ name: Render one wave of shards
 # A world needing more shards than that is rendered in sequential waves, and the caller
 # declares one job per wave slot, each calling this file with that wave's shard ids.
 #
-# Every shard here is independently resumable. Its map directory - tiles and rstate
-# together - is cached under a key carrying the plan's fingerprint, and a shard that
-# renders to completion writes a marker beside its output. A re-dispatched run restores
-# the cache, checks the marker, and skips every shard that is already done. A run that
-# dies in wave 7 therefore costs wave 7 and not the six waves before it.
-#
-# See design/packages/render-actions/src/resume/ for the logic, which is under test, and
-# docs/resumable-renders.md for why the cache holds rstate while the merge refuses to.
+# Every shard writes a completion marker beside its output. The merge accepts only an
+# artifact whose marker agrees with the files on disk. Cross-run caches are deliberately
+# disabled, so a new dispatch starts from the uploaded world and cannot fail because a
+# cache path, restore key, or partial cached state is missing.
 
 on:
   workflow_call:
@@ -41,7 +37,7 @@ on:
         type: string
         required: true
       accept-download:
-        description: '1 to allow the Minecraft client download, 0 to refuse it'
+        description: "1 to allow the Minecraft client download, 0 to refuse it"
         type: string
         required: true
 
@@ -54,27 +50,25 @@ jobs:
     runs-on: ubuntu-latest
     # Below GitHub's own six hour ceiling. The render step has a shorter timeout still,
     # so a shard that runs out of time fails that one step rather than having the job
-    # cancelled underneath it - which is what lets the cache be saved and the partial
-    # output uploaded instead of thrown away.
+    # cancelled underneath it while a partial artifact is being finalized.
     timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
         shard: ${{ fromJSON(inputs.shards) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          package-manager-cache: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           # Must match the version `build-jars.yml` compiles the jar with. It compiles at
@@ -82,7 +76,7 @@ jobs:
           # file version 69.0` before a single tile is drawn - which is exactly what
           # happened, and which surfaced three jobs later as a missing artifact rather
           # than as the version mismatch it was.
-          java-version: '25'
+          java-version: "25"
 
       - name: Install
         working-directory: design
@@ -92,24 +86,21 @@ jobs:
         working-directory: design
         run: pnpm --filter "@worldlens/render-actions..." run build
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: bluemap-cli
           path: cli
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: world
           path: world-in
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: render-plan
 
-      # Where this shard sits: which merge group takes it on, what its artifact is
-      # called, and the cache key it saves under. The key carries the plan fingerprint,
-      # so a cache saved for a different shard layout can never be restored on top of
-      # this one - that rstate would claim work this shard never did.
+      # Where this shard sits: which merge group takes it on and what its artifact is called.
       - name: Locate this shard
         id: shard
         run: |
@@ -120,21 +111,8 @@ jobs:
             --run-attempt '${{ github.run_attempt }}' \
             --github-output "$GITHUB_OUTPUT"
 
-      # Restore rather than the full cache action, so the save below is an explicit step
-      # that still runs after a render that ran out of time.
-      - name: Restore this shard's render state
-        id: restore
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            bluemap-out/maps
-            bluemap-data
-          key: ${{ steps.shard.outputs.cache-key }}
-          restore-keys: ${{ steps.shard.outputs.cache-restore-prefix }}
-
       # Only output carrying a completion marker that agrees with what is on disk counts
-      # as finished. Anything else is unfinished and is rendered again, continuing from
-      # whatever the restore brought back.
+      # as finished. Anything else is unfinished and is rendered from this run's input.
       - name: Is this shard already finished?
         id: resume
         run: |
@@ -190,18 +168,6 @@ jobs:
             --run-id '${{ github.run_id }}' \
             --run-attempt '${{ github.run_attempt }}'
 
-      # Saved whether the render finished or not: an unfinished shard's tiles and rstate
-      # are exactly what makes the next dispatch cheap. Skipped on an exact key hit,
-      # because nothing new was rendered.
-      - name: Save this shard's render state
-        if: always() && steps.restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            bluemap-out/maps
-            bluemap-data
-          key: ${{ steps.shard.outputs.cache-key }}
-
       - name: Report what this shard produced
         id: report
         if: always()
@@ -224,7 +190,7 @@ jobs:
             echo "- render step: ${{ steps.render.outcome || 'skipped, already finished' }}"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.render.outcome }}" = "failure" ]; then
-            echo "::warning::Shard ${{ matrix.shard }} did not finish. Its state is cached; re-dispatch this workflow to carry it on."
+            echo "::warning::Shard ${{ matrix.shard }} did not finish. Caching is disabled; re-dispatching starts this shard again."
           fi
           echo "hires=$hires" >> "$GITHUB_OUTPUT"
 
@@ -257,7 +223,7 @@ jobs:
       # Uploaded whether or not it finished. The marker inside says which it was, and the
       # merge refuses any shard whose marker is missing rather than merging it short.
       # `include-hidden-files` is off, so nothing here is named with a leading dot.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ${{ steps.shard.outputs.shard-artifact }}
@@ -266,7 +232,7 @@ jobs:
           compression-level: 1
 
       # The webapp shell is identical from every shard, so exactly one of them uploads it.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: inputs.wave == 1 && matrix.shard == 0
         with:
           name: webapp

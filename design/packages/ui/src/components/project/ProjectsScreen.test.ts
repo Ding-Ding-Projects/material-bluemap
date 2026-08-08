@@ -12,15 +12,22 @@
  * discovered list afterwards.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
+import type { ProjectFile } from "@worldlens/config";
 import ProjectsScreen from "./ProjectsScreen.vue";
 import type { ProjectHost, ProjectListing, ProjectWriteAnswer } from "./projectHost.js";
-import type { FolderScanResult, MinecraftFolder, MinecraftWorldSummary, WorldCatalogBridge } from "../world/worldCatalog.js";
+import { createProject, withMapAdded, withRender } from "./projectModel.js";
+import type {
+    FolderScanResult,
+    MinecraftFolder,
+    MinecraftWorldSummary,
+    WorldCatalogBridge,
+} from "../world/worldCatalog.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -75,7 +82,9 @@ function emptyListing(): ProjectListing {
     return { projects: [], scanned: 0, problems: [] };
 }
 
-function fakeHost(listing: ProjectListing = emptyListing()): ProjectHost & { written: [string, unknown][] } {
+function fakeHost(
+    listing: ProjectListing = emptyListing(),
+): ProjectHost & { written: [string, unknown][] } {
     const written: [string, unknown][] = [];
     return {
         name: "test host",
@@ -143,7 +152,13 @@ function fakeCatalog(worlds: readonly MinecraftWorldSummary[]): WorldCatalogBrid
 
 function screen(host: ProjectHost, catalog: WorldCatalogBridge | null) {
     return mount(ProjectsScreen, {
-        props: { host, bridge: null, optionalBridge: null, worldCatalogBridge: catalog, configHost: null },
+        props: {
+            host,
+            bridge: null,
+            optionalBridge: null,
+            worldCatalogBridge: catalog,
+            configHost: null,
+        },
         global: { plugins: [vuetify, i18n()] },
         attachTo: document.body,
     });
@@ -205,6 +220,24 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         view.unmount();
     });
 
+    it("queues every newly opened project for automatic saving", async () => {
+        const notifyAutosaveChange = vi.fn(
+            async (_worldFolder: string, _project: ProjectFile) => undefined,
+        );
+        const host = { ...fakeHost(), notifyAutosaveChange };
+        const view = screen(host, fakeCatalog([world()]));
+        await flushPromises();
+
+        document
+            .querySelector('[role="option"]')
+            ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await flushPromises();
+
+        expect(notifyAutosaveChange).toHaveBeenCalledOnce();
+        expect(notifyAutosaveChange.mock.calls[0]?.[0]).toBe("/home/ada/.minecraft/saves/Bastion");
+        view.unmount();
+    });
+
     it("the bulk action writes projects through the host and they vanish from the discovered list", async () => {
         const host = fakeHost();
         const worlds = [
@@ -226,7 +259,10 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         await flushPromises();
         await flushPromises();
 
-        expect(host.written.map(([writtenWorld]) => writtenWorld).sort()).toEqual(["/a/Bastion", "/a/Creative"]);
+        expect(host.written.map(([writtenWorld]) => writtenWorld).sort()).toEqual([
+            "/a/Bastion",
+            "/a/Creative",
+        ]);
         view.unmount();
     });
 
@@ -237,6 +273,57 @@ describe("the discovered-worlds panel, wired into the tab", () => {
         expect(view.find(".mb-discovered").exists()).toBe(false);
         // The rest of the tab - the projects list itself - still renders.
         expect(view.text()).toContain("Projects");
+        view.unmount();
+    });
+});
+
+describe("the saved render route", () => {
+    it("opens the GitHub Actions renderer instead of starting a local engine", async () => {
+        const folder = "/home/ada/.minecraft/saves/Bastion";
+        const project = withRender(
+            withMapAdded(createProject("Bastion"), {
+                id: "overworld",
+                name: "Overworld",
+                dimension: "minecraft:overworld",
+                world: folder,
+            }),
+            { route: "github-actions" },
+        );
+        const listing: ProjectListing = {
+            projects: [
+                {
+                    world: folder,
+                    file: `${folder}/worldlens.project.json`,
+                    id: project.id,
+                    name: project.name,
+                    maps: 1,
+                    createdAt: project.createdAt,
+                    updatedAt: project.updatedAt,
+                    fromWizard: false,
+                    worldName: "Bastion",
+                    problem: null,
+                },
+            ],
+            scanned: 1,
+            problems: [],
+        };
+        const host: ProjectHost = {
+            ...fakeHost(listing),
+            readProject: async () => ({
+                ok: true,
+                file: `${folder}/worldlens.project.json`,
+                project,
+            }),
+        };
+        const view = screen(host, null);
+        await flushPromises();
+
+        const render = view.find(`button[aria-label="Render Bastion with its own settings"]`);
+        expect(render.exists()).toBe(true);
+        await render.trigger("click");
+        await flushPromises();
+
+        expect(view.emitted("cloudRender")).toEqual([[folder]]);
         view.unmount();
     });
 });

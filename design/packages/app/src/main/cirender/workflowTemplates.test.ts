@@ -9,7 +9,11 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { CI_WORKFLOW_FILE_NAMES, CiWorkflowTemplateError, loadCiWorkflowTemplates } from "./workflowTemplates.js";
+import {
+    CI_WORKFLOW_FILE_NAMES,
+    CiWorkflowTemplateError,
+    loadCiWorkflowTemplates,
+} from "./workflowTemplates.js";
 
 const cleanups: string[] = [];
 
@@ -34,13 +38,18 @@ describe("loadCiWorkflowTemplates", () => {
         const dir = await scratchDirWith({
             "render-world.yml": "name: Render world\n",
             "render-shard-wave.yml": "name: Render shard wave\n",
+            "scheduled-render.yml": "name: Scheduled render\n",
         });
 
         const loaded = await loadCiWorkflowTemplates({ checkoutWorkflowsDir: dir });
 
         expect(loaded.templates).toEqual([
             { path: ".github/workflows/render-world.yml", content: "name: Render world\n" },
-            { path: ".github/workflows/render-shard-wave.yml", content: "name: Render shard wave\n" },
+            {
+                path: ".github/workflows/render-shard-wave.yml",
+                content: "name: Render shard wave\n",
+            },
+            { path: ".github/workflows/scheduled-render.yml", content: "name: Scheduled render\n" },
         ]);
         expect(loaded.version).toMatch(/^[0-9a-f]{16}$/);
     });
@@ -57,9 +66,13 @@ describe("loadCiWorkflowTemplates", () => {
         const checkoutDir = await scratchDirWith({
             "render-world.yml": "from checkout: render-world.yml\n",
             "render-shard-wave.yml": "from checkout: render-shard-wave.yml\n",
+            "scheduled-render.yml": "from checkout: scheduled-render.yml\n",
         });
 
-        const loaded = await loadCiWorkflowTemplates({ resourcesDir: resources, checkoutWorkflowsDir: checkoutDir });
+        const loaded = await loadCiWorkflowTemplates({
+            resourcesDir: resources,
+            checkoutWorkflowsDir: checkoutDir,
+        });
 
         expect(loaded.templates[0]?.content).toContain("from resources:");
     });
@@ -68,26 +81,38 @@ describe("loadCiWorkflowTemplates", () => {
         const resources = await scratchDirWith({});
         const fs = await import("node:fs/promises");
         await fs.mkdir(join(resources, "workflows"), { recursive: true });
-        await fs.writeFile(join(resources, "workflows", "render-world.yml"), "only half there\n", "utf8");
+        await fs.writeFile(
+            join(resources, "workflows", "render-world.yml"),
+            "only half there\n",
+            "utf8",
+        );
         // render-shard-wave.yml deliberately missing from resources.
 
         const checkoutDir = await scratchDirWith({
             "render-world.yml": "from checkout\n",
             "render-shard-wave.yml": "from checkout too\n",
+            "scheduled-render.yml": "from checkout three\n",
         });
 
-        const loaded = await loadCiWorkflowTemplates({ resourcesDir: resources, checkoutWorkflowsDir: checkoutDir });
-        expect(loaded.templates.every((template) => template.content.includes("from checkout"))).toBe(true);
+        const loaded = await loadCiWorkflowTemplates({
+            resourcesDir: resources,
+            checkoutWorkflowsDir: checkoutDir,
+        });
+        expect(
+            loaded.templates.every((template) => template.content.includes("from checkout")),
+        ).toBe(true);
     });
 
     it("produces the same version for the same content, and a different one for different content", async () => {
         const dirA = await scratchDirWith({
             "render-world.yml": "name: A\n",
             "render-shard-wave.yml": "name: A2\n",
+            "scheduled-render.yml": "name: A3\n",
         });
         const dirB = await scratchDirWith({
             "render-world.yml": "name: B\n",
             "render-shard-wave.yml": "name: B2\n",
+            "scheduled-render.yml": "name: B3\n",
         });
 
         const loadedA = await loadCiWorkflowTemplates({ checkoutWorkflowsDir: dirA });
@@ -101,8 +126,8 @@ describe("loadCiWorkflowTemplates", () => {
     it("refuses cleanly when no candidate directory has the files", async () => {
         const emptyDir = await scratchDirWith({});
 
-        await expect(loadCiWorkflowTemplates({ checkoutWorkflowsDir: emptyDir })).rejects.toBeInstanceOf(
-            CiWorkflowTemplateError,
-        );
+        await expect(
+            loadCiWorkflowTemplates({ checkoutWorkflowsDir: emptyDir }),
+        ).rejects.toBeInstanceOf(CiWorkflowTemplateError);
     });
 });

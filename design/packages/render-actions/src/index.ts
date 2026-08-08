@@ -53,11 +53,17 @@ export {
 // configuration surface) the desktop app
 export {
     CI_SCHEDULE_CADENCES,
+    CI_SCHEDULE_CUSTOM_MAX_HOURS,
+    CI_SCHEDULE_CUSTOM_MIN_HOURS,
     cadenceIntervalMs,
+    customScheduleCadence,
+    customScheduleHours,
     describeCadenceCost,
     isCadenceDue,
     isCiScheduleCadence,
     nextCheckAt,
+    type CiCustomScheduleCadence,
+    type CiPresetScheduleCadence,
     type CiScheduleCadence,
     type ScheduleDue,
 } from "./schedule/cadence.js";

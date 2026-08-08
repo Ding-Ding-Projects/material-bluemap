@@ -392,10 +392,17 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
  * the moment this decides to navigate there is no component to call a method on.
  */
 const projectToOpen = ref<string | null>(null);
+const ciWorldToOpen = ref<string | null>(null);
 
 function openProject(world: string): void {
     projectToOpen.value = world;
     revealPage(PAGE_PROJECTS);
+}
+
+/** Opens the GitHub Actions renderer, optionally prefilled from a project's saved route. */
+function openCiRender(world: string | null = null): void {
+    ciWorldToOpen.value = world;
+    revealPage(PAGE_CIRENDER);
 }
 
 /**
@@ -890,7 +897,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
                                     @open-project="openProject"
-                                    @open-ci-render="revealPage(PAGE_CIRENDER)"
+                                    @open-ci-render="openCiRender()"
                                 />
                             </div>
                         </template>
@@ -909,6 +916,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
+                                    @cloud-render="openCiRender"
                                 />
                             </div>
                         </template>
@@ -930,6 +938,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
                                     <CiRenderScreen
+                                        :key="ciWorldToOpen ?? 'manual'"
+                                        :worlds="
+                                            ciWorldToOpen === null
+                                                ? []
+                                                : [{ folder: ciWorldToOpen, label: ciWorldToOpen }]
+                                        "
                                         :can-open-settings="true"
                                         @sign-in="openSettings('github-account')"
                                         @open-consent="openSettings('mojang-download-consent')"

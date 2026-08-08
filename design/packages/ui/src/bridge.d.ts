@@ -228,6 +228,7 @@ interface BlueMapProjectStorage {
 }
 
 interface BlueMapProjectRender {
+    route?: "local" | "github-actions";
     threads: number | null;
     force: boolean;
     fixEdges: boolean;

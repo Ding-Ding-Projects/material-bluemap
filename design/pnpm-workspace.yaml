@@ -1,12 +1,10 @@
 packages:
-  - packages/*
-  - tools/*
+    - packages/*
+    - tools/*
 
-# pnpm 10 no longer reads the `pnpm` field from package.json and prints a warning
-# that these keys were ignored. Left there, electron's postinstall never runs, its
-# binary is never downloaded, and `electron.launch` fails with "Electron failed to
-# install correctly" — which is why the screenshot harness could not start.
-onlyBuiltDependencies:
-  - esbuild
-  - electron
-  - better-sqlite3
+allowBuilds:
+    "@parcel/watcher": true
+    better-sqlite3: true
+    electron: true
+    electron-winstaller: true
+    esbuild: true

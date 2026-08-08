@@ -1197,6 +1197,19 @@ export const CIRENDER_FIXED = {
     "cirender.schedule.cadence.sixHourly": { en: "Every 6 hours", yue: "每 6 個鐘" },
     "cirender.schedule.cadence.daily": { en: "Every day", yue: "每日" },
     "cirender.schedule.cadence.weekly": { en: "Every week", yue: "每星期" },
+    "cirender.schedule.cadence.custom": { en: "Custom interval", yue: "自訂間隔" },
+    "cirender.schedule.custom.hours": {
+        en: "Run every this many hours",
+        yue: "每隔幾多個鐘執行",
+    },
+    "cirender.schedule.custom.hint": {
+        en: "Choose a whole number from 1 to 168. GitHub checks the schedule while this computer is off.",
+        yue: "揀 1 至 168 嘅整數。部電腦熄咗之後，GitHub 都會照樣檢查排程。",
+    },
+    "cirender.schedule.custom.invalid": {
+        en: "Enter a whole number from 1 to 168 hours.",
+        yue: "請輸入 1 至 168 個鐘嘅整數。",
+    },
     "cirender.schedule.lastCheck": { en: "Last checked", yue: "上次檢查" },
     "cirender.schedule.lastCheck.never": { en: "Never yet", yue: "仲未check過" },
     "cirender.schedule.nextCheck": { en: "Next check", yue: "下次檢查" },

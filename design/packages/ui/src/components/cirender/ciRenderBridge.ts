@@ -412,8 +412,8 @@ export type Answer<T> =
 /* Scheduled re-rendering: the honest cadence set, and what the workflow found */
 /* -------------------------------------------------------------------------- */
 
-/** The only four choices this screen offers. Never a cron expression. */
-export type CiScheduleCadence = "hourly" | "sixHourly" | "daily" | "weekly";
+/** Four guided presets or a validated custom whole-hour interval. Never a cron expression. */
+export type CiScheduleCadence = "hourly" | "sixHourly" | "daily" | "weekly" | `hours:${number}`;
 
 export type CiScheduleCheckResultName = "changed" | "unchanged" | "unknown" | "error";
 

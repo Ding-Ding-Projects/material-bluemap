@@ -174,11 +174,7 @@ export function phaseLabel(phase: CiSyncPhase | null, t: T): string {
 export function runLabel(run: CiRunReport | null, t: T): string {
     if (run === null) return t("cirender.run.none", "No run yet");
     if (run.status !== "completed") {
-        return t(
-            "cirender.run.going",
-            { status: run.status.replace("_", " ") },
-            "Run is {status}",
-        );
+        return t("cirender.run.going", { status: run.status.replace("_", " ") }, "Run is {status}");
     }
     return t(
         "cirender.run.ended",
@@ -321,7 +317,10 @@ export function repoNameProblem(repo: string, t: T): string | null {
         return t("cirender.repo.invalid.gitSuffix", 'A repository name cannot end in ".git".');
     }
     if (trimmed.length > 100) {
-        return t("cirender.repo.invalid.long", "A repository name cannot be longer than 100 characters.");
+        return t(
+            "cirender.repo.invalid.long",
+            "A repository name cannot be longer than 100 characters.",
+        );
     }
     if (!REPOSITORY_NAME_PATTERN.test(trimmed)) {
         return t(
@@ -613,7 +612,13 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 });
                 break;
             case "cancelled":
-                put({ ...row, state: "cancelled", finishedAt: event.at, stopping: false, live: true });
+                put({
+                    ...row,
+                    state: "cancelled",
+                    finishedAt: event.at,
+                    stopping: false,
+                    live: true,
+                });
                 break;
         }
     }
@@ -642,6 +647,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         accountId?: string,
     ): Promise<CiScheduleWriteResult | null> {
         if (bridge?.ciRenderScheduleWrite === undefined) return null;
+        if (savingSchedule.value) return null;
         savingSchedule.value = true;
         scheduleFailure.value = null;
         try {
@@ -705,7 +711,9 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         loadingSchedule,
         scheduleFailure,
         savingSchedule,
-        canManageSchedule: bridge?.ciRenderScheduleRead !== undefined && bridge?.ciRenderScheduleWrite !== undefined,
+        canManageSchedule:
+            bridge?.ciRenderScheduleRead !== undefined &&
+            bridge?.ciRenderScheduleWrite !== undefined,
 
         async check(request: CiSyncRequest): Promise<CiPreflight | null> {
             if (bridge === null) return null;
@@ -853,7 +861,12 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 nameAvailability.value = answer;
             } catch (error) {
                 if (token !== nameCheckToken) return;
-                nameAvailability.value = { status: "unknown", owner, repo, message: describe(error) };
+                nameAvailability.value = {
+                    status: "unknown",
+                    owner,
+                    repo,
+                    message: describe(error),
+                };
             } finally {
                 if (token === nameCheckToken) checkingName.value = false;
             }

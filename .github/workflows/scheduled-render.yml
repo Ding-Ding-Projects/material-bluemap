@@ -12,7 +12,7 @@ name: Scheduled render
 # by-hand equivalent with `gh variable set`), and this workflow only reads them:
 #
 #   CIRENDER_SCHEDULE_ENABLED          "true" to turn scheduled checking on at all
-#   CIRENDER_SCHEDULE_CADENCE          hourly | sixHourly | daily | weekly
+#   CIRENDER_SCHEDULE_CADENCE          hourly | sixHourly | daily | weekly | hours:N (1..168)
 #   CIRENDER_SCHEDULE_WORLD_SOURCE     repository | release-asset | url | git
 #   CIRENDER_SCHEDULE_WORLD            same meaning as render-world.yml's `world` input.
 #                                       For release-asset this must be an exact asset name
@@ -47,7 +47,7 @@ on:
   schedule:
     # :17 rather than :00, to land away from the top-of-the-hour rush every scheduled
     # workflow on GitHub piles onto.
-    - cron: '17 * * * *'
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       force-check:
@@ -67,17 +67,16 @@ jobs:
     name: Check whether the scheduled world changed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: design/pnpm-lock.yaml
+          package-manager-cache: false
 
       - name: Install
         working-directory: design
