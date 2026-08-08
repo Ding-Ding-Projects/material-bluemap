@@ -346,6 +346,13 @@ defineExpose({ revealField } satisfies MapOptionsStepExpose);
 
 .mb-world-options__group {
     font-weight: 500;
+    /*
+     * Vuetify's expansion-panel title is a flex row. Let the translated,
+     * schema-owned label become narrower than its unwrapped content instead
+     * of making the whole panel wider, including for long space-free tokens.
+     */
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .mb-world-options__count {
@@ -353,6 +360,7 @@ defineExpose({ revealField } satisfies MapOptionsStepExpose);
     margin-inline-end: 12px;
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

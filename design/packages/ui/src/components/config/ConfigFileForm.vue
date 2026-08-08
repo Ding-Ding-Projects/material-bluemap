@@ -375,6 +375,12 @@ async function copyText(): Promise<void> {
 
 .mb-config-form__group {
     font-weight: 500;
+    /*
+     * This translated schema label is a flex child of Vuetify's expansion-panel
+     * title. Permit it to shrink and wrap instead of widening a narrow panel.
+     */
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .mb-config-form__count {
@@ -382,6 +388,7 @@ async function copyText(): Promise<void> {
     margin-inline-end: 12px;
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
