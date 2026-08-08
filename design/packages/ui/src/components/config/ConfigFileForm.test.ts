@@ -82,6 +82,18 @@ describe("the source-view head, which shares its <v-card-title> with two buttons
     });
 });
 
+describe("the config-group heading inside its expansion-panel flex row", () => {
+    it("lets the label shrink and wrap while the trailing count stays readable", async () => {
+        const source = (await import("./ConfigFileForm.vue?raw")).default as string;
+        const labelRule = /\.mb-config-form__group\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
+        const countRule = /\.mb-config-form__count\s*\{[^}]*\}/.exec(source)?.[0] ?? "";
+
+        expect(labelRule).toContain("min-width: 0");
+        expect(labelRule).toMatch(/overflow-wrap:\s*anywhere/);
+        expect(countRule).toMatch(/flex-shrink:\s*0/);
+    });
+});
+
 describe("the raw-source disclosure", () => {
     it("points aria-controls at the source region it reveals", async () => {
         const view = mountForm();
