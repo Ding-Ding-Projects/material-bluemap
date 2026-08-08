@@ -162,7 +162,14 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 const applicationDataDirectory = app.getPath("appData");
 app.setName(WORLDLENS_IDENTITY.shippedName);
-app.setPath("userData", join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName));
+const screenshotUserData =
+    process.env.WORLDLENS_SCREENSHOTS === "1"
+        ? app.commandLine.getSwitchValue("user-data-dir").trim()
+        : "";
+app.setPath(
+    "userData",
+    screenshotUserData || join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName),
+);
 
 // Kept beside, not inside, the profile being migrated. A collision or unreadable profile is
 // exactly when diagnostics must not depend on writing into that profile.

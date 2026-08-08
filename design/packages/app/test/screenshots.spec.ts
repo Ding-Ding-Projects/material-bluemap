@@ -877,15 +877,9 @@ test.beforeAll(async () => {
         args: [appRoot, "--no-sandbox", "--disable-gpu", `--user-data-dir=${userData}`],
         env: {
             ...process.env,
-            // main/index.ts deliberately pins Electron's userData below appData so a
-            // display-name change can never move the real profile. That also means
-            // --user-data-dir alone does not isolate first-run state on Windows: the
-            // app immediately replaces it with the real roaming profile and the
-            // supposedly fresh capture silently skips onboarding. Point APPDATA at
-            // the same throwaway root so both Chromium and the app's immutable data
-            // identity are isolated for this run.
-            APPDATA: userData,
-            LOCALAPPDATA: join(userData, "local-app-data"),
+            // main/index.ts honours --user-data-dir only under this explicit capture
+            // seam. Production launches still pin storage to the immutable product
+            // identity; this throwaway run gets a genuine empty first-run profile.
             WORLDLENS_SCREENSHOTS: "1",
         },
     });
