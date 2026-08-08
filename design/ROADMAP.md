@@ -1,5 +1,22 @@
 # Roadmap
 
+## Startup resilience and Worldlens brand phase (2026-08-07)
+
+**Implemented on `codex/phase-app-resilience-logo`; packaged and hosted proof remain open.** The app
+now preserves an ordinary shell when optional startup features fail and uses an isolated recovery
+window when profile, preload, renderer or unknown-process integrity makes the ordinary shell unsafe.
+The recovery route is persistent, non-modal where the ordinary shell survives, inspectable,
+copyable, exportable in JSON and Markdown, credential-redacted, and protected against repeated
+submits. Every known startup phase appears in a hand-written completeness guard.
+
+The phase also replaces the inherited BlueMap mark with one Worldlens source image and a
+deterministic Sharp pipeline for the app/UI/site PNGs plus a nine-size Windows ICO. Windows resource
+editing applies the icon and version metadata without enabling code signing. Focused tests (61),
+app/UI/site typecheck and brand freshness are green locally. The remaining gates are the complete
+build-first test/lint/build suite, unpacked and installer packaging, Authenticode `NotSigned`
+confirmation, cheap off-screen launch with the profile-migration probe, a genuine issue capture,
+exact branch CI, default-branch integration and a verified release.
+
 ## Worldlens repository pre-cutover expansion (2026-08-07)
 
 The repository remains at `Ding-Ding-Projects/material-bluemap`; this checkpoint does **not**
@@ -90,6 +107,7 @@ installer and test-world bytes without claiming the producer itself is trusted. 
 43/43 on Windows and Linux; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over
 every workflow. The source is integrated at `e21aaee`; exact-main CI and release read-back remain
 evidence-gated. See `../docs/release-workflow-security.md` and issue #90.
+
 ## Worldlens rename and migration (2026-08-07)
 
 **Implemented on the phase branch; independent review corrections add crash recovery, guarded

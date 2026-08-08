@@ -84,6 +84,7 @@ import { sharedRegexEvaluator } from "./search/evaluator.js";
 import { SearchQueryModel } from "./search/queryModel.js";
 import type { CandidateField } from "./search/runSearch.js";
 import type { NotificationRecord } from "./notifications/Notifications.js";
+import worldlensLogoUrl from "./assets/worldlens-logo.png";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -1392,7 +1393,9 @@ function createBrand(
     const brand = el("button", "mb-brand");
     brand.type = "button";
 
-    const mark = el("span", "mb-brand-mark", "M");
+    const mark = el("img", "mb-brand-mark");
+    mark.src = worldlensLogoUrl;
+    mark.alt = "";
     mark.setAttribute("aria-hidden", "true");
     brand.appendChild(mark);
 

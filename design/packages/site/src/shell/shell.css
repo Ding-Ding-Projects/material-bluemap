@@ -255,25 +255,13 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
 }
 
 .mb-brand-mark {
-    display: flex;
+    display: block;
     flex: none;
-    align-items: center;
-    justify-content: center;
     width: 32px;
     height: 32px;
-    /*
-     * Asymmetric on purpose: two corners rounded large, two barely rounded at all. The
-     * one deliberately un-uniform shape in the chrome, so the mark reads as a drawn
-     * badge rather than the same rounded square every other tile on the site uses.
-     */
-    border-radius: var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small)
-        var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small);
-    background: var(--md-sys-color-primary);
-    color: var(--md-sys-color-on-primary);
+    border-radius: 9px;
+    object-fit: cover;
     box-shadow: var(--md-sys-elevation-level1);
-    font-family: var(--md-sys-typescale-title-medium-font);
-    font-size: var(--md-sys-typescale-title-medium-size);
-    font-weight: 700;
 }
 
 .mb-brand-word {

@@ -27,6 +27,7 @@ import { electronSecurity } from "./electron-security.js";
 import { firstRunConsent } from "./first-run-consent.js";
 import { worldlensMigration } from "./worldlens-migration.js";
 import { desktopShellChrome } from "./desktop-shell-chrome.js";
+import { startupRecovery } from "./startup-recovery.js";
 import { optionsGui } from "./options-gui.js";
 import { configRichControls } from "./config-rich-controls.js";
 import { configHistory } from "./config-history.js";
@@ -77,6 +78,7 @@ export const articles: readonly Article[] = [
     embeddedServer,
     electronSecurity,
     desktopShellChrome,
+    startupRecovery,
     worldlensMigration,
     firstRunConsent,
     optionsGui,

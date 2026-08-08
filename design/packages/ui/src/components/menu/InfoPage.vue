@@ -78,7 +78,10 @@ function decorate(fragment: DocumentFragment): void {
     for (const image of Array.from(fragment.querySelectorAll("img"))) {
         if (image.getAttribute("src") === LOCALE_LOGO) image.setAttribute("src", BUNDLED_LOGO);
         if (!image.hasAttribute("alt")) {
-            image.setAttribute("alt", t("info.logoAlt", "The BlueMap logo"));
+            image.setAttribute(
+                "alt",
+                t("info.logoAlt", "Worldlens logo: a block world under a map lens"),
+            );
         }
     }
 }
@@ -199,7 +202,13 @@ onMounted(() => {
       announcing it would interrupt that reading for a line the reader is about to reach.
     -->
     <p v-if="appVersion !== null" class="mb-info-page__version">
-        {{ t("info.appVersion", { name: productDisplayName, version: appVersion }, "{name} {version}") }}
+        {{
+            t(
+                "info.appVersion",
+                { name: productDisplayName, version: appVersion },
+                "{name} {version}",
+            )
+        }}
     </p>
     <p v-else-if="versionFailure !== null" class="mb-info-page__version">
         {{

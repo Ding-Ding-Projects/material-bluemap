@@ -17,12 +17,21 @@ describe("Worldlens profile migration startup policy", () => {
         expect(source.slice(setName, ready)).not.toContain("productDisplayName");
     });
 
-    it("finishes or refuses migration before the first window launch", () => {
+    it("finishes or isolates migration before the first ordinary window launch", () => {
         const readyBlock = source.slice(source.indexOf("app.whenReady()"));
         const prepare = readyBlock.indexOf("await prepareWorldlensProfile()");
-        const launch = readyBlock.indexOf("await launch()");
+        const launch = readyBlock.indexOf("await launch()", prepare);
+        const recovery = readyBlock.indexOf("await showRecovery([migrationIssue])", prepare);
         expect(prepare).toBeGreaterThan(-1);
         expect(launch).toBeGreaterThan(prepare);
-        expect(readyBlock.slice(prepare, launch)).toContain("app.exit(1)");
+        expect(recovery).toBeGreaterThan(prepare);
+        expect(readyBlock.slice(prepare, Math.max(launch, recovery))).not.toContain("app.exit(1)");
+    });
+
+    it("never makes a recoverable startup failure an exit-only path", () => {
+        expect(source).not.toContain('dialog.showErrorBox("Worldlens could not start"');
+        expect(source).not.toContain("app.exit(1)");
+        expect(source).toContain('window.webContents.on("preload-error"');
+        expect(source).toContain('window.webContents.on("render-process-gone"');
     });
 });

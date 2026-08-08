@@ -511,6 +511,20 @@ export const home: HomeContent = {
                     articleId: "desktop-shell-chrome",
                 },
                 {
+                    title: "An app that opens a recovery shell instead of disappearing",
+                    body: "Optional startup failures disable only their feature and remain inspectable in a persistent banner and notification history. Profile, preload and renderer safety failures open an isolated no-script recovery window with restart, copy and JSON/Markdown export actions.",
+                    status: "ported-unverified",
+                    statusNote:
+                        "Implemented with focused model, store, bridge, policy and mounted-interface tests on codex/phase-app-resilience-logo. The packaged off-screen capture, exact branch CI and default-branch integration are still evidence gates.",
+                    articleId: "startup-recovery",
+                    reading: [
+                        {
+                            label: "docs/startup-recovery.md",
+                            href: "https://github.com/Ding-Ding-Projects/worldlens/blob/main/docs/startup-recovery.md",
+                        },
+                    ],
+                },
+                {
                     title: "A localhost server nothing else can reach",
                     body: "The embedded server binds the loopback address on an ephemeral port and refuses every request that does not carry the token minted for that launch, so another process on the same machine cannot read your map.",
                     status: "shipped",
