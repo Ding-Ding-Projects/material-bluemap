@@ -114,10 +114,31 @@ async function settle(): Promise<void> {
 }
 
 /**
+ * Opens every collapsed group in the shell's strip.
+ *
+ * A fresh workspace seeds four loose tabs plus three named, collapsed groups rather than
+ * twelve flat ones, so most pages have no tab button until their group is opened. The tour
+ * itself never trips over this - it navigates through `revealPage`, which reveals the group
+ * holding the tab it activates - but these tests navigate by clicking the button, which is a
+ * stronger claim and the one worth keeping: the tab a step lands on is a real control, not
+ * merely a page id the shell happens to accept. So they open the groups first and then make
+ * exactly the assertion they always made.
+ */
+async function expandGroups(): Promise<void> {
+    for (const head of document.querySelectorAll<HTMLElement>(
+        '.mb-shell-tabs .mb-tabs-strip__group-head[aria-expanded="false"]',
+    )) {
+        head.click();
+    }
+    await settle();
+}
+
+/**
  * Navigates to `pageId` the same way the tour itself does: through the real tab button, found
  * by the same `data-tutorial-anchor` attribute a highlighted step would resolve.
  */
 async function goToPage(pageId: string): Promise<void> {
+    await expandGroups();
     const tab = document.querySelector<HTMLElement>(`[data-tutorial-anchor="tab-${pageId}"]`);
     expect(tab, `no tab button for page "${pageId}"`).not.toBeNull();
     tab?.click();
@@ -157,6 +178,10 @@ describe("every tour step's anchor resolves to a real element", () => {
     it("every step's own page tab is itself a real, clickable control", async () => {
         shell();
         await settle();
+        // Every destination is still a tab; three of them start inside a collapsed group,
+        // one disclosure away. See `expandGroups` above for why opening them keeps this
+        // assertion honest rather than weakening it.
+        await expandGroups();
 
         for (const step of TUTORIAL_STEPS) {
             const tab = document.querySelector(`[data-tutorial-anchor="tab-${step.pageId}"]`);

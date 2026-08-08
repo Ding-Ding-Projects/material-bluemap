@@ -1851,11 +1851,6 @@ const tabCountLabel = computed(() =>
     min-width: 0;
 }
 
-/* The header takes the room the menu button does not, so long group names still read. */
-.mb-tabs-strip__group-bar > .mb-tabs-strip__group-head {
-    flex: 1 1 auto;
-    min-width: 0;
-}
 
 .mb-tabs-strip__ordinary {
     flex: 1 1 auto;
@@ -1975,6 +1970,12 @@ const tabCountLabel = computed(() =>
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    /* Takes the room the commands menu beside it does not, so a long group name still
+       reads. Declared here rather than in a `.mb-tabs-strip__group-bar > ...` rule of its
+       own: `projectSurfaceSizing.test.ts` reads this class's rule by name to check the 44px
+       touch target, and a second rule ending in the same class is the one it finds. */
+    flex: 1 1 auto;
+    min-width: 0;
     padding: 4px 6px;
     border: 0;
     border-radius: 8px;
