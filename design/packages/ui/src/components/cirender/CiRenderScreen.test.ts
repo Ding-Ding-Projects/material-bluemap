@@ -18,6 +18,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VSelect } from "vuetify/components";
 import CiRenderScreen from "./CiRenderScreen.vue";
+import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
     Answer,
     CiPreflight,
@@ -2112,6 +2113,55 @@ describe("scheduled re-rendering, on a row that knows its own repository", () =>
 
         expect(wrapper.find('[data-test="schedule-failure"]').text()).toContain(
             "This world has never been synced to GitHub.",
+        );
+    });
+});
+
+describe("a render row's title, which turns its <v-card-title> into a flex row", () => {
+    /**
+     * `owner/repo` is typed by whoever set this render up - GitHub alone allows a
+     * 39-character owner plus a 100-character repo name, before bilingual mode doubles it
+     * again. The row title is a `VCardTitle` turned into a flex row (`d-flex`) so the state
+     * chip and spinner sit beside it; Vuetify's own `.v-card-title` rule still contributes
+     * `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` underneath that, and
+     * `text-overflow` has no effect once the box is a flex formatting context, so the title
+     * and the chip were clipped at the card edge with no ellipsis and nothing to say that
+     * anything was missing.
+     *
+     * The assertion reads the shipped rule out of the component source. This workspace's
+     * `vitest.config.ts` does not enable `test.css`, so no stylesheet is attached to a
+     * mounted component and a real cascade is not observable from a test here at all;
+     * `PagesScreen.test.ts` and the components fixed alongside it check their own CSS fixes
+     * the same way.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the title can wrap", () => {
+        const rule = /\.ci-row__title\s*\{[^}]*\}/s.exec(ciRenderScreenSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("overflow: visible");
+        expect(rule).toContain("text-overflow: clip");
+        expect(rule).toContain("white-space: normal");
+    });
+
+    it("wraps, so the state chip drops to its own line instead of past the edge", () => {
+        // Turning off the clip above is what makes an unwrapped overflow visible rather
+        // than hidden; the wrap is what keeps it from happening.
+        const rule = /\.ci-row__title\s*\{[^}]*\}/s.exec(ciRenderScreenSource)?.[0] ?? "";
+        expect(rule).toContain("flex-wrap: wrap");
+    });
+
+    it("lets the unbroken owner/repo string itself break, and wires both classes up", () => {
+        // `white-space: normal` alone cannot wrap `owner/repo` - the string has no spaces
+        // to break on - so the name span needs `overflow-wrap: anywhere` and a `min-width`
+        // that lets a flex item shrink below its content size.
+        const nameRule = /\.ci-row__name\s*\{[^}]*\}/s.exec(ciRenderScreenSource)?.[0] ?? "";
+        expect(nameRule).toContain("min-width: 0");
+        expect(nameRule).toContain("overflow-wrap: anywhere");
+
+        // The template actually wires the classes onto the title and the span, not just the
+        // stylesheet declaring them in isolation.
+        expect(ciRenderScreenSource).toMatch(/VCardTitle class="d-flex align-center ga-2 ci-row__title"/);
+        expect(ciRenderScreenSource).toMatch(
+            /<span class="ci-row__name">\{\{ row\.repository \|\| row\.syncId \}\}<\/span>/,
         );
     });
 });
