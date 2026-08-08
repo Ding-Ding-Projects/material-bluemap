@@ -121,6 +121,12 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "autoScroll", owner: "components/scroll/autoScrollPrefs.ts" },
     { key: "renderMemory", owner: "components/settings/renderMemorySetting.ts" },
     { key: "downloadConcurrency", owner: "components/settings/downloadConcurrencySetting.ts" },
+    { key: "uiSize", owner: "components/settings/uiSizeSetting.ts" },
+    // The choice itself lives in the viewer's own `bluemap-theme` record (see
+    // `themeSetting.ts`'s doc comment on why that record is shared rather than doubled);
+    // this mirror is the settings-history copy of it, recorded by the one module that
+    // writes on the shell's behalf.
+    { key: "theme", owner: "components/settings/themeSetting.ts" },
     // tabStorage.ts backs four independent tab strips through one module, each keyed by
     // its own `localStorage` key (see `DEFAULT_TAB_STORAGE_KEY` and each `storage-key`
     // prop) - `writeTabWorkspace` records under `tabs.<that key>` so the four cannot

@@ -31,6 +31,10 @@ import { createRenderMemorySetting } from "./renderMemorySetting.js";
 import RenderMemoryRow from "./RenderMemoryRow.vue";
 import NotificationDurationRow from "./NotificationDurationRow.vue";
 import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
+import UiSizeRow from "./UiSizeRow.vue";
+import ThemeRow from "./ThemeRow.vue";
+import { UI_SIZE_LEVELS, currentUiSizeLevel, uiSizeLevelByNumber } from "./uiSizeSetting.js";
+import { THEME_CHOICES, currentTheme } from "./themeSetting.js";
 import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
 import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
 import {
@@ -39,6 +43,8 @@ import {
     javaUnsupportedCopy,
     noticeDurationLevelLabel,
     sectionCopy,
+    themeChoiceLabel,
+    uiSizeLevelLabel,
     worldFolderCopy,
 } from "./settingsCopy.js";
 import {
@@ -152,6 +158,7 @@ const storageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const displaySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -276,6 +283,21 @@ const sections = computed<SettingsSectionText[]>(() => {
             title: text["language-and-tone"].title,
             description: text["language-and-tone"].description,
             values: [...languageSearchLabels(), productDisplayName.value, "Worldlens", "display name"],
+        },
+        // The five size stops and the four theme names as the row's own buttons render
+        // them, plus the live values - the percentage the interface is drawn at right now
+        // and the theme currently chosen - so typing "150" or "Contrast" or "zoom" finds
+        // this tab by the words and numbers that are actually on screen.
+        {
+            anchor: "display",
+            title: text.display.title,
+            description: text.display.description,
+            values: [
+                ...UI_SIZE_LEVELS.map((stop) => uiSizeLevelLabel(t, stop.level)),
+                `${uiSizeLevelByNumber(currentUiSizeLevel.value).percent}%`,
+                ...THEME_CHOICES.map((choice) => themeChoiceLabel(t, choice)),
+                themeChoiceLabel(t, currentTheme.value),
+            ],
         },
         // The names of the panels that are open and the five placements they can take, so
         // somebody who can read "Docked to the bottom" on screen finds this row by typing
@@ -441,6 +463,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return githubSection.value;
         case "language-and-tone":
             return languageSection.value;
+        case "display":
+            return displaySection.value;
         case "surface-placement":
             return placementSection.value;
         case "render-memory":
@@ -778,6 +802,27 @@ function onDrawer(value: boolean): void {
                     >
                         <LanguageSettingsRow />
                         <ProductDisplayNameRow />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    How big the interface is drawn, and which theme it is drawn in. Both
+                    controls read and write shared singletons rather than taking props -
+                    `uiSizeSetting.ts`'s one readout and `themeSetting.ts`'s one resolved
+                    choice - because there is exactly one interface to size and one theme
+                    to draw it in. The theme row is the same choice the open map's own
+                    settings menu offers, against the same stored record, reachable here
+                    by the person who has not rendered anything yet.
+                -->
+                <template #display>
+                    <SettingsSection
+                        ref="displaySection"
+                        anchor="display"
+                        :title="copy.display.title"
+                        :description="copy.display.description"
+                    >
+                        <UiSizeRow />
+                        <ThemeRow />
                     </SettingsSection>
                 </template>
 

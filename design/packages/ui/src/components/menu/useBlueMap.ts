@@ -2,6 +2,7 @@ import { computed, inject, onBeforeUnmount, provide, watch } from "vue";
 import type { ComputedRef, InjectionKey } from "vue";
 import { useTheme } from "vuetify";
 import type { BlueMapApp } from "@worldlens/viewer";
+import { currentTheme } from "../settings/themeSetting.js";
 
 /**
  * Upstream reaches the running app through the `$bluemap` global property installed in
@@ -44,6 +45,14 @@ const THEME_NAMES = new Set(["dark", "light", "contrast"]);
  * which the MD3 chrome does not read. Without this bridge the theme buttons would change
  * the marker colours and nothing else, which is exactly the "looks finished, does nothing"
  * failure. `null` means "follow the system", so we also track `prefers-color-scheme`.
+ *
+ * With no viewer running at all, the settings surface's own stored choice
+ * (`themeSetting.ts`'s `currentTheme`) is what applies: the theme control lives in
+ * Settings as well as in the in-map menu now, and a choice made before the first map is
+ * ever rendered has to reach the chrome it was made for. While an app *is* running the
+ * two sources agree by construction - `themeSetting.ts`'s own module watcher keeps them
+ * convergent in both directions - so reading `appState.theme` first preserves exactly
+ * the behaviour this bridge always had.
  */
 export function useBlueMapTheme(app: ComputedRef<BlueMapApp | null>): void {
     const theme = useTheme();
@@ -53,7 +62,8 @@ export function useBlueMapTheme(app: ComputedRef<BlueMapApp | null>): void {
             : null;
 
     const apply = (): void => {
-        const selected = app.value?.appState.theme ?? null;
+        const selected =
+            app.value !== null ? (app.value.appState.theme ?? null) : currentTheme.value;
         if (selected && THEME_NAMES.has(selected)) {
             theme.change(selected);
             return;
@@ -61,7 +71,7 @@ export function useBlueMapTheme(app: ComputedRef<BlueMapApp | null>): void {
         theme.change(media?.matches ? "light" : "dark");
     };
 
-    watch(() => app.value?.appState.theme ?? null, apply, { immediate: true });
+    watch([() => app.value?.appState.theme ?? null, currentTheme], apply, { immediate: true });
     media?.addEventListener("change", apply);
     onBeforeUnmount(() => media?.removeEventListener("change", apply));
 }

@@ -41,8 +41,26 @@ export {
     githubSectionCopy,
     javaUnsupportedCopy,
     sectionCopy,
+    themeChoiceLabel,
+    uiSizeLevelLabel,
     worldFolderCopy,
 } from "./settingsCopy.js";
+
+/**
+ * The interface-size dial, which the shell installs at startup so the persisted level
+ * holds from the first frame rather than from the first time Settings is opened.
+ */
+export {
+    DEFAULT_UI_SIZE_LEVEL,
+    UI_SIZE_LEVELS,
+    changeUiSize,
+    currentUiSizeLevel,
+    installUiSize,
+} from "./uiSizeSetting.js";
+export type { UiSizeLevel } from "./uiSizeSetting.js";
+
+export { THEME_CHOICES, changeTheme, currentTheme } from "./themeSetting.js";
+export type { ThemeChoice } from "./themeSetting.js";
 
 /**
  * Where a docked panel sits, which is a setting and therefore lives here.

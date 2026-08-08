@@ -58,6 +58,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["Funny level, English", "5 Maximum playfulness"],
     },
     {
+        anchor: "display",
+        title: "Display and ease of use",
+        description: "How big everything is drawn, and which theme it is drawn in.",
+        values: ["3 · Large", "150%", "Contrast"],
+    },
+    {
         anchor: "surface-placement",
         title: "Where the panels sit",
         description: "Every panel that docks to an edge remembers its own position.",
@@ -164,6 +170,7 @@ describe("every section the surface renders", () => {
             "world-folder",
             "github-account",
             "language-and-tone",
+            "display",
             "surface-placement",
             "render-memory",
             "notification-duration",
@@ -190,6 +197,12 @@ describe("every section the surface renders", () => {
         expect(
             filterSections(SECTIONS, createSettingMatcher("Docked to the bottom", false, "im")),
         ).toEqual(["surface-placement"]);
+    });
+
+    it("finds the display section by the percentage its own summary is showing", () => {
+        expect(filterSections(SECTIONS, createSettingMatcher("150%", false, "im"))).toEqual([
+            "display",
+        ]);
     });
 
     it("keeps the render-reachable anchors a closed set, the other two out of it", () => {

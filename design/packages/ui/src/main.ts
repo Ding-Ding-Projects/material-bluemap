@@ -29,6 +29,7 @@ import "@fontsource/roboto-mono/400.css";
 import "@fontsource/roboto-mono/500.css";
 import "./styles/global.scss";
 import "./styles/markers.scss";
+import { installUiSize } from "./components/settings/index.js";
 
 // Install Vue's reactivity into the framework-free viewer BEFORE any viewer object is
 // constructed (upstream wrapped its data objects with reactive() directly).
@@ -52,6 +53,11 @@ setI18nAdapter(
     },
     (lang: string) => setLanguage(i18nModule, lang),
 );
+
+// The persisted interface size, applied before the first frame anyone reads: the whole
+// point of the dial is the person who finds the designed size hard to read, and they
+// should never have to read it even once per launch on the way to their own setting.
+installUiSize();
 
 const app = createApp(App);
 app.use(vuetify);

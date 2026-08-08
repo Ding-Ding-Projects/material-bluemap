@@ -951,6 +951,66 @@ export const SETTINGS_VOICED = {
             "呢個版本鍾意點顯示個數量都得，總之就係改唔到。呢個設定歸桌面版管，網頁分頁一啲權限都冇。",
         ],
     },
+    /* ---------------------------------------------------------------- */
+    /* Display and ease of use                                           */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The facts here are the two safety-relevant promises: the dial tops out at double
+     * the designed size (so nobody is told it can do more), and every choice is
+     * remembered (so nobody re-does it per launch). The theme summary additionally keeps
+     * all four choice names and "low vision" at every level - a high-contrast scheme
+     * whose description gets too funny to name who it is for has stopped being a
+     * description.
+     */
+    "settings.display.description": {
+        en: [
+            "How big everything is drawn, from the designed size up to double it, and whether the app is dark, light, high-contrast, or follows this computer. Both apply immediately and are remembered.",
+            "How big everything is drawn, from the designed size up to double it, and whether the app is dark, light, high-contrast, or follows this computer. Both apply immediately and are remembered.",
+            "How big everything is drawn - from the designed size up to double it - and whether the app is dark, light, high-contrast, or follows this computer. Both apply the moment you choose, and both are remembered.",
+            "Make everything bigger, up to double the designed size, and pick dark, light, high-contrast, or whatever this computer prefers. Changes land immediately and are remembered.",
+            "Make the whole interface bigger, up to double its designed size, and dress it dark, light, high-contrast, or however this computer likes it. Every change lands the instant you choose it, and is remembered forever after.",
+        ],
+        yue: [
+            "成個介面畫幾大：由設計原本嘅大細，最多去到兩倍；仲有個 app 係暗色、淺色、高對比，定係跟返部電腦。兩樣都即時生效，並且會記住。",
+            "成個介面畫幾大：由設計原本嘅大細，最多去到兩倍；仲有個 app 係暗色、淺色、高對比，定係跟返部電腦。兩樣都即時生效，並且會記住。",
+            "成個介面畫幾大：由原本大細最多去到兩倍，同埋個 app 着暗色、淺色、高對比，定係跟部電腦。一揀即刻生效，仲會記住。",
+            "想咩都大啲？最多放到原本兩倍。想暗色、淺色、高對比，定跟電腦？隨你。一揀就生效，會記住。",
+            "成個介面任你放大，最多去到原本兩倍；暗色、淺色、高對比、跟電腦，鍾意着邊件着邊件。一揀即刻上身，仲會乖乖記住。",
+        ],
+    },
+    "settings.uiSize.summary": {
+        en: [
+            "Everything is drawn at {percent}% of its designed size: text, buttons, icons and the map alike. The change applies immediately and is remembered.",
+            "Everything is drawn at {percent}% of its designed size: text, buttons, icons and the map alike. The change applies immediately and is remembered.",
+            "Everything is drawn at {percent}% of its designed size - text, buttons, icons and the map alike. It applies immediately and is remembered.",
+            "Everything on screen is drawn at {percent}% of its designed size, map included. It takes effect immediately and is remembered.",
+            "The whole show is drawn at {percent}% of its designed size - every letter, button, icon and the map itself. It lands immediately and is remembered, no restart, no ceremony.",
+        ],
+        yue: [
+            "而家所有嘢都用設計大細嘅 {percent}% 嚟畫：文字、按鈕、圖示同埋幅地圖都一樣。改動即時生效，會記住。",
+            "而家所有嘢都用設計大細嘅 {percent}% 嚟畫：文字、按鈕、圖示同埋幅地圖都一樣。改動即時生效，會記住。",
+            "所有嘢而家用設計大細嘅 {percent}% 嚟畫：文字、按鈕、圖示連幅地圖都係。即時生效，會記住。",
+            "畫面上所有嘢而家係 {percent}%，連幅地圖都計埋。即刻生效，會記住。",
+            "成台戲而家用 {percent}% 上演：每粒字、每粒掣、每個圖示連幅地圖都放埋一份。即刻生效，乖乖記住，唔使重開，唔使拜神。",
+        ],
+    },
+    "settings.display.themeSummary": {
+        en: [
+            "System follows this computer's own light-or-dark choice. Contrast is a high-contrast scheme built for low vision. The same control lives in the open map's own settings menu, and the two always agree.",
+            "System follows this computer's own light-or-dark choice. Contrast is a high-contrast scheme built for low vision. The same control lives in the open map's own settings menu, and the two always agree.",
+            "System follows this computer's own light-or-dark choice, and Contrast is a high-contrast scheme built for low vision. The open map's own settings menu offers the same control, and the two always agree.",
+            "System simply copies whatever this computer prefers, light or dark. Contrast is a high-contrast scheme built for low vision. The open map's settings menu has the same control, and the two always agree.",
+            "System copies whatever this computer is in the mood for, light or dark. Contrast is the high-contrast scheme built for low vision, no apologies. The open map's own settings menu carries the very same control, and the two always agree - no theme drama here.",
+        ],
+        yue: [
+            "「系統」會跟返部電腦自己揀嘅光暗。「高對比」係為低視力而設嘅高對比配色。開咗嘅地圖入面嘅設定選單都有同一個控制，兩邊永遠一致。",
+            "「系統」會跟返部電腦自己揀嘅光暗。「高對比」係為低視力而設嘅高對比配色。開咗嘅地圖入面嘅設定選單都有同一個控制，兩邊永遠一致。",
+            "「系統」跟返部電腦自己嘅光暗選擇；「高對比」係為低視力而設嘅配色。開咗嘅地圖嘅設定選單都有同一個控制，兩邊永遠一致。",
+            "「系統」即係部電腦話光就光、話暗就暗。「高對比」係為低視力而設。地圖入面嘅設定選單都有呢個控制，兩邊實一致。",
+            "「系統」即係部電腦今日心情話事，話光就光話暗就暗。「高對比」就係為低視力朋友度身訂造，冇得傾。地圖入面嘅設定選單都有一模一樣嘅控制，兩邊永遠一致，夾到天衣無縫。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const SETTINGS_FIXED = {
@@ -1082,6 +1142,27 @@ export const SETTINGS_FIXED = {
         yue: "幾多個 part 同時攞",
     },
     "settings.downloadConcurrency.saved": { en: "Saved.", yue: "已儲存。" },
+
+    /* The Display and ease of use tab's own heading, above `settings.display.description`. */
+    "settings.display.title": { en: "Display and ease of use", yue: "顯示同易用度" },
+    "settings.uiSize.level.1": { en: "1 · Standard", yue: "1 級 · 標準" },
+    "settings.uiSize.level.2": { en: "2 · Comfortable", yue: "2 級 · 舒適" },
+    "settings.uiSize.level.3": { en: "3 · Large", yue: "3 級 · 大" },
+    "settings.uiSize.level.4": { en: "4 · Extra large", yue: "4 級 · 特大" },
+    "settings.uiSize.level.5": { en: "5 · Largest", yue: "5 級 · 最大" },
+    "settings.uiSize.pickerLabel": {
+        en: "Interface size, level 1 to 5",
+        yue: "介面大細，1 至 5 級",
+    },
+    "settings.uiSize.defaultChip": { en: "Default", yue: "預設" },
+    "settings.uiSize.reset": { en: "Reset to Standard", yue: "重設做標準" },
+    /*
+     * The four theme names themselves are upstream's own `theme.*` keys, translated in
+     * every bundled viewer locale, so they are deliberately not re-answered here - see
+     * `themeChoiceLabel` in `settingsCopy.ts` and the catalogue rule about keys upstream
+     * already translates.
+     */
+    "settings.display.themePickerLabel": { en: "Colour theme", yue: "色彩主題" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
@@ -1303,6 +1384,25 @@ export const SETTINGS_FACTS = {
     "settings.downloadConcurrency.readOnly": {
         en: ["show", "cannot change", "desktop app"],
         yue: ["顯示", "改唔到", "桌面版"],
+    },
+
+    // The ceiling ("double") and the persistence promise are the two things a person
+    // plans around; "high-contrast" has to survive because it names the accessibility
+    // scheme rather than decorating it.
+    "settings.display.description": {
+        en: ["double", "high-contrast", "remembered"],
+        yue: ["兩倍", "高對比", "記住"],
+    },
+    "settings.uiSize.summary": {
+        en: ["{percent}", "remembered"],
+        yue: ["{percent}", "記住"],
+    },
+    // All four names stay nameable, and so does who the contrast scheme is for: a
+    // description of an accessibility feature that gets too playful to say "low vision"
+    // has stopped describing it.
+    "settings.display.themeSummary": {
+        en: ["System", "Contrast", "high-contrast", "low vision", "settings menu", "agree"],
+        yue: ["系統", "高對比", "低視力", "設定選單", "一致"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,
