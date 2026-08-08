@@ -498,9 +498,16 @@ textarea {
     justify-content: center;
     gap: var(--md-sys-spacing-2);
     min-width: 0;
-    height: var(--md-comp-button-height);
-    padding: 0 var(--md-sys-spacing-6);
-    overflow: hidden;
+    /*
+     * In bilingual mode labels carry a block-level Cantonese secondary line. The target
+     * height is therefore a floor, not a clipping box: a two-line label must grow the
+     * control while preserving the one-line 44px target and its visible border.
+     */
+    min-height: var(--md-comp-button-height);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-6);
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
     border: 1px solid var(--md-comp-button-outline);
     border-radius: var(--md-sys-shape-corner-full);
     background: var(--md-comp-button-container);

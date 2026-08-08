@@ -52,3 +52,17 @@ describe("base.css [hidden] guard", () => {
         expect(guardIndex).toBeLessThan(htmlRuleIndex);
     });
 });
+
+describe("base.css bilingual button layout", () => {
+    it("lets the block-level secondary Cantonese label expand a button instead of clipping it", () => {
+        const buttonRule = baseCss.match(/\.md-button\s*\{(?<body>[^}]*)\}/)?.groups?.["body"];
+
+        expect(buttonRule).toBeDefined();
+        expect(buttonRule).toMatch(/min-height:\s*var\(--md-comp-button-height\)/);
+        expect(buttonRule).not.toMatch(/(?:^|\n)\s*height:\s*var\(--md-comp-button-height\)/);
+        expect(buttonRule).toMatch(/overflow:\s*visible/);
+        expect(buttonRule).not.toMatch(/overflow:\s*hidden/);
+        expect(buttonRule).toMatch(/white-space:\s*normal/);
+        expect(buttonRule).toMatch(/overflow-wrap:\s*anywhere/);
+    });
+});
