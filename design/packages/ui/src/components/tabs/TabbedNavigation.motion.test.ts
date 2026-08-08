@@ -27,6 +27,8 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import TabbedNavigation from "./TabbedNavigation.vue";
+// The strip's own shipped source, for the layout assertions at the bottom of this file.
+import stripSource from "./TabStrip.vue?raw";
 import { addTab, setActiveTab, type TabPage, type TabStripState } from "./tabModel.js";
 import { DEFAULT_TAB_STORAGE_KEY, writeTabWorkspace } from "./tabStorage.js";
 
@@ -295,5 +297,64 @@ describe("two tabs showing one page", () => {
 
         expect(mounts.value["map"]).toBe(1);
         expect(view.find(".press-map").text()).toBe("pressed 1");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The group header row                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The stray "..." a real capture of the running application caught.
+ *
+ * A group in the strip renders three kinds of child: its disclosure button, the commands
+ * menu beside it, and - once expanded - its tabs. A vertical strip turns
+ * `.mb-tabs-strip__group` into a column so those tabs stack under the header, and that
+ * column made no distinction between the menu button and a tab: the menu dropped onto a
+ * full-width row of its own directly beneath the group name. Three seeded groups meant
+ * three orphaned rows reading as bare ellipses, each spending 44px of strip height on
+ * nothing, in the one placement this application actually ships as its default.
+ *
+ * No unit test could have seen it. The markup was valid, the button was labelled, every
+ * tab assertion passed, and the defect existed only in how a flex column laid the pieces
+ * out - which jsdom does not do at all. It took looking at the application.
+ *
+ * The header and its menu now share `.mb-tabs-strip__group-bar`, which is `row` in every
+ * placement. Asserted on the shipped source, the way every other layout regression in this
+ * package is: `vitest.config.ts` does not enable `test.css`, so no cascade is observable
+ * from a mounted component here.
+ */
+describe("a group's header and its commands menu", () => {
+    it("share one row that stays horizontal in every placement", () => {
+        const rule = /\.mb-tabs-strip__group-bar\s*\{[^}]*\}/s.exec(stripSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("flex-direction: row");
+        expect(rule).toContain("display: flex");
+    });
+
+    it("is the wrapper the menu button actually sits in, not a rule with no markup", () => {
+        // The rule existing proves nothing if the template never uses the class - which is
+        // exactly how a CSS fix rots after somebody edits the template around it.
+        expect(stripSource).toContain('class="mb-tabs-strip__group-bar"');
+        const bar = stripSource.indexOf('class="mb-tabs-strip__group-bar"');
+        expect(bar).toBeGreaterThan(-1);
+
+        // Searched from the wrapper forwards, not from the top of the file: `openGroupMenu`
+        // is declared in the script block long before the template uses it, so a bare
+        // indexOf would compare the wrapper against the function's own definition.
+        const menu = stripSource.indexOf("openGroupMenu(", bar);
+        const tabs = stripSource.indexOf("<TabButton", bar);
+        expect(menu).toBeGreaterThan(bar);
+        // The menu button is inside the header row; the group's tabs come after it, which
+        // is what makes the wrapper a header rather than a box around the whole group.
+        expect(tabs).toBeGreaterThan(menu);
+    });
+
+    it("lets a long group name take the room the menu button does not", () => {
+        const rule =
+            /\.mb-tabs-strip__group-bar\s*>\s*\.mb-tabs-strip__group-head\s*\{[^}]*\}/s.exec(
+                stripSource,
+            )?.[0] ?? "";
+        expect(rule).toContain("min-width: 0");
     });
 });

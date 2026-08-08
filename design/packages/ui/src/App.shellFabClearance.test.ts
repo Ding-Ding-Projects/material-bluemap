@@ -147,3 +147,58 @@ describe("the docked-surface chrome (Settings, the EULA panel) stacks above the 
         expect(settingsSource).toMatch(/class="mb-settings"/);
     });
 });
+
+
+/* -------------------------------------------------------------------------- */
+/* Clearing the tab strip itself                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The other half of "these buttons do not paint over anything", found the same way the
+ * first half was: by looking at a capture of the running application.
+ *
+ * The clearance above is about page *content*. This is about the strip. The stack is fixed
+ * to the bottom-left corner, which was empty while the strip ran along the top of the
+ * window - but the strip's default placement is the left edge, so that corner is the
+ * strip's own. `diagnostic-pages-publishing-screen.png` from a real harness run shows the
+ * configuration button drawn on top of the strip's overflow and search controls, and the
+ * run itself failed on a click the button had intercepted rather than on anything wrong
+ * with the tab.
+ *
+ * The fix is the pattern `AppTitleBar.vue` already uses for `--mb-titlebar-height`:
+ * `TabStrip.vue` measures its own width and publishes it, and this stack offsets by it.
+ * Measured rather than hard-coded because the strip is as wide as its widest label needs,
+ * the user can move it to any of four edges, and it is `0px` for the three placements that
+ * leave the left edge alone.
+ */
+describe("the stack clears the tab strip as well as the page", () => {
+    const app = read("./App.vue");
+    const strip = read("./components/tabs/TabStrip.vue");
+
+    it("offsets itself by the strip's own published width", () => {
+        const rule = /\.mb-shell-fabs\s*\{[^}]*\}/s.exec(app)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("--mb-tabs-strip-inline-size");
+    });
+
+    it("falls back to no offset, so a build with no strip keeps its buttons in the corner", () => {
+        const rule = /\.mb-shell-fabs\s*\{[^}]*\}/s.exec(app)?.[0] ?? "";
+        expect(rule).toMatch(/var\(--mb-tabs-strip-inline-size,\s*0px\)/);
+    });
+
+    it("is published by the strip from a real measurement, not a constant", () => {
+        expect(strip).toContain("--mb-tabs-strip-inline-size");
+        expect(strip).toContain("offsetWidth");
+        // Only the left edge takes the offset: a top, bottom or right strip must leave
+        // these buttons exactly where they have always been.
+        expect(strip).toMatch(/placement === "left"/);
+    });
+
+    it("re-publishes when the strip resizes and when the strip itself changes", () => {
+        // A number measured once is wrong the first time somebody renames a group, moves
+        // the strip to another edge, or resizes the window.
+        const publisher = /function publishStripInset\(\)[\s\S]*?\n\}/.exec(strip)?.[0] ?? "";
+        expect(publisher).not.toBe("");
+        expect(strip.match(/publishStripInset\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    });
+});

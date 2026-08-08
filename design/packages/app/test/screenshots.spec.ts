@@ -482,6 +482,11 @@ function emergencyExit(): Locator {
  * all until this function's own click opens it, so there is only ever one to find.
  */
 async function openShellTab(label: RegExp): Promise<void> {
+    // Most destinations sit inside a collapsed group on a fresh workspace, so a tab that is
+    // working perfectly is simply not on screen until its group is opened. Done before the
+    // overflow fallback below, because a collapsed group is not an overflow condition and
+    // the menu would not list it.
+    await expandShellTabGroups();
     const shellTabs = page.locator(".mb-shell-tabs");
     const direct = shellTabs.locator('[role="tab"]', { hasText: label }).first();
     const directlyVisible = await direct
@@ -639,6 +644,37 @@ async function ensureOptionsEditorClosed(): Promise<void> {
  * captures fail with a click timeout on a button nothing is wrong with. Its own close
  * button is unambiguous, so use that.
  */
+/**
+ * Expands every collapsed group in the shell's tab strip.
+ *
+ * A fresh workspace no longer opens as twelve flat tabs: it seeds four loose tabs plus
+ * three named, collapsed groups, so most destinations are one disclosure away rather than
+ * on screen from the first frame. Every capture that reaches a page by clicking its tab
+ * therefore has to open the groups first - without this, `[role="tab"]` matching "Backups"
+ * is genuinely not visible and the wait times out on a tab that is working exactly as
+ * designed.
+ *
+ * The same shape of failure this file already documents for the profile manager, whose
+ * capture went on clicking a floating button the shell had deliberately deleted. A harness
+ * that navigates by clicking has to be told when navigation changes; it cannot infer it,
+ * and it fails slowly and quietly when nobody does.
+ *
+ * Idempotent, cheap, and safe to call before any tab click: a group already expanded is
+ * left alone, and a strip with no groups at all - which is what a saved workspace from an
+ * earlier build restores - simply finds nothing to do.
+ */
+async function expandShellTabGroups(): Promise<void> {
+    const heads = page.locator(".mb-shell-tabs .mb-tabs-strip__group-head");
+    const count = await heads.count();
+    for (let index = 0; index < count; index += 1) {
+        const head = heads.nth(index);
+        if ((await head.getAttribute("aria-expanded")) === "false") {
+            await head.click({ timeout: ELEMENT_TIMEOUT });
+        }
+    }
+    if (count > 0) await page.waitForTimeout(200);
+}
+
 async function closeSideSheet(): Promise<void> {
     for (let guard = 0; guard < 6; guard += 1) {
         if (!(await drawerOpen(".mb-side-sheet"))) return;
@@ -1254,6 +1290,7 @@ test("captures the map and server profile manager", async () => {
         // removed it when it became tabbed - a tab and a FAB reaching one surface are two
         // navigation models arguing on one screen - so this waited fifteen seconds for a
         // control that was deliberately deleted, and the capture quietly left the set.
+        await expandShellTabGroups();
         const serversTab = page.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
         await serversTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await serversTab.getAttribute("aria-selected")) !== "true") {
@@ -1289,6 +1326,7 @@ test("captures the backup screen", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     await attempt("Backup screen", async () => {
+        await expandShellTabGroups();
         const backupsTab = page.locator('[role="tab"]', { hasText: /backups/i }).first();
         await backupsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await backupsTab.getAttribute("aria-selected")) !== "true") {
@@ -1711,6 +1749,7 @@ test("captures the remaining first-class screens", async () => {
     await dismiss();
 
     await attempt("Projects", async () => {
+        await expandShellTabGroups();
         const projectsTab = page.locator('[role="tab"]', { hasText: /^Projects$/i }).first();
         await projectsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await projectsTab.getAttribute("aria-selected")) !== "true") {
@@ -1730,6 +1769,7 @@ test("captures the remaining first-class screens", async () => {
     });
 
     await attempt("CI-render screen", async () => {
+        await expandShellTabGroups();
         const ciTab = page.locator('[role="tab"]', { hasText: /GitHub runners/i }).first();
         await ciTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await ciTab.getAttribute("aria-selected")) !== "true") {
@@ -1902,6 +1942,7 @@ test("captures the tab strip, its context menu, the tab finder and the bulk-clos
     });
 
     await attempt("Tab context menu", async () => {
+        await expandShellTabGroups();
         const tab = shellTabs.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
         await tab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         // The label, not the tab: a tab carries its own close button over part of its

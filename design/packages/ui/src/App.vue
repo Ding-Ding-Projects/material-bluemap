@@ -1389,9 +1389,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     padding: 16px;
 }
 
+/*
+ * Clear of the tab strip, not on top of it.
+ *
+ * This stack is `position: fixed` in the bottom-left corner, which was the empty corner
+ * when the strip ran along the top of the window. The strip's default placement is the left
+ * edge, so that corner belongs to the strip now: a real capture of the running application
+ * shows the configuration button drawn over the strip's own overflow and search controls,
+ * and a tab that reaches that far down is a tab whose click the button intercepts.
+ *
+ * `--mb-tabs-strip-inline-size` is published by `TabStrip.vue` from its own measured width,
+ * and is `0px` for every placement that leaves the left edge alone - so a top, bottom or
+ * right strip puts these buttons back exactly where they have always been. The fallback is
+ * `0px` for the same reason: a build that somehow renders no strip at all should not push
+ * its buttons into the middle of the window.
+ *
+ * `.mb-world-host`'s own 76px gutter still covers these buttons where they land, because
+ * that gutter is measured from the page panel's left edge and the panel begins where the
+ * strip ends.
+ */
 .mb-shell-fabs {
     position: fixed;
-    left: calc(12px + env(safe-area-inset-left, 0px));
+    left: calc(12px + var(--mb-tabs-strip-inline-size, 0px) + env(safe-area-inset-left, 0px));
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;

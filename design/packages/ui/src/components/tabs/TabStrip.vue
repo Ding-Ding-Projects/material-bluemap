@@ -297,6 +297,31 @@ function resetGroupAppearance(groupId: string): void {
 const OVERFLOW_WIDTH = 44;
 
 const ordinaryEl = ref<HTMLElement | null>(null);
+const stripRowEl = ref<HTMLElement | null>(null);
+
+/**
+ * Publishes how much of the window's left edge this strip occupies, for the chrome that
+ * floats over it.
+ *
+ * The shell's own buttons are `position: fixed` at the bottom-left corner, which was the
+ * empty corner while the strip ran along the top. The strip's default placement is the left
+ * edge, so that corner is now the strip's: a real capture of the running application shows
+ * the configuration button sitting on top of the strip's own overflow and search controls,
+ * and a tab that scrolls down that far is a tab whose click the button intercepts.
+ *
+ * Measured and published rather than hard-coded, for the reason `AppTitleBar.vue` publishes
+ * `--mb-titlebar-height` the same way: the strip's thickness is whatever its widest label
+ * needs, the user can move it to any of four edges, and a shell that guessed a number would
+ * be wrong the first time somebody renamed a group. Zero for every placement that leaves the
+ * left edge alone, so the buttons stay where they were on a top, bottom or right strip.
+ */
+function publishStripInset(): void {
+    if (typeof document === "undefined") return;
+    const element = stripRowEl.value;
+    const inset =
+        element !== null && props.strip.placement === "left" ? element.offsetWidth : 0;
+    document.documentElement.style.setProperty("--mb-tabs-strip-inline-size", `${inset}px`);
+}
 const available = ref(0);
 /** Measured natural width per segment, kept while the segment is in the overflow. */
 const widths = ref<Record<string, number>>({});
@@ -325,14 +350,17 @@ let observer: ResizeObserver | null = null;
 
 onMounted(() => {
     measure();
+    publishStripInset();
     // jsdom and older runtimes have no ResizeObserver; the strip then simply
     // measures once, which is correct for a window that never resizes and
     // harmless for a test that has no layout at all.
     if (typeof ResizeObserver !== "undefined" && ordinaryEl.value !== null) {
         observer = new ResizeObserver(() => {
             measure();
+            publishStripInset();
         });
         observer.observe(ordinaryEl.value);
+        if (stripRowEl.value !== null) observer.observe(stripRowEl.value);
     }
 });
 
@@ -344,7 +372,10 @@ onBeforeUnmount(() => {
 watch(
     () => props.strip,
     () => {
-        void nextTick(measure);
+        void nextTick(() => {
+            measure();
+            publishStripInset();
+        });
     },
 );
 
@@ -1076,7 +1107,7 @@ const tabCountLabel = computed(() =>
 </script>
 
 <template>
-    <div class="mb-tabs-strip-row" :data-placement="strip.placement">
+    <div ref="stripRowEl" class="mb-tabs-strip-row" :data-placement="strip.placement">
         <div
             class="mb-tabs-strip"
             role="tablist"
@@ -1140,6 +1171,17 @@ const tabCountLabel = computed(() =>
 
                         <!-- A whole group: its header, then its tabs when expanded. -->
                         <div v-else class="mb-tabs-strip__group" role="presentation">
+                            <!--
+                                The header and its commands menu share one row, always.
+                                A vertical strip turns `.mb-tabs-strip__group` into a
+                                column so the group's tabs stack under it, and without
+                                this wrapper the menu button is just another child of
+                                that column - so it dropped onto a full-width row of its
+                                own directly beneath the group name, reading as a stray
+                                "..." and spending 44px of strip height per group on
+                                nothing. Caught in a real capture of the running app.
+                            -->
+                            <div class="mb-tabs-strip__group-bar" role="presentation">
                             <button
                                 :id="`${idPrefix}-group-${segment.group.id}`"
                                 class="mb-tabs-strip__group-head"
@@ -1207,6 +1249,7 @@ const tabCountLabel = computed(() =>
                                     )
                                 "
                             />
+                            </div>
 
                             <!--
                                 Opening a group makes its tabs exist, which is the moment
@@ -1769,6 +1812,26 @@ const tabCountLabel = computed(() =>
     display: flex;
     align-items: center;
     gap: 4px;
+}
+
+/*
+ * The group's own header row: the disclosure button and the commands menu beside it,
+ * horizontal in every placement. The group around it becomes a column in a vertical strip
+ * so its tabs can stack; this bar never does, which is what keeps the "..." beside the
+ * group name instead of orphaned on a row below it.
+ */
+.mb-tabs-strip__group-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+/* The header takes the room the menu button does not, so long group names still read. */
+.mb-tabs-strip__group-bar > .mb-tabs-strip__group-head {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .mb-tabs-strip__ordinary {
