@@ -875,7 +875,19 @@ test.beforeAll(async () => {
 
     app = await electron.launch({
         args: [appRoot, "--no-sandbox", "--disable-gpu", `--user-data-dir=${userData}`],
-        env: { ...process.env, WORLDLENS_SCREENSHOTS: "1" },
+        env: {
+            ...process.env,
+            // main/index.ts deliberately pins Electron's userData below appData so a
+            // display-name change can never move the real profile. That also means
+            // --user-data-dir alone does not isolate first-run state on Windows: the
+            // app immediately replaces it with the real roaming profile and the
+            // supposedly fresh capture silently skips onboarding. Point APPDATA at
+            // the same throwaway root so both Chromium and the app's immutable data
+            // identity are isolated for this run.
+            APPDATA: userData,
+            LOCALAPPDATA: join(userData, "local-app-data"),
+            WORLDLENS_SCREENSHOTS: "1",
+        },
     });
 
     // Before anything is pointed at a map. The app makes no outbound request until a
@@ -996,6 +1008,7 @@ test("captures the window's own chrome", async () => {
     });
 
     await attempt("Viewer control bar", async () => {
+        await ensureMapTabActive();
         const bar = page.locator(".mb-cb");
         await bar.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
@@ -1049,7 +1062,7 @@ test("captures the map popup retained at the lower-right viewport edge", async (
         return;
     }
 
-    await ensureMapTab();
+    await ensureMapTabActive();
     await page.setViewportSize({ width: 800, height: 600 });
     await page.waitForTimeout(500);
 
