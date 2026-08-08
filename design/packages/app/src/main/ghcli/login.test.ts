@@ -73,6 +73,24 @@ function runner(
 const STATUS =
     '{"hosts":{"github.com":[{"state":"success","active":true,"host":"github.com","login":"octocat","tokenSource":"keyring","scopes":"repo, workflow, gist, read:org, read:project, project","gitProtocol":"https"}]}}';
 
+function statusWithScopes(scopes: string): string {
+    return JSON.stringify({
+        hosts: {
+            "github.com": [
+                {
+                    state: "success",
+                    active: true,
+                    host: "github.com",
+                    login: "octocat",
+                    tokenSource: "keyring",
+                    scopes,
+                    gitProtocol: "https",
+                },
+            ],
+        },
+    });
+}
+
 function successfulRunner(): ProcessRunner & { calls: Call[] } {
     return runner({
         "auth status --hostname github.com --json hosts": { stdout: STATUS },
@@ -322,6 +340,125 @@ describe("loginGhCli", () => {
         expect(result).toMatchObject({ ok: false, state: { failureCode: "gh-login-failed" } });
         expect(JSON.stringify(result)).not.toContain(accessToken);
         expect(result.state.message).toContain("[redacted]");
+    });
+
+    it("redacts the approved token from post-storage verification errors", async () => {
+        const accessToken = "oauth-secret-without-known-prefix-123456789";
+        const network = fetchSequence([
+            {
+                device_code: "device-secret-123456789",
+                user_code: "ABCD-EFGH",
+                verification_uri: "https://github.com/login/device",
+                expires_in: 900,
+                interval: 1,
+            },
+            {
+                access_token: accessToken,
+                token_type: "bearer",
+                scope: GH_CLI_LOGIN_SCOPES.join(" "),
+            },
+        ]);
+        const process = runner({
+            "auth status --hostname github.com --json hosts": {
+                code: 1,
+                stderr: `verification repeated ${accessToken}`,
+            },
+        });
+        const states: GhCliLoginState[] = [];
+
+        const result = await loginGhCli({
+            runner: process,
+            fetch: network.fetch,
+            sleep: () => Promise.resolve(),
+            onState: (state) => states.push(state),
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            state: { stage: "failed", failureCode: "gh-status-unverified" },
+        });
+        expect(result.state.message).toContain("[redacted]");
+        expect(JSON.stringify({ result, states })).not.toContain(accessToken);
+    });
+
+    it("refuses success when the active stored account is missing a requested scope", async () => {
+        const accessToken = "gho_super_secret_token_123456789";
+        const network = fetchSequence([
+            {
+                device_code: "device-secret-123456789",
+                user_code: "ABCD-EFGH",
+                verification_uri: "https://github.com/login/device",
+                expires_in: 900,
+                interval: 1,
+            },
+            {
+                access_token: accessToken,
+                token_type: "bearer",
+                scope: GH_CLI_LOGIN_SCOPES.join(" "),
+            },
+        ]);
+        const process = runner({
+            "auth status --hostname github.com --json hosts": {
+                stdout: statusWithScopes("repo, gist, read:org, read:project, project"),
+            },
+            "api --hostname github.com user --jq .login": { stdout: "octocat\n" },
+        });
+
+        const result = await loginGhCli({
+            runner: process,
+            fetch: network.fetch,
+            sleep: () => Promise.resolve(),
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            state: {
+                stage: "failed",
+                failureCode: "insufficient-scopes",
+                account: { login: "octocat" },
+            },
+        });
+        expect(result.state.message).toContain("workflow");
+        expect(JSON.stringify(result)).not.toContain(accessToken);
+        expect(process.calls.map((call) => call.args.join(" "))).not.toContain(
+            "api --hostname github.com user --jq .login",
+        );
+    });
+
+    it("accepts normalized broader scopes that imply the requested read scopes", async () => {
+        const accessToken = "oauth-secret-without-known-prefix-123456789";
+        const network = fetchSequence([
+            {
+                device_code: "device-secret-123456789",
+                user_code: "ABCD-EFGH",
+                verification_uri: "https://github.com/login/device",
+                expires_in: 900,
+                interval: 1,
+            },
+            {
+                access_token: accessToken,
+                token_type: "bearer",
+                scope: GH_CLI_LOGIN_SCOPES.join(" "),
+            },
+        ]);
+        const process = runner({
+            "auth status --hostname github.com --json hosts": {
+                stdout: statusWithScopes(" repo, WORKFLOW, GIST, admin:org, project "),
+            },
+            "api --hostname github.com user --jq .login": { stdout: "octocat\n" },
+        });
+        const states: GhCliLoginState[] = [];
+
+        const result = await loginGhCli({
+            runner: process,
+            fetch: network.fetch,
+            sleep: () => Promise.resolve(),
+            onState: (state) => states.push(state),
+        });
+
+        expect(result).toMatchObject({ ok: true, state: { stage: "succeeded" } });
+        expect(result.state.message).toContain("requested scopes are verified");
+        expect(JSON.stringify({ result, states })).not.toContain(accessToken);
     });
 
     it("fails scope repair honestly when the browser approves a different account", async () => {
