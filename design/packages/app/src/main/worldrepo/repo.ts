@@ -67,7 +67,7 @@ import {
     gitPackUpperBound,
     planWorldRepoBatches,
 } from "./batches.js";
-import type { WorldRepoBatchFile, WorldRepoBatchPlan } from "./batches.js";
+import type { WorldRepoBatchFile } from "./batches.js";
 
 export {
     WORLD_REPO_MAX_INTRODUCED_BYTES,

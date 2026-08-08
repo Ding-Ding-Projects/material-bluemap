@@ -641,8 +641,7 @@ describe("syncing", () => {
         const runner = machine();
         runner.api.set("repos/octocat/worlds", repositoryPayload());
         let cancelled = false;
-        let uploadHost: WorldRepoHost;
-        uploadHost = new WorldRepoHost({
+        const uploadHost = new WorldRepoHost({
             workRoot: () => work,
             runner,
             now: () => new Date("2026-08-05T12:00:00.000Z"),
@@ -744,8 +743,7 @@ describe("syncing", () => {
         const runner = machine();
         runner.api.set("repos/octocat/worlds", repositoryPayload());
         let cancelled = false;
-        let uploadHost: WorldRepoHost;
-        uploadHost = new WorldRepoHost({
+        const uploadHost = new WorldRepoHost({
             workRoot: () => work,
             runner,
             planningTargetBytes: 300,
