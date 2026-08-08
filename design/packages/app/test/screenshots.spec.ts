@@ -505,12 +505,87 @@ async function openShellTab(label: RegExp): Promise<void> {
         return;
     }
 
+    // Last resort before the overflow menu: open every group and look again. Opening one at
+    // a time keeps the strip short, which is what the overflow fallback below was written
+    // against, but a tab can also be in a group whose header itself scrolled out of reach
+    // while the loop was closing groups behind it.
+    if (!directlyVisible) {
+        await expandShellTabGroups();
+        directlyVisible = await direct
+            .waitFor({ state: "visible", timeout: 2_000 })
+            .then(() => true)
+            .catch(() => false);
+        if (directlyVisible) {
+            if ((await direct.getAttribute("aria-selected")) !== "true") {
+                await direct
+                    .locator(".mb-tabs-strip__label")
+                    .first()
+                    .click({ timeout: ELEMENT_TIMEOUT, force: true });
+            }
+            return;
+        }
+    }
+
     const overflowButton = shellTabs.locator('[aria-label*="do not fit"]').first();
-    await overflowButton.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    const hasOverflow = await overflowButton
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+
+    if (!hasOverflow) {
+        // Every route failed. Say what the strip actually held rather than reporting a
+        // fifteen-second timeout on a locator, which names the thing that was not found and
+        // nothing about why - and on a run that only happens in CI, that difference is the
+        // whole diagnosis. `attempt()` records this message and the coverage assertion
+        // prints it, so one red run is enough to know what to fix.
+        throw new Error(
+            `no route to the tab matching ${String(label)}. ` + (await describeShellStrip()),
+        );
+    }
+
     await overflowButton.click({ timeout: ELEMENT_TIMEOUT });
     const item = page.locator(".mb-tabs-strip__sheet .v-list-item", { hasText: label }).first();
-    await item.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    const listed = await item
+        .waitFor({ state: "visible", timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false);
+    if (!listed) {
+        throw new Error(
+            `the overflow menu does not list a tab matching ${String(label)}. ` +
+                (await describeShellStrip()),
+        );
+    }
     await item.click({ timeout: ELEMENT_TIMEOUT });
+}
+
+/**
+ * What the shell's tab strip holds right now, as one line for a failure message.
+ *
+ * Every tab label, every group header with whether it is open, and whether an overflow
+ * button exists at all. A capture that cannot reach a destination is either looking at a
+ * strip that never had it, a group that would not open, or an overflow menu that is not
+ * there - and those are three different bugs that a locator timeout reports identically.
+ */
+async function describeShellStrip(): Promise<string> {
+    const shellTabs = page.locator(".mb-shell-tabs");
+    const tabs = await shellTabs.locator('[role="tab"]').allTextContents().catch(() => []);
+    const heads = shellTabs.locator(".mb-tabs-strip__group-head");
+    const groups: string[] = [];
+    const count = await heads.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+        const head = heads.nth(index);
+        const text = (await head.textContent().catch(() => ""))?.trim() ?? "";
+        const open = await head.getAttribute("aria-expanded").catch(() => null);
+        groups.push(`${text}=${open ?? "?"}`);
+    }
+    const overflow = await shellTabs
+        .locator('[aria-label*="do not fit"]')
+        .count()
+        .catch(() => 0);
+    return (
+        `strip had tabs [${tabs.map((t) => t.trim().replace(/\s+/g, " ")).join(" | ")}], ` +
+        `groups [${groups.join(" | ")}], overflow buttons: ${overflow}`
+    );
 }
 
 /**
