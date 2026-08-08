@@ -503,3 +503,14 @@ describe("disabled", () => {
         expect(lastEmitted(wrapper)).toBeUndefined();
     });
 });
+
+describe("the mask-import file input", () => {
+    it("has an accessible name while remaining visually hidden", () => {
+        const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
+        const input = wrapper.find('input[type="file"]');
+
+        expect(input.exists()).toBe(true);
+        expect(input.attributes("aria-label")).toBe("Choose a mask file");
+        expect(input.classes()).toContain("mb-mask-canvas__hiddenInput");
+    });
+});

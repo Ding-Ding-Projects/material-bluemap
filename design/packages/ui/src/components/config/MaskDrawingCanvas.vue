@@ -806,6 +806,7 @@ const worldFraction = computed(() => {
                 ref="importInput"
                 type="file"
                 accept="application/json,.json"
+                :aria-label="t('mask.import.field', 'Choose a mask file')"
                 class="mb-mask-canvas__hiddenInput"
                 @change="onImportFileChosen"
             />
