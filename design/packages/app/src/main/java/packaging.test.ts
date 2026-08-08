@@ -80,6 +80,23 @@ describe("electron-builder bundles the CLI jar into resources/jars", () => {
             delete require.cache[require.resolve(packagingConfigPath)];
         }
     });
+
+    it("uses the Worldlens multi-size icon for the executable, installer, and recovery assets", () => {
+        const config = require(packagingConfigPath);
+        const entries: { from: string; to: string }[] = config.extraResources ?? [];
+
+        expect(config.win?.icon).toBe("build/icon.ico");
+        expect(config.squirrelWindows?.iconUrl).toContain("worldlens/main/design/packages/app/build/icon.ico");
+        expect(entries).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ from: "build/icon.ico", to: "brand/worldlens.ico" }),
+                expect.objectContaining({
+                    from: "../ui/public/assets/logoCircle512.png",
+                    to: "brand/worldlens-logo.png",
+                }),
+            ]),
+        );
+    });
 });
 
 describe("CI stages the CLI jar before packaging", () => {

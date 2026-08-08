@@ -18,6 +18,7 @@ import {
 } from "./consent.js";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
@@ -135,6 +136,23 @@ import {
     type StartupIpc,
     type StartupIssue,
 } from "./startup/index.js";
+import { handleSquirrelShortcutEvent } from "./squirrelShortcuts.js";
+
+const squirrelStartupHandled = handleSquirrelShortcutEvent({
+    platform: process.platform,
+    argv: process.argv,
+    execPath: process.execPath,
+    exists: fs.existsSync,
+    spawn: (command, args) => {
+        const child = spawn(command, args, {
+            detached: true,
+            stdio: "ignore",
+        });
+        child.unref();
+    },
+    quit: () => app.quit(),
+    defer: (callback, milliseconds) => setTimeout(callback, milliseconds),
+});
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -1705,7 +1723,10 @@ function enterTerminalRecovery(origin: string, error: unknown): void {
 
 const ownsSingleInstance = app.requestSingleInstanceLock();
 
-if (!ownsSingleInstance) {
+if (squirrelStartupHandled) {
+    // Squirrel owns this one-off lifecycle process; the deferred quit above ensures the normal
+    // renderer, profile migration, and single-instance lock never start during installation.
+} else if (!ownsSingleInstance) {
     // Profile migration happens before any window or writable app-owned store is opened.
     // A second process must therefore stop here, before it can stage or cut over the same
     // profile while the owning process is validating its exact current manifest.
