@@ -422,6 +422,36 @@ describe("the dialog's own surface", () => {
         expect(cssText).toContain("border");
         expect(cssText).toContain("box-shadow");
     });
+
+    /**
+     * Regression: `.mb-tab-group-picker__swatch` put `overflow: hidden; text-overflow:
+     * ellipsis` on the `<v-chip>` itself, but `.v-chip` is an inline-flex container and
+     * `text-overflow` paints nothing on a flex container -- a user-typed group name longer
+     * than the 220px cap hard-clipped mid-glyph with no ellipsis to say anything was
+     * missing. The chip keeps the width cap; the ellipsis moved to `.v-chip__content`,
+     * the chip's real text box, which as a flex item also needs `min-width: 0` before it
+     * is allowed to shrink at all. Read via `?raw` for the reason `rootRuleText` gives;
+     * comments are stripped from each rule first so prose never trips an assertion.
+     */
+    it("caps the group-name swatch on the chip but ellipsizes in the chip's own text box", async () => {
+        const source = (await import("./TabGroupPicker.vue?raw")).default as string;
+        const stripComments = (rule: string): string => rule.replace(/\/\*[\s\S]*?\*\//g, "");
+
+        const chipRule = stripComments(/\.mb-tab-group-picker__swatch\s*\{[^}]*\}/.exec(source)?.[0] ?? "");
+        expect(chipRule).not.toBe("");
+        expect(chipRule).toContain("max-width: 220px");
+        // The pair that painted nothing must not come back to the flex container.
+        expect(chipRule).not.toContain("text-overflow");
+
+        const contentRule = stripComments(
+            /\.mb-tab-group-picker__swatch \.v-chip__content\s*\{[^}]*\}/.exec(source)?.[0] ?? "",
+        );
+        expect(contentRule).not.toBe("");
+        expect(contentRule).toContain("min-width: 0");
+        expect(contentRule).toContain("overflow: hidden");
+        expect(contentRule).toContain("text-overflow: ellipsis");
+        expect(contentRule).toContain("white-space: nowrap");
+    });
 });
 
 describe("focus", () => {

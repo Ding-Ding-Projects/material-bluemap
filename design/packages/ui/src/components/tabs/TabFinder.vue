@@ -365,12 +365,22 @@ function isOpen(key: string): boolean {
     text-transform: none;
     letter-spacing: normal;
     font-weight: 500;
+    /* The label below wraps, so the `size="small"` height becomes a floor the second
+       line may grow past. */
+    height: auto;
+    min-height: 28px;
 }
 
 .mb-tabs-finder__toggle-label {
     margin-inline-start: 6px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* A flex item inside `.v-btn__content` keeps `min-width: auto`, so this span never
+       shrank, and the nowrap it inherits from `.v-btn` never let it wrap: a long
+       translated heading hard-clipped at the panel's 460px edge, and the old hidden +
+       ellipsis pair painted nothing on the unshrinkable box. Wrap instead -- that pair
+       is gone because with wrapping there is nothing left to truncate. */
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .mb-tabs-finder__body {

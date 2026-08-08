@@ -481,8 +481,17 @@ const rowName = (row: TabGroupPickerRow): string =>
 
 .mb-tab-group-picker__swatch {
     max-width: 220px;
+}
+
+/* `.v-chip` is inline-flex, and `text-overflow` paints nothing on a flex container, so
+   the ellipsis pair that used to sit on the chip itself just hard-clipped a long
+   user-typed group name at the 220px cap mid-glyph. The chip keeps the width cap; the
+   clipping lives on `.v-chip__content`, the chip's real text box. */
+.mb-tab-group-picker__swatch .v-chip__content {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mb-tab-group-picker__count {
