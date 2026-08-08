@@ -134,6 +134,9 @@ function fakeWorldRepo(overrides: Partial<WorldRepoBridge> = {}): FakeWorldRepo 
                     pushVerified: true,
                     bytes: 100,
                     fileCount: 5,
+                    batchCount: 1,
+                    maxCommitBytes: 100,
+                    maxPushBytes: 100,
                     notes: [],
                 },
                 durationMs: 10,
@@ -329,9 +332,10 @@ describe("checking, then syncing", () => {
         await flushPromises();
         await wrapper.find('[data-test="sync"]').trigger("click");
         await flushPromises();
-        fake.fire({ type: "progress", key: "octocat__andyville-world__world", phase: "staging", description: "Staging the world's files", done: 40, total: 100, at: "t" });
+        fake.fire({ type: "progress", key: "octocat__andyville-world__world", phase: "staging", description: "Staging the world's files", done: 40, total: 100, unit: "bytes", batch: 2, batches: 4, at: "t" });
         await flushPromises();
-        expect(wrapper.find('[data-test="progress"]').text()).toContain("40");
+        expect(wrapper.find('[data-test="progress"]').text()).toContain("40 B");
+        expect(wrapper.find('[data-test="progress"]').text()).toContain("Batch 2 / 4");
     });
 });
 

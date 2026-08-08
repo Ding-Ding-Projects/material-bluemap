@@ -74,6 +74,9 @@ export interface WorldRepoProgress {
     readonly description: string;
     readonly done: number;
     readonly total: number;
+    readonly unit: "files" | "bytes" | "batches";
+    readonly batch: number | null;
+    readonly batches: number | null;
     /** 0 to 100. The counts beside it are the exact ones. */
     readonly percent: number;
 }
@@ -134,11 +137,11 @@ export function phaseLabel(phase: WorldRepoPhase | null, t: T): string {
         case "staging":
             return t("worldrepo.phase.staging", "Staging the world's files");
         case "committing":
-            return t("worldrepo.phase.committing", "Recording the world as one commit");
+            return t("worldrepo.phase.committing", "Recording the world as bounded commits");
         case "pushing":
-            return t("worldrepo.phase.pushing", "Pushing to GitHub");
+            return t("worldrepo.phase.pushing", "Uploading bounded batches to GitHub");
         case "verifying":
-            return t("worldrepo.phase.verifying", "Reading the branch back to confirm the push landed");
+            return t("worldrepo.phase.verifying", "Publishing the branch atomically and reading it back");
         case "finished":
             return t("worldrepo.phase.finished", "Finished");
         default:
@@ -288,6 +291,9 @@ export function createWorldRepo(bridge: WorldRepoBridge | null): WorldRepo {
                         description: event.description,
                         done: event.done,
                         total: event.total,
+                        unit: event.unit ?? "files",
+                        batch: event.batch ?? null,
+                        batches: event.batches ?? null,
                         percent: event.total <= 0 ? 0 : Math.min(100, (event.done / event.total) * 100),
                     },
                 });
