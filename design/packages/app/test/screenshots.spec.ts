@@ -982,6 +982,11 @@ test("captures the render location choice for routing evidence", async () => {
         "The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used",
         { crop: card, cropped: "the render-location card", mapArea: "covered" },
     );
+
+    // The remaining capture sequence needs the rendered-map shell again. Keep the
+    // wizard state truthful for this shot, then restore the target profile before
+    // menu, popup, and viewer captures run.
+    await pointAppAtCaptureTarget();
 });
 
 /* -------------------------------------------------------------------------- */
