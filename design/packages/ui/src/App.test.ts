@@ -692,58 +692,57 @@ describe("the settings surface closing", () => {
 });
 
 describe("the licence viewer", () => {
-    it("reaches the docked EULA panel through its own FAB, rather than only existing in the bundle", async () => {
+    it("reaches the docked EULA panel through the command palette, with no permanent FAB of its own", async () => {
         // EulaSurface's own doc comment claims a standalone route ("mount one in the shell
-        // and open it from anywhere"), but nothing ever mounted it - it was built, tested
-        // and unreachable, the same defect the tab tests above catch for other surfaces.
-        // Before the fix `findComponent(EulaSurface)` returns a wrapper that does not exist
-        // at all, because App.vue never imported the component.
+        // and open it from anywhere"), and for a while the "anywhere" was a third floating
+        // button in the corner stack. That button is gone - four permanent buttons on every
+        // screen was the clutter, and two of them opened panels most people read once - so
+        // the standalone route is now the palette row wired to `eulaOpen` (plus the licence
+        // card on Home, which HomeScreen.test.ts covers from its own side). This drives the
+        // palette's emit exactly as choosing the row does, and proves the panel the shell
+        // mounts actually opens.
         const app = shell();
         expect(app.findComponent(EulaSurface).exists()).toBe(true);
         expect(app.findComponent(EulaSurface).props("open")).toBe(false);
 
-        const fab = document.querySelector<HTMLButtonElement>(
-            'button[aria-label="The Minecraft licence"]',
-        );
-        expect(fab).not.toBeNull();
-        expect(fab?.getAttribute("aria-expanded")).toBe("false");
+        // The corner stack holds the two workbench controls and nothing else.
+        expect(document.querySelector('button[aria-label="The Minecraft licence"]')).toBeNull();
+        expect(document.querySelectorAll(".mb-shell-fab")).toHaveLength(2);
 
         const panel = document.querySelector<HTMLElement>('[role="dialog"].mb-eula-surface');
         expect(panel).not.toBeNull();
         expect(panel?.style.display).toBe("none");
 
-        fab?.click();
+        app.findComponent(CommandPalette).vm.$emit("open-eula");
         await settle();
 
         expect(app.findComponent(EulaSurface).props("open")).toBe(true);
-        expect(fab?.getAttribute("aria-expanded")).toBe("true");
         expect(panel?.style.display).not.toBe("none");
         expect(panel?.textContent).toContain("The Minecraft licence");
     });
 });
 
 describe("\"what is this?\"", () => {
-    it("reaches the docked welcome panel through its own FAB, and stays reachable after first run", async () => {
+    it("reaches the docked welcome panel through the command palette, and stays reachable after first run", async () => {
         // Same "built, tested, unreachable" regression the EULA test above guards against,
         // for `WelcomeSurface`'s own claim to be a standalone route rather than only
-        // existing inside the welcome step's bundle.
+        // existing inside the welcome step's bundle. Like the licence panel it no longer
+        // has a permanent FAB - its routes are Home's introduction card and the palette
+        // row driven here.
         const app = shell();
         expect(app.findComponent(WelcomeSurface).exists()).toBe(true);
         expect(app.findComponent(WelcomeSurface).props("open")).toBe(false);
 
-        const fab = document.querySelector<HTMLButtonElement>('button[aria-label="What is this?"]');
-        expect(fab).not.toBeNull();
-        expect(fab?.getAttribute("aria-expanded")).toBe("false");
+        expect(document.querySelector('button[aria-label="What is this?"]')).toBeNull();
 
         const panel = document.querySelector<HTMLElement>('[role="dialog"].mb-welcome-surface');
         expect(panel).not.toBeNull();
         expect(panel?.style.display).toBe("none");
 
-        fab?.click();
+        app.findComponent(CommandPalette).vm.$emit("open-welcome");
         await settle();
 
         expect(app.findComponent(WelcomeSurface).props("open")).toBe(true);
-        expect(fab?.getAttribute("aria-expanded")).toBe("true");
         expect(panel?.style.display).not.toBe("none");
         expect(panel?.textContent).toContain("What is this?");
         expect(panel?.textContent).toContain("BlueMap turns a Minecraft world into a 3D map");
@@ -751,8 +750,7 @@ describe("\"what is this?\"", () => {
 
     it("switches to \"Make a map\" and closes itself when \"Start here\" is pressed", async () => {
         const app = shell();
-        const fab = document.querySelector<HTMLButtonElement>('button[aria-label="What is this?"]');
-        fab?.click();
+        app.findComponent(CommandPalette).vm.$emit("open-welcome");
         await settle();
 
         const start = [

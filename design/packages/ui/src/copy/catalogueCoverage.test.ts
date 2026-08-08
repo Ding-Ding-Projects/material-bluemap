@@ -82,7 +82,7 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  * render controls and the apply gates, alongside `surfaces/configEditor.ts`'s editing
  * machinery), `components/world` (the whole "Make a map" wizard, all ten `.vue` files plus
  * the four helper modules that own `world.*` call sites of their own) and `components/palette`
- * (the command palette, all 81 of its own keys) are all fully covered now and appear below.
+ * (the command palette, all 85 of its own keys) are all fully covered now and appear below.
  *
  * The bottom `describe` block prints the exact remaining count per surface on every run, so
  * the size of that gap is a number somebody reads rather than a claim in a comment.

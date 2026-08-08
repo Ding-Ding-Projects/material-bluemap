@@ -16,7 +16,8 @@ import { productDisplayName } from "../../stores/productName.js";
  * "must stay reachable afterwards (Help/About or the docs browser)". This is that route,
  * modelled directly on `EulaSurface.vue` two directories over - the same
  * `DockedSurface.vue` wrapper, the same "mount one in the shell and open it from
- * anywhere" shape, opened from its own FAB in `App.vue` rather than only existing inside
+ * anywhere" shape, opened from Home's introduction card and the command palette's own
+ * row in `App.vue` rather than only existing inside
  * the bundle. `WelcomeIntro.vue` is the shared body, so the words here are exactly the
  * words the welcome step showed, not a second, potentially drifting explanation.
  *

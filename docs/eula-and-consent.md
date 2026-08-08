@@ -52,6 +52,13 @@ collapsed **Read the licence in the app** disclosure that expands the same viewe
 somebody about to press `Accept` months later can read what they are accepting without leaving the
 settings surface.
 
+The viewer also exists as a standalone docked panel (`EulaSurface.vue`), mounted once by the shell,
+for reading the document outside either of those flows. Its two routes are the licence card on the
+Home screen and the command palette's own row (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, then
+"licence"), which is what keeps it reachable from any screen; it deliberately has no permanent
+button of its own in the shell's floating corner stack, which holds only the two workbench
+controls (Settings and the options editor).
+
 ## A real render, from the wizard's consent gate to a finished map
 
 The paragraph above is not a description of intended behaviour; it is what the following six
