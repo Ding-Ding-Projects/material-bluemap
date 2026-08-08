@@ -21,6 +21,7 @@ import CiRenderScreen from "./CiRenderScreen.vue";
 import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
     Answer,
+    CiBootstrapResult,
     CiPreflight,
     CiRenderBridge,
     CiRepositoryNameAvailability,
@@ -1652,6 +1653,11 @@ describe("preparing a repository automatically, rather than sending somebody to 
                                 action: "created",
                                 reason: null,
                             },
+                            {
+                                path: ".github/workflows/scheduled-render.yml",
+                                action: "created",
+                                reason: null,
+                            },
                         ],
                         markerWritten: true,
                         actionsEnabled: true,
@@ -1728,6 +1734,16 @@ describe("preparing a repository automatically, rather than sending somebody to 
                                 action: "created",
                                 reason: null,
                             },
+                            {
+                                path: ".github/workflows/render-shard-wave.yml",
+                                action: "created",
+                                reason: null,
+                            },
+                            {
+                                path: ".github/workflows/scheduled-render.yml",
+                                action: "created",
+                                reason: null,
+                            },
                         ],
                         markerWritten: true,
                         actionsEnabled: false,
@@ -1747,6 +1763,152 @@ describe("preparing a repository automatically, rather than sending somebody to 
 
         const result = wrapper.find('[data-test="bootstrap-result"]');
         expect(result.text()).toContain("turned off");
+    });
+
+    it("runs the managed bootstrap immediately before dispatching a render", async () => {
+        const started: CiSyncResult[] = [];
+        const order: string[] = [];
+        const ready = preflight({ uploadNeeded: false, worldChanged: false });
+        const bridge = fakeBridge(ready, started, {
+            bootstrapCiRepository: () => {
+                order.push("bootstrap");
+                return Promise.resolve({
+                    ok: true,
+                    report: {
+                        owner: "o",
+                        repo: "r",
+                        route: "session",
+                        credentialDescribe:
+                            "Using the GitHub sign-in in this application (octocat).",
+                        files: [
+                            {
+                                path: ".github/workflows/render-world.yml",
+                                action: "unchanged",
+                                reason: null,
+                            },
+                            {
+                                path: ".github/workflows/render-shard-wave.yml",
+                                action: "unchanged",
+                                reason: null,
+                            },
+                            {
+                                path: ".github/workflows/scheduled-render.yml",
+                                action: "unchanged",
+                                reason: null,
+                            },
+                        ],
+                        markerWritten: false,
+                        actionsEnabled: true,
+                        actionsMessage: "GitHub Actions is enabled for this repository.",
+                        ready: true,
+                        notes: [],
+                    },
+                });
+            },
+            onCiBootstrapEvent: () => () => {},
+            startCiRender: () => {
+                order.push("dispatch");
+                const result: CiSyncResult = {
+                    ok: false,
+                    syncId: "recorded",
+                    failure: {
+                        code: "recorded",
+                        message: "recorded",
+                        detail: null,
+                        status: null,
+                        needsSignIn: false,
+                        needsEula: false,
+                        route: null,
+                        run: null,
+                        failingJob: null,
+                        logExcerpt: null,
+                    },
+                };
+                started.push(result);
+                return Promise.resolve(result);
+            },
+        });
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+
+        expect(order).toEqual(["bootstrap", "dispatch"]);
+        expect(started).toHaveLength(1);
+    });
+
+    it("refuses start re-entry while the pre-dispatch bootstrap is still running", async () => {
+        let finishBootstrap!: (result: CiBootstrapResult) => void;
+        const pendingBootstrap = new Promise<CiBootstrapResult>((resolve) => {
+            finishBootstrap = resolve;
+        });
+        let bootstrapCalls = 0;
+        let dispatchCalls = 0;
+        const bridge = fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), [], {
+            bootstrapCiRepository: () => {
+                bootstrapCalls += 1;
+                return pendingBootstrap;
+            },
+            onCiBootstrapEvent: () => () => {},
+            startCiRender: () => {
+                dispatchCalls += 1;
+                return Promise.reject(new Error("dispatch should not start in this test"));
+            },
+        });
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        const button = wrapper.find('[data-test="start"]').element as HTMLButtonElement;
+        button.click();
+        button.click();
+        await flushPromises();
+
+        expect(bootstrapCalls).toBe(1);
+        expect(dispatchCalls).toBe(0);
+        expect(wrapper.find('[data-test="start"]').attributes("disabled")).toBeDefined();
+
+        finishBootstrap({
+            ok: false,
+            failure: {
+                code: "concurrent-update",
+                message: "The branch moved; nothing was changed.",
+                missingScopes: null,
+            },
+        });
+        await flushPromises();
+    });
+
+    it("shows a typed managed-file conflict and never dispatches past it", async () => {
+        const started: CiSyncResult[] = [];
+        const bridge = fakeBridge(
+            preflight({ uploadNeeded: false, worldChanged: false }),
+            started,
+            {
+                bootstrapCiRepository: () =>
+                    Promise.resolve({
+                        ok: false,
+                        failure: {
+                            code: "managed-file-modified",
+                            message:
+                                ".github/workflows/render-world.yml differs from the SHA-256 recorded when installed.",
+                            missingScopes: null,
+                        },
+                    }),
+                onCiBootstrapEvent: () => () => {},
+            },
+        );
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="bootstrap-conflict"]').text()).toContain(
+            "no repository files were changed",
+        );
+        expect(wrapper.find('[data-test="bootstrap-failure"]').text()).toContain("SHA-256");
+        expect(started).toHaveLength(0);
     });
 });
 
