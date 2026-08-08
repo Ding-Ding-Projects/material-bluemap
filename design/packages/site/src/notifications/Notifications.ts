@@ -111,6 +111,18 @@ export class Notifications {
         });
         i18n.bindAttr(this.region, "aria-label", "notify.regionLabel");
         host.append(this.region);
+
+        // dimsum.css stacks the dim sum card directly above this region on a narrow
+        // screen, and clears it by reading --mbm-toast-stack-height rather than trusting
+        // a guessed constant: the region grows upward without bound (wrapping text,
+        // wrapped action rows, bilingual second lines), so any fixed clearance is
+        // eventually wrong. The add and remove paths below re-publish the height
+        // directly; the observer, where the engine has one, additionally catches a
+        // change with no add or remove behind it, such as a resize re-wrapping a title.
+        if (typeof ResizeObserver !== "undefined") {
+            new ResizeObserver(() => this.publishStackHeight()).observe(this.region);
+        }
+        this.publishStackHeight();
     }
 
     /** Everything raised this session, newest first. Nothing is written to storage. */
@@ -153,6 +165,7 @@ export class Notifications {
         if (toast.timer !== null) window.clearTimeout(toast.timer);
         toast.node.remove();
         this.live.splice(index, 1);
+        this.publishStackHeight();
         const next = this.queue.shift();
         if (next !== undefined) this.show(next.record, next.input);
         this.emit();
@@ -167,6 +180,7 @@ export class Notifications {
         this.live.length = 0;
         this.queue.length = 0;
         this.history = [];
+        this.publishStackHeight();
         this.emit();
     }
 
@@ -291,6 +305,7 @@ export class Notifications {
         node.append(dismiss);
 
         this.region.append(node);
+        this.publishStackHeight();
 
         const timeout = AUTO_DISMISS_MS[record.severity];
         const configured = input.timeoutMs;
@@ -325,6 +340,17 @@ export class Notifications {
         window.clearTimeout(toast.timer);
         toast.remaining = Math.max(1200, toast.remaining - (Date.now() - toast.startedAt));
         toast.timer = null;
+    }
+
+    /**
+     * The dim sum card (dimsum.css) sits `--mbm-toast-stack-height` above the viewport
+     * bottom on narrow screens, so neither corner card ever covers the other. Published
+     * on the document element because the card is not a descendant of this region - the
+     * same reach-across-trees pattern the desktop shell uses for --mb-titlebar-height.
+     */
+    private publishStackHeight(): void {
+        const height = this.region.getBoundingClientRect().height;
+        document.documentElement.style.setProperty("--mbm-toast-stack-height", `${height}px`);
     }
 
     private applyText(node: HTMLElement, source: TextSource): void {

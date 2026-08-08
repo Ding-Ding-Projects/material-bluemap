@@ -6,6 +6,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { createVuetify } from "vuetify";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import DockerWorldSourcePanel from "./DockerWorldSourcePanel.vue";
+import dockerWorldSourcePanelSource from "./DockerWorldSourcePanel.vue?raw";
 import type {
     DockerContainerDetail,
     DockerWorldEvent,
@@ -268,5 +269,46 @@ describe("DockerWorldSourcePanel", () => {
             failure: { code: "cancelled", message: "Cancelled.", detail: null },
         });
         await pending;
+    });
+});
+
+describe("the source-kind toggle's sizing rule", () => {
+    /**
+     * Regression: the rule pinned both the toggle and its buttons to a single 44px
+     * `block-size !important` -- one line-height -- so in bilingual mode the second line
+     * of `world.docker.container` / `world.docker.volume` was clipped inside the box.
+     * The action buttons a few rules above already had the correct shape
+     * (`min-block-size: 44px; block-size: auto`, a touch-target floor the text may grow
+     * past); the toggle now matches it, keeping the `!important` that out-ranks Vuetify's
+     * own toggle sizing.
+     *
+     * Asserted against the component source because this workspace's `vitest.config.ts`
+     * does not enable `test.css`, so no stylesheet reaches a mounted component and the
+     * cascade is not observable from the mounted tests above. Comments are stripped from
+     * the rule first so prose never trips an assertion.
+     */
+    it("keeps 44px as a floor rather than a ceiling, so a second label line can grow the box", () => {
+        const rule =
+            /\.mb-docker-world \.v-btn-toggle,\s*\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(
+                dockerWorldSourcePanelSource,
+            )?.[0] ?? "";
+        const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(declarations).not.toBe("");
+        expect(declarations).toContain("min-block-size: 44px !important");
+        expect(declarations).toContain("block-size: auto !important");
+        // The pinned height is what did the clipping; it must not come back.
+        expect(declarations).not.toMatch(/(?<!min-)block-size: 44px/);
+    });
+
+    it("pads the buttons so a grown box does not press its text against the border", () => {
+        // The lookbehind skips the combined sizing rule above, whose second selector is
+        // this same selector preceded by a comma.
+        const rule =
+            /(?<!,\n)\.mb-docker-world \.v-btn-toggle \.v-btn\s*\{[^}]*\}/.exec(
+                dockerWorldSourcePanelSource,
+            )?.[0] ?? "";
+        const declarations = rule.replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(declarations).not.toBe("");
+        expect(declarations).toContain("padding-block: 6px");
     });
 });

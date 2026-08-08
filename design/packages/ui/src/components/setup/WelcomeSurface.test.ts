@@ -4,7 +4,8 @@
  * "What is this?", mounted standalone from first-run setup.
  *
  * `App.test.ts`'s "the licence viewer" describe block already proves the shell wires this
- * surface's twin, `EulaSurface`, to a FAB that survives a "built, tested, unreachable"
+ * surface's twin, `EulaSurface`, to the command palette's row so it survives a "built,
+ * tested, unreachable"
  * regression; this file proves the panel itself, the way `DockedSurface.resize.test.ts`
  * proves `DockedSurface` itself rather than only through a consumer. What matters here:
  * it renders the same words `WelcomeIntro.vue` gives the welcome step, it hides rather

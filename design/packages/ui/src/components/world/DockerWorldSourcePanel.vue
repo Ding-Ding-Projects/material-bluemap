@@ -876,8 +876,16 @@ defineExpose({
 
 .mb-docker-world .v-btn-toggle,
 .mb-docker-world .v-btn-toggle .v-btn {
-    block-size: 44px !important;
+    /* !important to out-rank Vuetify's own toggle sizing, but only as a floor: pinning
+       the block size to one 44px line clipped the bilingual second line of the
+       Container / Named volume labels. Same shape as `.mb-docker-world__actions > .v-btn`
+       above -- the touch-target height is a minimum the text may grow past. */
     min-block-size: 44px !important;
+    block-size: auto !important;
+}
+
+.mb-docker-world .v-btn-toggle .v-btn {
+    padding-block: 6px;
 }
 
 .mb-docker-world__progress {

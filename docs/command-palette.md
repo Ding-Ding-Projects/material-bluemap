@@ -69,13 +69,13 @@ has two columns.
 | The viewer's menu pages: maps, settings, info, markers, players | `menu.openPage`, the menu's own call |
 | The notification centre, the tab finder | A reveal request; the owning component opens itself, with its own focus handling |
 | The changelog viewer | Opens the viewer's Info page, then expands and scrolls to the fold |
+| The licence panel and "what is this?" | The shell opens the docked panel it already mounts (`EulaSurface` / `WelcomeSurface`) - the same panels Home's own cards open. These rows are what keeps each panel reachable from any screen now that neither has a permanent corner button. |
 | The server list, on a shell with no tab strip | `openProfiles` |
 
 | Listed and searchable, but not teleported into | Why |
 |---|---|
 | The per-element appearance editors | Each one is anchored to the element it edits and opened from that element's own context menu, so there is no such thing as opening the typography editor without an element to anchor it to. The row is a `destination` that names the route — right-click, or Shift+right-click — rather than a command that would have to invent a target. |
 | The render console, the release downloads, the project editor, the backup and Pages panels | Each lives inside a page, and the page is the reachable unit. The page rows carry their words as keywords, so "console", "download" and "publish" all find the page that holds them, and the row says which page rather than implying it lands on the panel. |
-| The EULA viewer | It is rendered inside the Mojang download consent section, which *is* teleported to, outline and all. |
 
 The second table is the part worth keeping honest as this grows. A row that opened "the
 appearance editor" in the abstract would land nowhere in particular, which is the decorative

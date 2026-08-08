@@ -521,6 +521,44 @@ export const PALETTE_VOICED = {
             "呢個導覽全程幫你標亮真正嘅控制項：搵世界、算圖、打開結果，一個字都唔使睇。",
         ],
     },
+    /*
+     * The two docked panels whose permanent corner buttons came out of the shell: each keeps
+     * its Home card, and these rows are the from-anywhere half of that trade. Both sentences
+     * keep naming the panel and where its content comes from at every level, because the row
+     * is most useful to somebody who no longer remembers where the panel went.
+     */
+    "palette.chrome.eula": {
+        en: [
+            "Mojang's licence document in its own docked panel: the same text the first-run step shows, fetched, categorised and searchable.",
+            "Mojang's licence document in its own docked panel: the same text the first-run step shows, fetched, categorised and searchable.",
+            "Mojang's licence document in its own docked panel: the same text the first-run step shows, fetched for real, categorised and searchable.",
+            "Mojang's licence document in a docked panel of its own: the very text the first-run step shows, fetched, categorised, and searchable end to end.",
+            "Mojang's licence document in its very own docked panel: the same text the first-run step shows, fetched fresh, categorised into tabs, and searchable down to the last clause.",
+        ],
+        yue: [
+            "Mojang 嘅授權文件，有自己嘅停靠面板：同首次設定嗰步一模一樣嘅文字，會攞返嚟、分好類，仲可以搜尋。",
+            "Mojang 嘅授權文件，有自己嘅停靠面板：同首次設定嗰步一模一樣嘅文字，會攞返嚟、分好類，仲可以搜尋。",
+            "Mojang 嘅授權文件，有自己嘅停靠面板：同首次設定嗰步一樣嘅文字，攞返嚟、分好類，仲可以搜尋。",
+            "Mojang 嘅授權文件自己霸咗個停靠面板：同首次設定嗰步一模一樣嘅文字，攞到手、分好類，任你搜尋。",
+            "Mojang 嘅授權文件有個專屬停靠面板：同首次設定嗰步一字不差嘅文字，新鮮攞返嚟、逐段分好類，逐個字任你搜尋。",
+        ],
+    },
+    "palette.chrome.welcome": {
+        en: [
+            "The introduction from first-run setup, kept reachable: what this app is for, in its own docked panel, with a Start here button that goes to the wizard.",
+            "The introduction from first-run setup, kept reachable: what this app is for, in its own docked panel, with a Start here button that goes to the wizard.",
+            "The introduction from first-run setup, kept reachable: what this app is for, in its own docked panel, and a Start here button that jumps to the wizard.",
+            "The introduction from first-run setup, kept around for good: what this app is for, in its own docked panel, plus a Start here button that jumps straight to the wizard.",
+            "The introduction from first-run setup, kept around forever: what this app is actually for, in its own docked panel, with a Start here button that whisks you straight off to the wizard.",
+        ],
+        yue: [
+            "首次設定嗰段介紹，會一直留返喺度：講明呢個程式係做乜嘅，有自己嘅停靠面板，仲有粒掣可以直接去整地圖嘅指南。",
+            "首次設定嗰段介紹，會一直留返喺度：講明呢個程式係做乜嘅，有自己嘅停靠面板，仲有粒掣可以直接去整地圖嘅指南。",
+            "首次設定嗰段介紹，一直留返喺度：講明呢個程式係做乜嘅，有自己嘅停靠面板，仲有粒掣一撳就去整地圖嘅指南。",
+            "首次設定嗰段介紹，長期留返喺度：呢個程式係做乜嘅講到明明白白，有自己嘅停靠面板，仲有粒掣一撳就飛去整地圖嘅指南。",
+            "首次設定嗰段介紹，永遠都留返喺度等你：呢個程式究竟係做乜嘅講到一清二楚，有自己嘅停靠面板，仲有粒掣一撳就車你直達整地圖嘅指南。",
+        ],
+    },
 
     /* ---------------------------------------------------------------- */
     /* The options editor's "everything" row and its History tab         */
@@ -1054,6 +1092,15 @@ export const PALETTE_FIXED = {
     },
     "palette.appearance.noPreset": { en: "No preset", yue: "冇預設" },
 
+    /*
+     * The two docked panels' rows: names, not sentences. The same words as
+     * `eula.viewerTitle` and `welcome.viewerTitle` in `components/setup/setupStrings.ts`,
+     * under this catalogue's own keys because setup's store is not vue-i18n and its keys
+     * cannot be reached from a palette row's `t()`.
+     */
+    "palette.chrome.eulaTitle": { en: "The Minecraft licence", yue: "Minecraft 授權條款" },
+    "palette.chrome.welcomeTitle": { en: "What is this?", yue: "呢個係咩嚟㗎？" },
+
     /* The unit rendered beside the two render-distance number boxes. */
     "palette.blocks": { en: "blocks", yue: "方塊" },
 
@@ -1141,6 +1188,14 @@ export const PALETTE_FACTS = {
     "palette.chrome.tutorial": {
         en: ["guided walkthrough"],
         yue: ["導覽"],
+    },
+    "palette.chrome.eula": {
+        en: ["Mojang", "licence", "docked panel"],
+        yue: ["Mojang", "授權", "面板"],
+    },
+    "palette.chrome.welcome": {
+        en: ["first-run", "Start here", "docked panel"],
+        yue: ["首次設定", "面板"],
     },
 
     "palette.config.allDescription": {

@@ -81,6 +81,37 @@ typechecks pass, and `brand:build -- --check` proves all derivatives current. Th
 packaged probe, genuine after capture and exact-main CI remain pending and must not be inferred
 from these focused gates.
 
+**The clipping sweep, closed out (`418559f`, `a9025c3`, `db358c1`).** A systematic scan of every
+`.vue` - kebab and PascalCase tags, authored flex rules and Vuetify's `d-flex` utility, the two
+passes the earlier hand-made sweeps lacked - found exactly one remaining flexed `v-card-title`
+(CiRenderScreen's per-render row, an `owner/repo` title that can run to 139 characters) and its
+scan table proves the class is now closed rather than merely quieter. A second audit over both
+packages' stylesheets surfaced eight further defects, all fixed with `?raw` regression tests:
+two bilingual-clipping height pins (MenuChoice's 32px segmented buttons out-ranking
+bilingual.css; DockerWorldSourcePanel's `block-size: 44px !important` ceiling, now a floor),
+three never-firing ellipses on flex items (TabResultList, TabFinder - which now wraps instead -
+and TabGroupPicker, whose ellipsis sat on an inline-flex chip where `text-overflow` paints
+nothing), and on the site the corner-card overlap band (dim sum card vs toast region, stacking
+breakpoint 600px -> 784px with the arithmetic derived from both stylesheets by test), the
+hard-coded 5.5rem toast-stack clearance (now `--mbm-toast-stack-height`, published by
+measurement like `--mb-titlebar-height`), and the compact tab strip's nowrap spill (honest
+ellipsis, full name on the tab's `aria-label`).
+
+**The corner stack de-cluttered (`7f286b0`).** The shell floated four fixed buttons over every
+screen; the two reference panels among them (licence viewer, "what is this?") already had Home
+cards and now have palette rows (`palette.chrome.eula`, `palette.chrome.welcome`, voiced at all
+five levels both languages), so the permanent stack is the two workbench controls. No route was
+removed: both surfaces stay mounted, Home's cards are untouched, and App.test.ts now opens both
+panels through the palette and pins the stack at exactly two buttons. The 76px gutter and
+clearance contract are unchanged (sized to the stack's width, not its count).
+
+All commits were verified per-wave (each wave's own suites green before its push), and a full
+workspace gate ran after the final wave: `pnpm lint` clean, `pnpm build` clean across all
+packages (the cli build's copy-webapp skip is this environment's missing `vendor/BlueMap`
+checkout, stated loudly by the build itself, not a regression), and the complete vitest run at
+672 files / 9776 tests passed, 5 files / 37 tests skipped (all pre-existing), exit 0. CI has
+not run against these commits yet.
+
 ## Pre-cutover update, 2026-08-07 — the repository finalizer covers the integrated Pages tree
 
 This phase worktree was fast-forwarded without divergence from `5652d185e67c381364b57ec42d5dcebab82762dd`
