@@ -78,6 +78,24 @@ const warnings = computed(() => issues.value.filter((issue) => issue.severity ==
 const consentGated = computed(() => props.field.consentGated === true);
 const accepted = computed(() => value.value === true);
 
+/**
+ * What the consent row says after the field's own label, as one string.
+ *
+ * Resolved here rather than branched in the template so the label and the sentence can be
+ * interpolated on a single line: Vue condenses a whitespace-only text node containing a
+ * newline out of existence, which is how `</strong>` above a `<template v-if>` came to
+ * render "…client download:not accepted yet" with the space missing. Both keys and both
+ * fallbacks are unchanged - this only moves where they are read.
+ */
+const consentSentence = computed(() =>
+    accepted.value
+        ? t("config.field.consentAccepted", "accepted, so rendering can download the files it needs.")
+        : t(
+              "config.field.consentMissing",
+              "not accepted yet, so a render stops before it starts. It is answered once, in the app's own settings.",
+          ),
+);
+
 const advisoryText = computed(() => props.field.advisory?.note ?? null);
 
 const templateNote = computed(() => {
@@ -146,19 +164,17 @@ function set(next: PlainValue): void {
         <div v-if="consentGated" class="mb-config-field__consent">
             <v-icon :icon="accepted ? mdiShieldCheckOutline : mdiAlertOutline" :color="accepted ? 'success' : 'warning'" aria-hidden="true" />
             <div>
+                <!--
+                    The sentence is resolved in the script and interpolated on the same line
+                    as the label, rather than branched over two `<template>` blocks below it.
+                    Vue's default whitespace handling is `condense`, which deletes a
+                    whitespace-only text node that contains a newline - so `</strong>` on one
+                    line and the branch on the next rendered as
+                    "Accept the Minecraft client download:not accepted yet", with no space
+                    after the colon, in every language and at every funny level.
+                -->
                 <p class="mb-config-field__consent-state">
-                    <strong>{{ field.label }}:</strong>
-                    <template v-if="accepted">
-                        {{ t("config.field.consentAccepted", "accepted, so rendering can download the files it needs.") }}
-                    </template>
-                    <template v-else>
-                        {{
-                            t(
-                                "config.field.consentMissing",
-                                "not accepted yet, so a render stops before it starts. It is answered once, in the app's own settings.",
-                            )
-                        }}
-                    </template>
+                    <strong>{{ field.label }}:</strong> {{ consentSentence }}
                 </p>
                 <v-btn variant="tonal" size="small" density="comfortable" @click="emit('consent')">
                     {{ t("config.field.openConsent", "Open the download setting") }}
