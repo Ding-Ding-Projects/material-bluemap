@@ -53,8 +53,34 @@ was grid `stretch` plus Vuetify's `grid-template-rows: 1fr auto` putting the sur
 control row plus `.v-selection-control`'s centring; the fix removes the stretch, and the labels
 that never wrapped do not move.
 
+**The screenshot harness was run for real, and it is what found the rest.** Electron under
+`xvfb-run`, four rounds, each one exposing something no unit test can see because all of it
+lives in how a flex box lays its children out and jsdom does no layout at all:
+
+1. Eleven surfaces could not be opened. Tabs that live inside a collapsed group are genuinely
+   not on screen until the group is opened, so the harness expands them first now — the same
+   class of failure this file already documents for the profile manager, whose capture went on
+   clicking a floating button the shell had deliberately deleted.
+2. The shell's floating buttons were drawn **on top of the tab strip**, intercepting clicks on
+   its own overflow and search controls. Fixed by measurement, as described above.
+3. Each collapsed group's commands menu dropped onto **a full-width row of its own** beneath
+   the group name — three orphaned rows reading as bare ellipses.
+4. The fix for (2) was published by **all four** of this application's tab strips, so whichever
+   mounted last won and the shell's buttons were offset by a panel's width. Publishing is an
+   explicit opt-in now, and the measurement is `getBoundingClientRect().right`.
+
+After those, every surface captures. **One genuine finding is left deliberately unfixed and is
+recorded here rather than papered over:** opening the Pages tab makes live calls to
+`api.github.com/user` and `/user/repos` even when nobody is signed in, because
+`PagesScreen.vue`'s `onMounted` gates `loadOwners()` on `canListOwners`, which asks whether
+this *build* can list owners rather than whether anybody is *signed in*. The harness's
+offline guard fails on it. It predates all of this work and was invisible only because that
+surface could never be opened in a capture run before; changing when the application talks to
+a third party is a behaviour decision that does not belong in a look-and-feel change.
+
 Verification: `pnpm lint`, `pnpm build` and per-package typechecks clean; the full workspace
-vitest run green; every wave verified before its own push. CI has not run against these commits.
+vitest run green; every wave verified before its own push; the harness green apart from the
+network guard described above. CI has not run against these commits.
 
 ## 2026-08-08 — Display and ease of use, the complete MD3 colour system, and the clipping sweep's continuation
 
