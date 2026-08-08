@@ -106,7 +106,9 @@ const mapList = computed(() => props.run.mapIds.value.join(", "));
  * this end, and stands in while the record is still being read or cannot be. Empty
  * when neither exists, which is the case for a render refused before anything ran.
  */
-const engineName = computed(() => props.run.provenance.value?.engine ?? props.run.engine.value?.label ?? "");
+const engineName = computed(
+    () => props.run.provenance.value?.engine ?? props.run.engine.value?.label ?? "",
+);
 
 const engineLine = computed(() => {
     if (engineName.value === "" || props.run.active.value || state.value === "idle") return "";
@@ -154,7 +156,13 @@ function openMap(): void {
                               : t("world.run.failed", "The render did not finish")
                 }}
             </span>
-            <v-chip v-if="mapList" size="x-small" variant="outlined">{{ mapList }}</v-chip>
+            <v-chip
+                v-if="mapList"
+                class="mb-world-run__map-list"
+                size="x-small"
+                variant="outlined"
+                >{{ mapList }}</v-chip
+            >
             <!-- While it runs, the chip is the only place the engine is named. Once it
                  ends, the line below names it from the record instead, so the chip stands
                  down rather than repeating the same string two rows apart. -->
@@ -194,7 +202,11 @@ function openMap(): void {
                     class="mt-2"
                     @click="run.cancel()"
                 >
-                    {{ run.cancelling.value ? t("world.run.stopping", "Stopping...") : t("world.run.stop", "Stop the render") }}
+                    {{
+                        run.cancelling.value
+                            ? t("world.run.stopping", "Stopping...")
+                            : t("world.run.stop", "Stop the render")
+                    }}
                 </v-btn>
                 <p class="mb-world-run__note">
                     {{
@@ -227,7 +239,12 @@ function openMap(): void {
                     >
                         {{ t("world.run.open", "Open the map") }}
                     </v-btn>
-                    <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" @click="emit('again')">
+                    <v-btn
+                        :prepend-icon="mdiRefresh"
+                        variant="text"
+                        size="small"
+                        @click="emit('again')"
+                    >
                         {{ t("world.run.another", "Render another map") }}
                     </v-btn>
                 </div>
@@ -242,7 +259,12 @@ function openMap(): void {
                         )
                     }}
                 </p>
-                <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" @click="emit('again')">
+                <v-btn
+                    :prepend-icon="mdiRefresh"
+                    variant="text"
+                    size="small"
+                    @click="emit('again')"
+                >
                     {{ t("world.run.startOver", "Set up another render") }}
                 </v-btn>
             </template>
@@ -263,7 +285,12 @@ function openMap(): void {
                     >
                         {{ t(advice.remedy.actionKey, advice.remedy.actionFallback) }}
                     </v-btn>
-                    <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" @click="emit('again')">
+                    <v-btn
+                        :prepend-icon="mdiRefresh"
+                        variant="text"
+                        size="small"
+                        @click="emit('again')"
+                    >
                         {{ t("world.run.tryAgain", "Set it up again") }}
                     </v-btn>
                     <v-btn
@@ -275,7 +302,11 @@ function openMap(): void {
                         size="small"
                         @click="detailOpen = !detailOpen"
                     >
-                        {{ detailOpen ? t("world.run.hideDetail", "Hide the detail") : t("world.run.showDetail", "Show what the engine reported") }}
+                        {{
+                            detailOpen
+                                ? t("world.run.hideDetail", "Hide the detail")
+                                : t("world.run.showDetail", "Show what the engine reported")
+                        }}
                     </v-btn>
                 </div>
 
@@ -283,10 +314,12 @@ function openMap(): void {
                     v-if="detailOpen && advice.detail"
                     id="mb-world-run-detail"
                     class="mb-world-run__pre"
-                >{{ advice.detail }}</pre>
+                    >{{ advice.detail }}</pre>
             </template>
 
-            <p v-if="engineLine" class="mb-world-run__note mb-world-run__engine">{{ engineLine }}</p>
+            <p v-if="engineLine" class="mb-world-run__note mb-world-run__engine">
+                {{ engineLine }}
+            </p>
 
             <!--
                 The console is a disclosure rather than always-open because this panel
@@ -309,7 +342,11 @@ function openMap(): void {
                     {{
                         logOpen
                             ? t("world.run.hideLog", "Hide the console")
-                            : t("world.run.showLog", { n: run.log.value.length }, "Show the console ({n} lines)")
+                            : t(
+                                  "world.run.showLog",
+                                  { n: run.log.value.length },
+                                  "Show the console ({n} lines)",
+                              )
                     }}
                 </v-btn>
                 <RenderConsole
@@ -352,6 +389,25 @@ function openMap(): void {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
+}
+
+/*
+ * `mapList` is a joined list rather than a short status badge. Vuetify chips default to a
+ * single clipped line, so a run with several maps used to hide the tail of the list at a
+ * narrow panel width. Keep the full list in the normal text flow: the chip may shrink and
+ * wrap at any character, but it never paints beyond the card or drops an identifier.
+ */
+.mb-world-run__map-list.v-chip {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.mb-world-run__map-list .v-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    padding-block: 2px;
 }
 
 .mb-world-run__line {

@@ -64,7 +64,9 @@ const RECORD: RenderSummary = {
     outcome: "finished",
     engine: "BlueMap engine (Java) 5.22-27 on Java 25.0.3",
     engineId: "upstream-java",
-    maps: [{ id: "survival", name: "Survival", world: "/srv/world", dimension: "minecraft:overworld" }],
+    maps: [
+        { id: "survival", name: "Survival", world: "/srv/world", dimension: "minecraft:overworld" },
+    ],
     startedAt: "2026-08-03T09:14:00.000Z",
     finishedAt: "2026-08-03T09:18:14.000Z",
     durationMs: 254_000,
@@ -140,7 +142,13 @@ function startedRun(record: RenderSummary | null = null) {
     const fake = fakeBridge(record);
     const run = createRenderRun(fake.bridge);
     void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-    fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+    fake.emit({
+        type: "started",
+        renderId: "world-abc",
+        mapIds: ["survival"],
+        engine: ENGINE,
+        at: "t0",
+    });
     return { fake, run };
 }
 
@@ -182,7 +190,9 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        expect(wrapper.text()).toContain("Finished in 4 minutes. The tiles are in /var/maps/world-abc.");
+        expect(wrapper.text()).toContain(
+            "Finished in 4 minutes. The tiles are in /var/maps/world-abc.",
+        );
         wrapper.unmount();
         run.dispose();
     });
@@ -193,7 +203,14 @@ describe("what the panel says, rendered", () => {
             type: "progress",
             renderId: "world-abc",
             phase: "rendering",
-            task: { kind: "map", mapId: "survival", description: "survival", percent: 8.5, etaSeconds: 240, etaText: "4m 12s" },
+            task: {
+                kind: "map",
+                mapId: "survival",
+                description: "survival",
+                percent: 8.5,
+                etaSeconds: 240,
+                etaText: "4m 12s",
+            },
             at: "t1",
         });
 
@@ -212,7 +229,14 @@ describe("what the panel says, rendered", () => {
             type: "progress",
             renderId: "world-abc",
             phase: "rendering",
-            task: { kind: "map", mapId: "survival", description: "survival", percent: 8.5, etaSeconds: 254, etaText: null },
+            task: {
+                kind: "map",
+                mapId: "survival",
+                description: "survival",
+                percent: 8.5,
+                etaSeconds: 254,
+                etaText: null,
+            },
             at: "t1",
         });
 
@@ -238,7 +262,9 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        expect(wrapper.text()).toContain("Rendered by: BlueMap engine (Java) 5.22-27 on Java 25.0.3");
+        expect(wrapper.text()).toContain(
+            "Rendered by: BlueMap engine (Java) 5.22-27 on Java 25.0.3",
+        );
         wrapper.unmount();
         run.dispose();
     });
@@ -249,7 +275,9 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        expect(wrapper.text()).toContain("The engine that ran: BlueMap engine (Java) 5.22-27 on Java 25.0.3");
+        expect(wrapper.text()).toContain(
+            "The engine that ran: BlueMap engine (Java) 5.22-27 on Java 25.0.3",
+        );
         wrapper.unmount();
         run.dispose();
     });
@@ -283,7 +311,13 @@ describe("what the panel says, rendered", () => {
         // rather than as an undated wall of engine output.
         const { fake, run } = startedRun();
         for (const line of ["one", "two", "three"]) {
-            fake.emit({ type: "log", renderId: "world-abc", level: "info", message: line, at: "t" });
+            fake.emit({
+                type: "log",
+                renderId: "world-abc",
+                level: "info",
+                message: line,
+                at: "t",
+            });
         }
 
         const wrapper = render(run);
@@ -311,7 +345,9 @@ describe("what the panel says, rendered", () => {
         const wrapper = render(run);
         expect(wrapper.find(".mb-console").exists()).toBe(false);
 
-        const toggle = wrapper.findAll("button").find((candidate) => candidate.text().includes("Show the console"));
+        const toggle = wrapper
+            .findAll("button")
+            .find((candidate) => candidate.text().includes("Show the console"));
         await toggle?.trigger("click");
 
         expect(wrapper.find(".mb-console").exists()).toBe(true);
@@ -348,8 +384,12 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        const detailToggle = wrapper.findAll("button").find((candidate) => candidate.text().includes("Show what the engine reported"));
-        const logToggle = wrapper.findAll("button").find((candidate) => candidate.text().includes("Show the console"));
+        const detailToggle = wrapper
+            .findAll("button")
+            .find((candidate) => candidate.text().includes("Show what the engine reported"));
+        const logToggle = wrapper
+            .findAll("button")
+            .find((candidate) => candidate.text().includes("Show the console"));
         expect(detailToggle).toBeDefined();
         expect(logToggle).toBeDefined();
 
@@ -514,5 +554,39 @@ describe("the run's head row, which shares its <v-card-title> with chips", () =>
         expect(rule).toContain("overflow: visible");
         expect(rule).toContain("text-overflow: clip");
         expect(rule).toContain("white-space: normal");
+    });
+
+    it("keeps every joined map id in readable chip text when the narrow card wraps", () => {
+        const mapIds = [
+            "overworld-with-a-deliberately-long-map-identifier",
+            "the-nether-with-a-second-deliberately-long-map-identifier",
+            "the-end-with-a-third-deliberately-long-map-identifier",
+        ];
+        const { run } = timedRun(mapIds);
+        const wrapper = render(run, T0);
+        const chip = wrapper.get(".mb-world-run__map-list");
+
+        // The chip's text is its accessible name too. A wrapping rule must preserve every
+        // map id in that text rather than visually clipping an inaccessible tail.
+        expect(chip.text()).toBe(mapIds.join(", "));
+        expect(chip.attributes("aria-hidden")).toBeUndefined();
+
+        wrapper.unmount();
+        run.dispose();
+    });
+
+    it("gives the joined map-id chip its own narrow-layout wrapping rule", () => {
+        const chipRule =
+            /\.mb-world-run__map-list\.v-chip\s*\{[^}]*\}/s.exec(renderRunPanelSource)?.[0] ?? "";
+        const contentRule =
+            /\.mb-world-run__map-list \.v-chip__content\s*\{[^}]*\}/s.exec(
+                renderRunPanelSource,
+            )?.[0] ?? "";
+
+        expect(chipRule).toContain("min-width: 0");
+        expect(chipRule).toContain("max-width: 100%");
+        expect(chipRule).toContain("height: auto");
+        expect(contentRule).toContain("white-space: normal");
+        expect(contentRule).toContain("overflow-wrap: anywhere");
     });
 });
