@@ -92,6 +92,7 @@ onBeforeUnmount(() => {
             <VBtn
                 class="mb-titlebar-button"
                 variant="text"
+                rounded="0"
                 :ripple="false"
                 :aria-label="t('window.minimize', 'Minimize')"
                 @click="controls.minimize()"
@@ -108,6 +109,7 @@ onBeforeUnmount(() => {
             <VBtn
                 class="mb-titlebar-button"
                 variant="text"
+                rounded="0"
                 :ripple="false"
                 :aria-label="
                     controls.maximized.value
@@ -125,6 +127,7 @@ onBeforeUnmount(() => {
             <VBtn
                 class="mb-titlebar-button mb-titlebar-button--close"
                 variant="text"
+                rounded="0"
                 :ripple="false"
                 :aria-label="t('window.close', 'Close')"
                 @click="controls.close()"
@@ -194,6 +197,18 @@ onBeforeUnmount(() => {
  * 48x40 rather than the operating system's 46x32. Still reads as a caption button, and is
  * a target somebody can actually hit at 150% display scale - which the sizing rules ask
  * for and the OS convention predates.
+ */
+/*
+ * Square, and asserted square, because the corner is no longer this rule's to decide.
+ *
+ * `vuetify.ts` defaults every `VBtn` to `rounded: "pill"`, which is right for every button
+ * in the application except these three: a window's caption buttons are a platform
+ * convention, they fill the title bar's full height, and three pills in the corner read as
+ * a floating toolbar rather than as minimise/maximise/close. Vuetify emits its radius as a
+ * `!important` utility class, so `border-radius: 0` here lost to it silently - the
+ * declaration below is kept for the browser build (where no default reaches it) but the
+ * `rounded="0"` prop on each button in the template above is what actually wins, and it
+ * spends the same `--md-sys-shape-corner-none` token the rest of the shape scale does.
  */
 .mb-titlebar-button.v-btn {
     width: 48px;
