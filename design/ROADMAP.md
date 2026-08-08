@@ -2,7 +2,7 @@
 
 ## Ground-up Material Design 3 Expressive Pages rewrite (2026-08-07)
 
-**In progress on `codex/phase-pages-m3-rewrite`; default-branch and live deployment proof remain
+**Integrated into `main` at `de324d7`; exact-tip CI and live deployment proof remain
 gates.** The documentation site now has one explicit application-shell owner instead of assembling
 its hierarchy through append order: sticky M3 top app bar, adaptive navigation surface, bounded
 content canvas and persistent local-assets footer. Search, notification history, settings and the
@@ -19,8 +19,24 @@ dimensions, uniqueness, file budgets, finite playback, narrow layout and offline
 
 Focused shell/content/coverage/walkthrough tests, site typecheck and a production build are green
 except for the final full-suite and runtime matrix still to run after documentation is complete. A
-local build and explanatory animation are not live-deployment proof; exact branch CI, default-branch
-integration, Pages workflow and live URL read-back remain later gates.
+local build and explanatory animation are not live-deployment proof; exact main CI, Pages workflow
+and live URL read-back remain later gates.
+## Startup resilience and Worldlens brand phase (2026-08-07)
+
+**Merged through the completion pass; packaged and hosted proof remain open.** The app
+now preserves an ordinary shell when optional startup features fail and uses an isolated recovery
+window when profile, preload, renderer or unknown-process integrity makes the ordinary shell unsafe.
+The recovery route is persistent, non-modal where the ordinary shell survives, inspectable,
+copyable, exportable in JSON and Markdown, credential-redacted, and protected against repeated
+submits. Every known startup phase appears in a hand-written completeness guard.
+
+The phase also replaces the inherited BlueMap mark with one Worldlens source image and a
+deterministic Sharp pipeline for the app/UI/site PNGs plus a nine-size Windows ICO. Windows resource
+editing applies the icon and version metadata without enabling code signing. Focused tests (61),
+app/UI/site typecheck and brand freshness are green locally. The remaining gates are the complete
+build-first test/lint/build suite, unpacked and installer packaging, Authenticode `NotSigned`
+confirmation, cheap off-screen launch with the profile-migration probe, a genuine issue capture,
+exact main CI and a verified release.
 
 ## Worldlens repository pre-cutover expansion (2026-08-07)
 
@@ -112,6 +128,7 @@ installer and test-world bytes without claiming the producer itself is trusted. 
 43/43 on Windows and Linux; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over
 every workflow. The source is integrated at `e21aaee`; exact-main CI and release read-back remain
 evidence-gated. See `../docs/release-workflow-security.md` and issue #90.
+
 ## Worldlens rename and migration (2026-08-07)
 
 **Implemented on the phase branch; independent review corrections add crash recovery, guarded

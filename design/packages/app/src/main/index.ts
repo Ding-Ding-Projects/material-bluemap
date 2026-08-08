@@ -123,6 +123,18 @@ import type { GhCliIpc } from "./ghcli/ipc.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
 import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
 import { migrateWorldlensProfile } from "./migration/index.js";
+import {
+    attemptStartupStep,
+    errorDetail,
+    errorMessage,
+    installStartupIpc,
+    openRecoveryWindow,
+    SingleFlight,
+    StartupIssueStore,
+    type StartupCategory,
+    type StartupIpc,
+    type StartupIssue,
+} from "./startup/index.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -133,6 +145,56 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const applicationDataDirectory = app.getPath("appData");
 app.setName(WORLDLENS_IDENTITY.shippedName);
 app.setPath("userData", join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName));
+
+// Kept beside, not inside, the profile being migrated. A collision or unreadable profile is
+// exactly when diagnostics must not depend on writing into that profile.
+const startupStore = new StartupIssueStore(join(applicationDataDirectory, "Worldlens Recovery"));
+let startupIpc: StartupIpc | null = null;
+
+// A deterministic packaged-smoke seam. It never enables a capability or bypasses a check;
+// it only makes one named startup phase fail so the recovery path can be proven against the
+// actual executable instead of an injected unit-test host.
+const startupProbe = app.commandLine.getSwitchValue("worldlens-startup-probe").trim();
+
+function injectStartupProbe(phase: string): void {
+    if (startupProbe === phase) {
+        throw new Error(`Intentional Worldlens startup probe failed the '${phase}' phase.`);
+    }
+}
+
+function brandAsset(name: "worldlens.ico" | "worldlens-logo.png"): string | null {
+    const candidates = app.isPackaged
+        ? [join(process.resourcesPath, "brand", name)]
+        : [
+              name.endsWith(".ico")
+                  ? path.resolve(dirname, "../../build/icon.ico")
+                  : path.resolve(dirname, "../../../ui/public/assets/logoCircle512.png"),
+          ];
+    return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+function ensureStartupIpc(): StartupIpc {
+    startupIpc ??= installStartupIpc({
+        ipcMain,
+        app,
+        dialog,
+        clipboard,
+        store: startupStore,
+        resolveWindow: (sender) => BrowserWindow.fromWebContents(sender),
+    });
+    return startupIpc;
+}
+
+async function showRecovery(issues: readonly StartupIssue[]): Promise<void> {
+    await startupStore.flush();
+    await openRecoveryWindow({
+        app,
+        startup: ensureStartupIpc(),
+        issues,
+        iconPath: brandAsset("worldlens.ico"),
+        logoPath: brandAsset("worldlens-logo.png"),
+    });
+}
 
 async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
     const answer = await dialog.showMessageBox({
@@ -152,11 +214,36 @@ async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
     return answer.response === 0 ? "accept" : "deny";
 }
 
-async function prepareWorldlensProfile(): Promise<boolean> {
-    const outcome = await migrateWorldlensProfile({
-        appDataDirectory: applicationDataDirectory,
-        requestConsent: requestProfileMigrationConsent,
-    });
+async function prepareWorldlensProfile(): Promise<StartupIssue | null> {
+    if (startupProbe === "profile-migration") {
+        return startupStore.record({
+            category: "profile-migration",
+            phase: "profile-migration",
+            title: "The profile migration safety probe stopped startup",
+            message:
+                "An intentional packaged smoke probe activated before any profile was read or written.",
+            detail: "--worldlens-startup-probe=profile-migration",
+            recoverable: false,
+            securityBoundary: true,
+        });
+    }
+    let outcome: Awaited<ReturnType<typeof migrateWorldlensProfile>>;
+    try {
+        outcome = await migrateWorldlensProfile({
+            appDataDirectory: applicationDataDirectory,
+            requestConsent: requestProfileMigrationConsent,
+        });
+    } catch (error) {
+        return startupStore.record({
+            category: "profile-migration",
+            phase: "profile-migration",
+            title: "Worldlens could not prepare the profile",
+            message: errorMessage(error),
+            detail: errorDetail(error),
+            recoverable: false,
+            securityBoundary: true,
+        });
+    }
     if (
         outcome.kind === "no-legacy-profile" ||
         outcome.kind === "already-migrated" ||
@@ -164,7 +251,7 @@ async function prepareWorldlensProfile(): Promise<boolean> {
         outcome.kind === "migrated"
     ) {
         console.info(`[worldlens] profile migration: ${outcome.kind}`);
-        return true;
+        return null;
     }
 
     const detail =
@@ -172,12 +259,17 @@ async function prepareWorldlensProfile(): Promise<boolean> {
             ? `Both profiles contain different versions of: ${outcome.paths.join(", ")}. Neither profile was changed.`
             : outcome.message;
     console.error(`[worldlens] profile migration ${outcome.kind}: ${detail}`);
-    dialog.showErrorBox(
-        "Worldlens kept your old profile safe",
-        `${detail}\n\nWorldlens did not open because continuing could hide or overwrite data. ` +
-            "The Material BlueMap profile remains intact; correct the reported problem and start Worldlens again.",
-    );
-    return false;
+    return startupStore.record({
+        category: "profile-migration",
+        phase: "profile-migration",
+        title: "Worldlens kept the existing profile safe",
+        message:
+            `${detail} The Material BlueMap profile remains intact. ` +
+            "Correct the reported problem, then restart Worldlens.",
+        detail,
+        recoverable: false,
+        securityBoundary: true,
+    });
 }
 
 /** Built UI bundle (packages/ui/dist), resolved relative to the app package. */
@@ -205,17 +297,26 @@ const remoteProxy = new RemoteProxyHandler();
  */
 const localMaps = new LocalMapHandler();
 
+let embeddedServer: Promise<string> | null = null;
+
 async function startEmbeddedServer(): Promise<string> {
-    const server = new HttpServer({ host: "127.0.0.1", port: 0, authToken });
-    server.addHandler(remoteProxy);
-    server.addHandler(localMaps);
-    server.addHandler(new StaticHandler(resolveUiRoot()));
-    const address = await server.listen();
-    app.on("will-quit", () => void server.close());
-    return `http://127.0.0.1:${address.port}`;
+    embeddedServer ??= (async () => {
+        const server = new HttpServer({ host: "127.0.0.1", port: 0, authToken });
+        server.addHandler(remoteProxy);
+        server.addHandler(localMaps);
+        server.addHandler(new StaticHandler(resolveUiRoot()));
+        const address = await server.listen();
+        app.on("will-quit", () => void server.close());
+        return `http://127.0.0.1:${address.port}`;
+    })();
+    return embeddedServer;
 }
 
+let sessionHardened = false;
+
 function hardenSession(baseUrl: string): void {
+    if (sessionHardened) return;
+    sessionHardened = true;
     session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
         // pointer lock is needed by free-flight controls; fullscreen by the UI.
         //
@@ -388,7 +489,17 @@ function startRendering(): RenderIpc {
         jvmArgs: () => getRenderMemoryStore().jvmArgs(),
     });
     // Maps rendered in an earlier session are served again without re-rendering.
-    void render.restoreExisting();
+    void render.restoreExisting().catch((error: unknown) => {
+        startupStore.record({
+            category: "configuration",
+            phase: "restore-existing-renders",
+            title: "Saved renders could not be restored",
+            message: errorMessage(error),
+            detail: errorDetail(error),
+            recoverable: true,
+            securityBoundary: false,
+        });
+    });
     renderIpc = render;
     return render;
 }
@@ -1224,37 +1335,66 @@ function startRepairDiagnostics(): RepairIpc {
 }
 
 async function createWindow(): Promise<void> {
-    const baseUrl = await startEmbeddedServer();
-    hardenSession(baseUrl);
-    registerIpc();
-    const render = startRendering();
-    const github = startGitHubSignIn();
-    const downloads = startDownloads(render, github);
-    startBackups(render, github);
-    const ciRender = startCiRenders(render, github, startBackups(render, github));
-    startPagesHosting(render);
-    startPreviewHosting(render, ciRender);
-    startWorldRepoHosting();
-    startWorldSources(render, downloads, github);
-    startSshWorldSources();
-    startDockerWorld();
-    startRuntime(render);
-    startRemoteRendering(render);
-    startRemoteHosting(render);
-    startWorldInspection();
-    startJavaDiscovery();
-    startSysdepInstaller();
-    startGhCliAccounts();
-    startConfigEditing();
-    startConfigHistory();
-    startProjects();
-    startProfilesHistory();
-    startAppSettingsHistory();
-    startFileAccess(render);
-    startUpdates(render);
-    startPathDialogs();
-    startBedrockConversion();
-    startRepairDiagnostics();
+    const existing = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed());
+    if (existing !== undefined) {
+        if (existing.isMinimized()) existing.restore();
+        existing.show();
+        return;
+    }
+
+    ensureStartupIpc();
+    const attempt = <T>(
+        category: StartupCategory,
+        phase: string,
+        title: string,
+        run: () => T | Promise<T>,
+    ): Promise<T | null> =>
+        attemptStartupStep({
+            category,
+            phase,
+            title,
+            run: () => {
+                injectStartupProbe(phase);
+                return run();
+            },
+            report: (issue) => {
+                startupStore.record(issue);
+            },
+        });
+
+    const baseUrl = await attempt(
+        "network",
+        "embedded-server",
+        "The local application server did not start",
+        startEmbeddedServer,
+    );
+    if (baseUrl === null) {
+        await showRecovery((await startupStore.snapshot()).current);
+        return;
+    }
+
+    const hardened = await attempt(
+        "initialization",
+        "session-security",
+        "The secure application session could not be prepared",
+        () => {
+            hardenSession(baseUrl);
+            return true;
+        },
+    );
+    const coreIpc = await attempt(
+        "initialization",
+        "core-ipc",
+        "The core application controls could not be registered",
+        () => {
+            registerIpc();
+            return true;
+        },
+    );
+    if (hardened === null || coreIpc === null) {
+        await showRecovery((await startupStore.snapshot()).current);
+        return;
+    }
 
     const window = new BrowserWindow({
         width: 1280,
@@ -1270,12 +1410,72 @@ async function createWindow(): Promise<void> {
         frame: false,
         autoHideMenuBar: true,
         backgroundColor: "#0B0E11",
+        ...(brandAsset("worldlens.ico") === null ? {} : { icon: brandAsset("worldlens.ico")! }),
         webPreferences: {
-            preload: path.resolve(dirname, "../preload/index.cjs"),
+            preload:
+                startupProbe === "preload"
+                    ? path.resolve(dirname, "../preload/intentionally-missing.cjs")
+                    : path.resolve(dirname, "../preload/index.cjs"),
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
         },
+    });
+
+    const windowRecovery = new SingleFlight<void>();
+    const recoverWindow = (
+        category: StartupCategory,
+        phase: string,
+        title: string,
+        error: unknown,
+        securityBoundary = false,
+    ): Promise<void> =>
+        windowRecovery.run(async () => {
+            startupStore.record({
+                category,
+                phase,
+                title,
+                message: errorMessage(error),
+                detail: errorDetail(error),
+                recoverable: !securityBoundary,
+                securityBoundary,
+            });
+            if (!window.isDestroyed()) window.destroy();
+            await showRecovery((await startupStore.snapshot()).current);
+        });
+
+    // The preload is the renderer's only route to privileged operations. A preload that
+    // failed is not answered by turning isolation off or exposing Node; the ordinary window
+    // is retired and a no-script, no-preload recovery window takes over.
+    window.webContents.on("preload-error", (_event, preloadPath, error) => {
+        void recoverWindow(
+            "preload",
+            "preload",
+            "The secure application bridge did not load",
+            new Error(`${errorMessage(error)} (${preloadPath})`),
+            true,
+        );
+    });
+    window.webContents.on(
+        "did-fail-load",
+        (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+            if (!isMainFrame) return;
+            void recoverWindow(
+                "renderer",
+                "renderer-load",
+                "The application interface did not load",
+                new Error(`${errorDescription} (${errorCode}) while loading ${validatedUrl}`),
+            );
+        },
+    );
+    window.webContents.on("render-process-gone", (_event, details) => {
+        void recoverWindow(
+            "renderer",
+            "renderer-process",
+            "The application interface stopped unexpectedly",
+            new Error(`Renderer process ended: ${details.reason} (${details.exitCode})`),
+            true,
+        );
     });
 
     // Maximised state can change without the app asking: the OS keyboard shortcut, a
@@ -1302,32 +1502,205 @@ async function createWindow(): Promise<void> {
         if (!url.startsWith(baseUrl)) event.preventDefault();
     });
 
+    // Optional feature registration begins only after a real window exists. Every step owns
+    // its failure, so a missing Java runtime, damaged config, unavailable network or update
+    // service can remove that feature without removing the shell.
+    const render = await attempt(
+        "dependency",
+        "rendering",
+        "Rendering is unavailable in this launch",
+        startRendering,
+    );
+    const github = await attempt(
+        "network",
+        "github-sign-in",
+        "GitHub features are unavailable in this launch",
+        startGitHubSignIn,
+    );
+    const downloads =
+        render !== null && github !== null
+            ? await attempt(
+                  "network",
+                  "downloads",
+                  "Release downloads are unavailable in this launch",
+                  () => startDownloads(render, github),
+              )
+            : null;
+    const backups =
+        render !== null && github !== null
+            ? await attempt("network", "backups", "Backups are unavailable in this launch", () =>
+                  startBackups(render, github),
+              )
+            : null;
+    const ciRender =
+        render !== null && github !== null && backups !== null
+            ? await attempt(
+                  "network",
+                  "ci-render",
+                  "Cloud rendering is unavailable in this launch",
+                  () => startCiRenders(render, github, backups),
+              )
+            : null;
+
+    if (render !== null) {
+        await attempt("network", "pages", "Pages hosting is unavailable in this launch", () =>
+            startPagesHosting(render),
+        );
+        await attempt(
+            "initialization",
+            "runtime",
+            "Container runtime controls are unavailable",
+            () => startRuntime(render),
+        );
+        await attempt("network", "remote-render", "Remote rendering is unavailable", () =>
+            startRemoteRendering(render),
+        );
+        await attempt("network", "remote-hosting", "Remote hosting is unavailable", () =>
+            startRemoteHosting(render),
+        );
+        await attempt("initialization", "file-access", "File actions are unavailable", () =>
+            startFileAccess(render),
+        );
+        await attempt("update", "updates", "Automatic updates are unavailable in this launch", () =>
+            startUpdates(render),
+        );
+    }
+    if (render !== null && downloads !== null && github !== null) {
+        await attempt("network", "world-sources", "World-source downloads are unavailable", () =>
+            startWorldSources(render, downloads, github),
+        );
+    }
+    if (render !== null && ciRender !== null) {
+        await attempt("network", "preview", "Live preview hosting is unavailable", () =>
+            startPreviewHosting(render, ciRender),
+        );
+    }
+
+    const independentSteps: readonly [StartupCategory, string, string, () => unknown][] = [
+        [
+            "initialization",
+            "world-repository",
+            "World repositories are unavailable",
+            startWorldRepoHosting,
+        ],
+        ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
+        ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
+        [
+            "configuration",
+            "world-inspection",
+            "World discovery is unavailable",
+            startWorldInspection,
+        ],
+        ["dependency", "java-discovery", "Java discovery is unavailable", startJavaDiscovery],
+        [
+            "dependency",
+            "dependency-installer",
+            "Dependency installation is unavailable",
+            startSysdepInstaller,
+        ],
+        ["dependency", "gh-cli", "GitHub CLI account controls are unavailable", startGhCliAccounts],
+        [
+            "configuration",
+            "config-editor",
+            "Configuration editing is unavailable",
+            startConfigEditing,
+        ],
+        [
+            "configuration",
+            "config-history",
+            "Configuration history is unavailable",
+            startConfigHistory,
+        ],
+        ["configuration", "projects", "Project files are unavailable", startProjects],
+        [
+            "configuration",
+            "profile-history",
+            "Profile history is unavailable",
+            startProfilesHistory,
+        ],
+        [
+            "configuration",
+            "settings-history",
+            "Settings history is unavailable",
+            startAppSettingsHistory,
+        ],
+        [
+            "initialization",
+            "path-dialogs",
+            "Folder and file pickers are unavailable",
+            startPathDialogs,
+        ],
+        [
+            "dependency",
+            "bedrock-conversion",
+            "Bedrock conversion is unavailable",
+            startBedrockConversion,
+        ],
+        ["initialization", "repair", "Repair diagnostics are unavailable", startRepairDiagnostics],
+    ];
+    for (const [category, phase, title, run] of independentSteps) {
+        await attempt(category, phase, title, run);
+    }
+
     window.once("ready-to-show", () => window.show());
-    await window.loadURL(`${baseUrl}/?token=${authToken}`);
+    try {
+        await window.loadURL(`${baseUrl}/?token=${authToken}`);
+    } catch (error) {
+        await recoverWindow(
+            "renderer",
+            "renderer-load",
+            "The application interface did not load",
+            error,
+        );
+    }
 }
 
 /**
- * Starts the window, and if it cannot start, says so.
- *
- * `void createWindow()` swallowed every startup rejection. The packaged app shipped
- * without the renderer bundle, `resolveUiRoot` threw, the promise was discarded, and
- * the process sat there with no window and no message: indistinguishable from the
- * app not launching. A failure the user cannot see is worse than a crash, because a
- * crash at least tells them something happened.
+ * Starts one window at a time. A second activation shares the in-flight launch rather than
+ * registering IPC twice or opening two recovery shells.
  */
+const launchFlight = new SingleFlight<void>();
+
 async function launch(): Promise<void> {
-    try {
-        await createWindow();
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error("[worldlens] startup failed:", error);
-        dialog.showErrorBox(
-            "Worldlens could not start",
-            `${message}\n\nThis is a bug. Please report it with this message at\n` +
-                `https://github.com/Ding-Ding-Projects/worldlens/issues`,
-        );
-        app.exit(1);
-    }
+    return launchFlight.run(async () => {
+        try {
+            await createWindow();
+        } catch (error) {
+            console.error("[worldlens] startup failed:", error);
+            const issue = startupStore.record({
+                category: "initialization",
+                phase: "launch",
+                title: "Worldlens opened recovery after startup failed",
+                message: errorMessage(error),
+                detail: errorDetail(error),
+                recoverable: true,
+                securityBoundary: false,
+            });
+            await showRecovery([issue]);
+        }
+    });
+}
+
+const terminalRecoveryFlight = new SingleFlight<void>();
+
+function enterTerminalRecovery(origin: string, error: unknown): void {
+    void terminalRecoveryFlight.run(async () => {
+        const issue = startupStore.record({
+            category: "initialization",
+            phase: origin,
+            title: "Worldlens stopped unsafe work and kept recovery available",
+            message: errorMessage(error),
+            detail: errorDetail(error),
+            recoverable: false,
+            securityBoundary: true,
+        });
+        for (const window of BrowserWindow.getAllWindows()) {
+            if (!window.isDestroyed() && window.getTitle() !== "Worldlens recovery")
+                window.destroy();
+        }
+        await app.whenReady();
+        await showRecovery([issue]);
+    });
 }
 
 const ownsSingleInstance = app.requestSingleInstanceLock();
@@ -1346,16 +1719,22 @@ if (!ownsSingleInstance) {
         window.focus();
     });
 
-    app.whenReady().then(async () => {
-        if (!(await prepareWorldlensProfile())) {
-            app.exit(1);
-            return;
-        }
-        await launch();
-        app.on("activate", () => {
-            if (BrowserWindow.getAllWindows().length === 0) void launch();
-        });
-    });
+    process.on("uncaughtException", (error) => enterTerminalRecovery("uncaught-exception", error));
+    process.on("unhandledRejection", (reason) =>
+        enterTerminalRecovery("unhandled-rejection", reason),
+    );
+
+    app.whenReady()
+        .then(async () => {
+            ensureStartupIpc();
+            const migrationIssue = await prepareWorldlensProfile();
+            if (migrationIssue === null) await launch();
+            else await showRecovery([migrationIssue]);
+            app.on("activate", () => {
+                if (BrowserWindow.getAllWindows().length === 0) void launch();
+            });
+        })
+        .catch((error: unknown) => enterTerminalRecovery("app-ready", error));
 
     app.on("window-all-closed", () => {
         if (process.platform !== "darwin") app.quit();

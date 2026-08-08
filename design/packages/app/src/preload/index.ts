@@ -78,6 +78,7 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
+import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
 import {
     toBridgeCoordinates,
     toBridgeDiscoveryResult,
@@ -2263,6 +2264,14 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    startup: {
+        read(): Promise<StartupDiagnosticsSnapshot>;
+        copy(): Promise<{ ok: boolean; message: string }>;
+        export(
+            format: StartupExportFormat,
+        ): Promise<{ ok: boolean; path: string | null; message: string }>;
+        retry(): Promise<{ ok: boolean; message: string }>;
+    };
 
     /**
      * The window buttons, for the app's own title bar.
@@ -3121,6 +3130,12 @@ const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    startup: {
+        read: () => ipcRenderer.invoke("startup:read"),
+        copy: () => ipcRenderer.invoke("startup:copy"),
+        export: (format) => ipcRenderer.invoke("startup:export", format),
+        retry: () => ipcRenderer.invoke("startup:retry"),
+    },
 
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggleMaximize"),

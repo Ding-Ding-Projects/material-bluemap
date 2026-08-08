@@ -107,7 +107,8 @@ interface BlueMapHistoryFileChange {
  * use, never from this union: a history with no restores in it offers no "restored"
  * filter, and a word added to the main process later needs no change on this side.
  */
-type BlueMapHistoryAction = "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
+type BlueMapHistoryAction =
+    "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
 
 interface BlueMapHistoryRevision {
     id: string;
@@ -174,12 +175,10 @@ interface BlueMapHistoryDiffFile {
 }
 
 type BlueMapHistoryFilesResult =
-    | { ok: true; files: BlueMapHistoryRevisionFile[] }
-    | { ok: false; message: string };
+    { ok: true; files: BlueMapHistoryRevisionFile[] } | { ok: false; message: string };
 
 type BlueMapHistoryDiffResult =
-    | { ok: true; files: BlueMapHistoryDiffFile[] }
-    | { ok: false; message: string };
+    { ok: true; files: BlueMapHistoryDiffFile[] } | { ok: false; message: string };
 
 interface BlueMapHistoryComparisonFile extends BlueMapHistoryDiffFile {
     /** The file's whole text at the older end, or null when absent or withheld. */
@@ -335,7 +334,9 @@ interface BlueMapProjectBridge {
         scanned: number;
         problems: { world: string; message: string }[];
     }>;
-    readProject(world: string): Promise<
+    readProject(
+        world: string,
+    ): Promise<
         | { ok: true; project: BlueMapProjectFile; file: string }
         | { ok: false; failure: BlueMapProjectReadFailure }
     >;
@@ -343,7 +344,13 @@ interface BlueMapProjectBridge {
         world: string,
         project: BlueMapProjectFile,
     ): Promise<
-        | { ok: true; file: string; historyOk: boolean; historyMessage: string; revision: BlueMapHistoryRevision | null }
+        | {
+              ok: true;
+              file: string;
+              historyOk: boolean;
+              historyMessage: string;
+              revision: BlueMapHistoryRevision | null;
+          }
         | { ok: false; message: string }
     >;
 }
@@ -493,8 +500,7 @@ interface BlueMapSavesScan {
 }
 
 type BlueMapFolderScanResult =
-    | { ok: true; scan: BlueMapSavesScan }
-    | { ok: false; folderId: string; message: string };
+    { ok: true; scan: BlueMapSavesScan } | { ok: false; folderId: string; message: string };
 
 type BlueMapMountFolderResult =
     | { ok: true; folder: BlueMapMinecraftFolder; alreadyMounted: boolean }
@@ -545,8 +551,7 @@ interface BlueMapGitHubFailure {
 }
 
 type BlueMapGitHubSignInResult =
-    | { ok: true; account: BlueMapGitHubAccount }
-    | { ok: false; failure: BlueMapGitHubFailure };
+    { ok: true; account: BlueMapGitHubAccount } | { ok: false; failure: BlueMapGitHubFailure };
 
 interface BlueMapGitHubSignOutResult {
     signedOut: boolean;
@@ -618,10 +623,50 @@ type BlueMapGitHubRepositoryAccess =
           };
       };
 
+type BlueMapStartupCategory =
+    | "profile-migration"
+    | "configuration"
+    | "dependency"
+    | "preload"
+    | "update"
+    | "network"
+    | "initialization"
+    | "renderer";
+
+interface BlueMapStartupIssue {
+    readonly id: string;
+    readonly sessionId: string;
+    readonly category: BlueMapStartupCategory;
+    readonly phase: string;
+    readonly title: string;
+    readonly message: string;
+    readonly detail: string | null;
+    readonly occurredAt: string;
+    readonly recoverable: boolean;
+    readonly securityBoundary: boolean;
+}
+
+interface BlueMapStartupSnapshot {
+    readonly sessionId: string;
+    readonly current: readonly BlueMapStartupIssue[];
+    readonly history: readonly BlueMapStartupIssue[];
+    readonly storageWarning: string | null;
+}
+
+interface BlueMapStartupBridge {
+    read(): Promise<BlueMapStartupSnapshot>;
+    copy(): Promise<{ readonly ok: boolean; readonly message: string }>;
+    export(
+        format: "json" | "markdown",
+    ): Promise<{ readonly ok: boolean; readonly path: string | null; readonly message: string }>;
+    retry(): Promise<{ readonly ok: boolean; readonly message: string }>;
+}
+
 interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    startup: BlueMapStartupBridge;
 
     /**
      * Mojang download consent, asked once during first-run setup and remembered.
@@ -833,9 +878,18 @@ interface WorldlensBridge {
      * this file is ambient: an import would make it a module and take the global with it.
      */
     listBackupRepositories(): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
-    inspectBackupRepository(request: { owner: string; repo: string }): Promise<BackupAnswer<BackupRepositoryReport>>;
-    inspectBackupSource(request: { kind: BackupSourceKind; folder: string }): Promise<BackupAnswer<BackupSourceReport>>;
-    listBackups(request: { owner: string; repo: string }): Promise<BackupAnswer<readonly BackupListing[]>>;
+    inspectBackupRepository(request: {
+        owner: string;
+        repo: string;
+    }): Promise<BackupAnswer<BackupRepositoryReport>>;
+    inspectBackupSource(request: {
+        kind: BackupSourceKind;
+        folder: string;
+    }): Promise<BackupAnswer<BackupSourceReport>>;
+    listBackups(request: {
+        owner: string;
+        repo: string;
+    }): Promise<BackupAnswer<readonly BackupListing[]>>;
     startBackup(request: BackupRequest): Promise<BackupResult>;
     cancelBackup(backupId: string): Promise<boolean>;
     activeBackups(): Promise<readonly string[]>;
@@ -939,7 +993,12 @@ type BackupEvent =
           readonly label: string;
           readonly at: string;
       }
-    | { readonly type: "phase"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    | {
+          readonly type: "phase";
+          readonly backupId: string;
+          readonly phase: BackupPhase;
+          readonly at: string;
+      }
     | {
           readonly type: "progress";
           readonly backupId: string;
@@ -961,7 +1020,12 @@ type BackupEvent =
           readonly durationMs: number;
           readonly at: string;
       }
-    | { readonly type: "failed"; readonly backupId: string; readonly failure: BackupFailure; readonly at: string }
+    | {
+          readonly type: "failed";
+          readonly backupId: string;
+          readonly failure: BackupFailure;
+          readonly at: string;
+      }
     | { readonly type: "cancelled"; readonly backupId: string; readonly at: string };
 
 type BackupResult =
@@ -997,8 +1061,7 @@ interface BackupListing {
 
 /** Every answer the main process gives to a backup question that can simply fail. */
 type BackupAnswer<T> =
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly message: string };
+    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
 
 interface Window {
     worldlens?: WorldlensBridge;

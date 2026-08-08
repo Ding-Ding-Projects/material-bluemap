@@ -57,7 +57,10 @@ function setBridge(bridge: { getVersion?: () => Promise<string> } | null): void 
     else scope.worldlens = bridge;
 }
 
-async function render(bridge: { getVersion?: () => Promise<string> } | null, content?: string | null) {
+async function render(
+    bridge: { getVersion?: () => Promise<string> } | null,
+    content?: string | null,
+) {
     setBridge(bridge);
     const wrapper = mount(InfoPage, { global: { plugins: [i18n(content)] } });
     await flushPromises();
@@ -139,7 +142,7 @@ describe("what the locale markup becomes", () => {
         const image = wrapper.get("img");
 
         expect(image.attributes("src")).toBe("assets/logoCircle512.png");
-        expect(image.attributes("alt")).toBe("The BlueMap logo");
+        expect(image.attributes("alt")).toBe("Worldlens logo: a block world under a map lens");
         wrapper.unmount();
     });
 

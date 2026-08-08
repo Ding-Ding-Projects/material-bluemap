@@ -92,68 +92,13 @@
 }
 
 .mb-brand-mark {
-    display: grid;
-    position: relative;
+    display: block;
     flex: none;
-    width: 3rem;
-    height: 3rem;
-    place-items: center;
-    overflow: hidden;
-    border-radius: 1.25rem 0.7rem 1.25rem 0.7rem;
-    background:
-        linear-gradient(
-            145deg,
-            transparent 46%,
-            var(--md-sys-color-secondary-container) 47% 68%,
-            transparent 69%
-        ),
-        var(--md-sys-color-primary);
-    box-shadow: var(--md-sys-elevation-level2);
-}
-
-.mb-brand-mark__lens {
-    position: absolute;
-    width: 1.55rem;
-    height: 1.55rem;
-    border: 0.22rem solid var(--md-sys-color-on-primary);
-    border-radius: 50%;
-    transform: translate(-0.14rem, -0.12rem);
-}
-
-.mb-brand-mark__lens::after {
-    content: "";
-    position: absolute;
-    right: -0.62rem;
-    bottom: -0.42rem;
-    width: 0.72rem;
-    height: 0.22rem;
-    border-radius: var(--md-sys-shape-corner-full);
-    background: var(--md-sys-color-on-primary);
-    transform: rotate(45deg);
-    transform-origin: left center;
-}
-
-.mb-brand-mark__voxel {
-    position: absolute;
-    right: 0.4rem;
-    bottom: 0.38rem;
-    width: 0.72rem;
-    height: 0.72rem;
-    border: 0.12rem solid var(--md-sys-color-on-primary);
-    border-radius: 0.12rem;
-    background: var(--md-sys-color-tertiary);
-    transform: rotate(10deg);
-}
-
-.mb-brand-mark__glint {
-    position: absolute;
-    top: 0.45rem;
-    right: 0.5rem;
-    width: 0.38rem;
-    height: 0.38rem;
-    border-radius: 50%;
-    background: var(--md-sys-color-on-primary);
-    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--md-sys-color-on-primary) 28%, transparent);
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    object-fit: cover;
+    box-shadow: var(--md-sys-elevation-level1);
 }
 
 .mb-brand-word {
