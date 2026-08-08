@@ -267,9 +267,9 @@ function exportLog(): void {
 
 <template>
     <v-card class="mb-deps" :aria-label="t('dependencies.cardLabel', 'Install system dependencies')">
-        <v-card-title class="mb-deps__head">
+        <v-card-title class="mb-deps__head mb-responsive-card-title">
             <v-icon :icon="mdiPackageVariantClosed" aria-hidden="true" />
-            <span>{{ t("dependencies.title", "Install system dependencies") }}</span>
+            <span class="mb-responsive-card-title__text">{{ t("dependencies.title", "Install system dependencies") }}</span>
         </v-card-title>
 
         <v-card-text>

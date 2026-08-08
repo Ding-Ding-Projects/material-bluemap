@@ -189,7 +189,7 @@ const noResumeReason = computed(() =>
 
 <template>
     <v-card variant="tonal" class="mb-download-row">
-        <v-card-title class="mb-download-row__head">
+        <v-card-title class="mb-download-row__head mb-responsive-card-title">
             <v-icon
                 :icon="
                     row.state === 'finished'
@@ -202,11 +202,11 @@ const noResumeReason = computed(() =>
                 size="20"
                 aria-hidden="true"
             />
-            <span class="mb-download-row__name">{{ title }}</span>
-            <v-chip v-if="row.repository" size="x-small" variant="outlined">{{ row.repository }}</v-chip>
-            <v-chip v-if="row.tag" size="x-small" variant="outlined">{{ row.tag }}</v-chip>
-            <v-chip v-if="sizeText" size="x-small" variant="outlined">{{ sizeText }}</v-chip>
-            <v-chip v-if="row.split" size="x-small" variant="outlined">
+            <span class="mb-download-row__name mb-responsive-card-title__text">{{ title }}</span>
+            <v-chip v-if="row.repository" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ row.repository }}</v-chip>
+            <v-chip v-if="row.tag" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ row.tag }}</v-chip>
+            <v-chip v-if="sizeText" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ sizeText }}</v-chip>
+            <v-chip v-if="row.split" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">
                 {{ t("downloads.row.splitChip", { n: row.parts }, "{n} parts, rejoined here") }}
             </v-chip>
         </v-card-title>

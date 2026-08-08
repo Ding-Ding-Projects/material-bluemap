@@ -431,13 +431,14 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 
 <template>
     <v-card v-if="bridge !== null" class="mb-discovered" :aria-label="t('project.discovered.cardLabel', 'Worlds ready to use')">
-        <v-card-title class="mb-discovered__head">
+        <v-card-title class="mb-discovered__head mb-responsive-card-title">
             <v-icon :icon="mdiEarth" aria-hidden="true" />
-            <span>{{ t("project.discovered.title", "Worlds ready to use") }}</span>
-            <v-spacer />
-            <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" :disabled="busy" @click="load">
-                {{ t("project.discovered.rescan", "Look again") }}
-            </v-btn>
+            <span class="mb-responsive-card-title__text">{{ t("project.discovered.title", "Worlds ready to use") }}</span>
+            <span class="mb-responsive-card-title__actions">
+                <v-btn class="mb-responsive-card-title__action" :prepend-icon="mdiRefresh" variant="text" size="small" :disabled="busy" @click="load">
+                    {{ t("project.discovered.rescan", "Look again") }}
+                </v-btn>
+            </span>
         </v-card-title>
 
         <v-card-text>

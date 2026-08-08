@@ -698,9 +698,9 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
                         `mb-worldrepo-row__title` wins on specificity (a scoped class beats
                         Vuetify's bare `.v-card-title`) and lets the row wrap instead.
                     -->
-                    <VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title">
-                        <span class="mb-worldrepo-row__name">{{ row.target }}</span>
-                        <VChip size="small" data-test="row-state">{{ row.state }}</VChip>
+                    <VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title mb-responsive-card-title">
+                        <span class="mb-worldrepo-row__name mb-responsive-card-title__text">{{ row.target }}</span>
+                        <VChip class="mb-responsive-card-title__meta" size="small" data-test="row-state">{{ row.state }}</VChip>
                         <VProgressCircular v-if="row.state === 'syncing'" indeterminate size="18" />
                     </VCardTitle>
                     <VCardText>

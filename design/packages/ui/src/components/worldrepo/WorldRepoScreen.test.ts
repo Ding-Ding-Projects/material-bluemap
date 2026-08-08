@@ -544,8 +544,8 @@ describe("a syncing row's title is not silently clipped by a long owner/repo/bra
 
         // The template actually wires the class onto the title and the span, not just the
         // stylesheet declaring it in isolation.
-        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title"/);
-        expect(source).toMatch(/<span class="mb-worldrepo-row__name">\{\{ row\.target \}\}<\/span>/);
+        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title mb-responsive-card-title"/);
+        expect(source).toMatch(/<span class="mb-worldrepo-row__name mb-responsive-card-title__text">\{\{ row\.target \}\}<\/span>/);
     });
 });
 

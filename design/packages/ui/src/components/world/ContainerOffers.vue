@@ -87,10 +87,10 @@ function dismiss(renderId: string): void {
         </p>
 
         <v-card v-for="offer in list" :key="offer.renderId" variant="tonal" class="mb-container-offers__card">
-            <v-card-title class="mb-container-offers__head">
-                <span>{{ offer.containerName }}</span>
-                <v-chip size="x-small" variant="outlined">{{ offer.where }}</v-chip>
-                <v-chip v-for="mapId in offer.mapIds" :key="mapId" size="x-small" variant="outlined">{{ mapId }}</v-chip>
+            <v-card-title class="mb-container-offers__head mb-responsive-card-title">
+                <span class="mb-responsive-card-title__text">{{ offer.containerName }}</span>
+                <v-chip class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ offer.where }}</v-chip>
+                <v-chip v-for="mapId in offer.mapIds" :key="mapId" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ mapId }}</v-chip>
             </v-card-title>
             <v-card-text>
                 <p class="mb-container-offers__line">{{ offer.message }}</p>
