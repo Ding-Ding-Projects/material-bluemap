@@ -839,10 +839,13 @@ const gamutLabel = computed(() => {
 
 <style>
 .mb-color-picker {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-width: 280px;
+    inline-size: 100%;
+    min-inline-size: min(280px, 100%);
+    max-inline-size: 100%;
 }
 
 .mb-color-picker__header {

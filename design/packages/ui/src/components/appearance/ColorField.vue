@@ -192,6 +192,9 @@ function close(): void {
 }
 
 .mb-color-field__panel {
+    box-sizing: border-box;
+    inline-size: min(320px, 92vw);
+    max-inline-size: calc(100vw - 16px);
     max-block-size: min(70vh, 620px);
     overflow-y: auto;
     padding: 12px;
