@@ -1259,10 +1259,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     min-block-size: 0;
 }
 
-/* Real chrome, so it takes pointer events, and it never gives up height to the panel. */
+/*
+ * Real chrome, so it takes pointer events. Only a horizontal strip gets the old
+ * `flex: 0 0 auto`: on a left/right strip that shorthand replaces TabStrip's bounded
+ * width with the labels' intrinsic width, which can starve the active panel.
+ */
 .mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row) {
-    flex: 0 0 auto;
     pointer-events: auto;
+}
+
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="top"]),
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="bottom"]) {
+    flex: 0 0 auto;
+}
+
+/*
+ * The two bottom-left workbench buttons are fixed over the shell. A left-docked tab
+ * strip therefore reserves their complete 12 + 48 + 8 + 48 footprint at its bottom;
+ * the tab overflow machinery uses the reduced height and no tab or strip control can
+ * scroll underneath an opaque button. Other placements do not occupy that corner.
+ */
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row[data-placement="left"]) {
+    padding-block-end: calc(12px + 48px + 8px + 48px);
 }
 
 /*

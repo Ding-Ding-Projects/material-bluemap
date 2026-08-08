@@ -166,6 +166,7 @@ export const MASKDRAW_FIXED = {
     "mask.cost.units.regions": { en: "regions", yue: "region" },
     "mask.export.button": { en: "Export mask…", yue: "匯出遮罩…" },
     "mask.import.button": { en: "Import mask…", yue: "匯入遮罩…" },
+    "mask.import.field": { en: "Choose a mask file", yue: "揀選遮罩檔案" },
 } as const satisfies Record<string, FixedString>;
 
 export const MASKDRAW_FACTS = {

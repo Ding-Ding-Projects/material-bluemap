@@ -68,13 +68,6 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
             expectedMatches: 2,
             reason: "read-only profile migration identity used at its two exact call sites",
         },
-        {
-            pattern:
-                /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap\/issues/g,
-            expectedMatches: 1,
-            reason: "rename-time crash-report destination covered by the atomic finalizer",
-            phase: "rename-time",
-        },
     ],
     "design/packages/site/index.html": [
         {
@@ -86,8 +79,7 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
     ],
     "design/packages/site/src/content/home.ts": [
         {
-            pattern:
-                /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap\.git/g,
+            pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap\.git/g,
             expectedMatches: 1,
             reason: "rename-time clone destination covered by the atomic finalizer",
             phase: "rename-time",
@@ -115,8 +107,7 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
     ],
     "design/packages/site/src/main.ts": [
         {
-            pattern:
-                /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap\/issues/g,
+            pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap\/issues/g,
             expectedMatches: 1,
             reason: "rename-time site issue destination covered by the atomic finalizer",
             phase: "rename-time",
@@ -228,9 +219,7 @@ async function loadFinalizer(): Promise<FinalizerModule> {
     return import("../../../../scripts/finalize-worldlens-repository.mjs");
 }
 
-async function finalizationState(
-    supplied = new Map<string, string>(),
-): Promise<FinalizationState> {
+async function finalizationState(supplied = new Map<string, string>()): Promise<FinalizationState> {
     const finalizer = await loadFinalizer();
     const states: { file: string; state: FinalizationState }[] = [];
     for (const entry of finalizer.FINALIZATION_REPLACEMENTS) {
@@ -305,7 +294,9 @@ describe("the current Worldlens identity inventory", () => {
                     allowance.phase === "rename-time" && state === "finalized"
                         ? 0
                         : allowance.expectedMatches;
-                expect(source.match(allowance.pattern)?.length ?? 0, allowance.reason).toBe(expected);
+                expect(source.match(allowance.pattern)?.length ?? 0, allowance.reason).toBe(
+                    expected,
+                );
             }
         }
     });
@@ -434,5 +425,24 @@ describe("the atomic repository-rename finalizer", () => {
             ]),
         );
         await expect(finalizationState(finalized)).resolves.toBe("finalized");
+    });
+
+    it("accepts the recovery-era main process as finalized without resurrecting a retired issue URL", async () => {
+        const { verifyFinalText } = await loadFinalizer();
+        const file = "design/packages/app/src/main/index.ts";
+        const source = await readFile(resolve(root, file), "utf8");
+
+        expect(source).toContain("__WORLDLENS_REPOSITORY__");
+        expect(source).not.toContain(
+            "https://github.com/Ding-Ding-Projects/material-bluemap/issues",
+        );
+        expect(source).not.toContain("https://github.com/Ding-Ding-Projects/worldlens/issues");
+        expect(() => verifyFinalText(file, source)).not.toThrow();
+        expect(() =>
+            verifyFinalText(
+                file,
+                source.replaceAll("__WORLDLENS_REPOSITORY__", "missing-identity"),
+            ),
+        ).toThrow(/rename-time replacement/);
     });
 });

@@ -101,15 +101,31 @@ const summary = computed(() =>
  * itself be drawn at 200%, and in bilingual mode each label carries a second line.
  */
 .mb-theme-row__toggle {
-    flex-wrap: wrap;
-    height: auto;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+    grid-auto-rows: minmax(48px, auto);
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: auto !important;
     min-height: var(--v-btn-height, 36px);
+    overflow: visible;
 }
 
 .mb-theme-row__toggle .v-btn {
-    height: auto;
-    min-height: 36px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 100% !important;
+    min-height: 48px;
     white-space: normal;
+}
+
+.mb-theme-row__toggle .v-btn__content {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .mb-theme-row__summary {

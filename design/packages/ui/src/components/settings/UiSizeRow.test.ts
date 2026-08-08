@@ -119,7 +119,8 @@ describe("holding its shape at every size", () => {
         // component shows no cascade to assert on.
         const source = (await import("./UiSizeRow.vue?raw")).default as string;
         const rule = /\.mb-ui-size__toggle\s*\{[^}]*\}/s.exec(source)?.[0] ?? "";
-        expect(rule).toContain("flex-wrap: wrap");
-        expect(rule).toContain("height: auto");
+        expect(rule).toContain("display: grid !important");
+        expect(rule).toContain("grid-auto-rows: minmax(48px, auto)");
+        expect(rule).toContain("height: auto !important");
     });
 });
