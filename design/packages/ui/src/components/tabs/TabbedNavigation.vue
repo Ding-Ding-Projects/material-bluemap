@@ -488,60 +488,80 @@ function applyPlan(
             One panel, named by the tab that selected it. Only the active page is
             rendered: a hidden panel per tab would keep every page alive, and one
             of them owns a map renderer.
-        -->
-        <div
-            v-if="activeTab !== null && activePage !== null"
-            :id="panelId"
-            class="mb-tabs__panel"
-            :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
-            :style="{ pointerEvents: panelPassThrough ? 'none' : 'auto' }"
-            role="tabpanel"
-            :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
-            tabindex="0"
-        >
-            <slot :name="activePage.id" :tab="activeTab" :page="activePage">
-                <!--
-                    A page with no slot says so rather than showing an empty
-                    rectangle that reads as a rendering fault.
-                -->
-                <p class="mb-tabs__missing">
-                    {{
-                        t(
-                            "tabs.panel.missing",
-                            { page: activePage.label },
-                            "This build has no content for the page {page}.",
-                        )
-                    }}
-                </p>
-            </slot>
-        </div>
 
-        <!--
-            Every tab closed. An honest empty state with the one action that
-            leaves it, rather than a blank area or a tab conjured up to keep the
-            strip looking populated.
+            The arrival is animated through `styles/motion.scss`'s `mb-page` class family -
+            a short fade with a small rise on the decelerate curve, on the incoming panel
+            only. Three things about this are deliberate:
+
+             - `mode="out-in"` keeps the "only the active page is rendered" promise above
+               literally true. The default mode overlaps the two, which would mount two
+               pages - one of them the map - for as long as the leave takes;
+             - there is no leave animation at all (no `.mb-page-leave-*` rule exists), so
+               "as long as the leave takes" is one frame rather than a wait. Nothing is
+               made unclickable and nothing is delayed by an animation;
+             - the key is the *page*, not the tab. Two tabs may name the same page, and
+               switching between them must not tear the page down and build it again -
+               that would be a behaviour change wearing a transition's clothes. Switching
+               to a different page already replaces the slot's whole subtree, so keying on
+               it costs nothing.
         -->
-        <div
-            v-else
-            class="mb-tabs__empty"
-            :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
-            :style="{ pointerEvents: 'auto' }"
-            role="status"
-        >
-            <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
-            <div class="mb-tabs__empty-actions">
-                <v-btn
-                    v-for="page in pages"
-                    :key="page.id"
-                    variant="tonal"
-                    size="small"
-                    @click="openPage(page.id)"
-                >
-                    <v-icon v-if="page.icon" :icon="page.icon" size="18" start aria-hidden="true" />
-                    {{ page.label }}
-                </v-btn>
+        <Transition name="mb-page" mode="out-in">
+            <div
+                v-if="activeTab !== null && activePage !== null"
+                :key="activePage.id"
+                :id="panelId"
+                class="mb-tabs__panel"
+                :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
+                :style="{ pointerEvents: panelPassThrough ? 'none' : 'auto' }"
+                role="tabpanel"
+                :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
+                tabindex="0"
+            >
+                <slot :name="activePage.id" :tab="activeTab" :page="activePage">
+                    <!--
+                        A page with no slot says so rather than showing an empty
+                        rectangle that reads as a rendering fault.
+                    -->
+                    <p class="mb-tabs__missing">
+                        {{
+                            t(
+                                "tabs.panel.missing",
+                                { page: activePage.label },
+                                "This build has no content for the page {page}.",
+                            )
+                        }}
+                    </p>
+                </slot>
             </div>
-        </div>
+
+            <!--
+                Every tab closed. An honest empty state with the one action that
+                leaves it, rather than a blank area or a tab conjured up to keep the
+                strip looking populated.
+            -->
+            <div
+                v-else
+                key="mb-tabs-empty"
+                class="mb-tabs__empty"
+                :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
+                :style="{ pointerEvents: 'auto' }"
+                role="status"
+            >
+                <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
+                <div class="mb-tabs__empty-actions">
+                    <v-btn
+                        v-for="page in pages"
+                        :key="page.id"
+                        variant="tonal"
+                        size="small"
+                        @click="openPage(page.id)"
+                    >
+                        <v-icon v-if="page.icon" :icon="page.icon" size="18" start aria-hidden="true" />
+                        {{ page.label }}
+                    </v-btn>
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>
 

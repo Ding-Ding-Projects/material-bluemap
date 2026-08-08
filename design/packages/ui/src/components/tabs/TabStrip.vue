@@ -1208,10 +1208,25 @@ const tabCountLabel = computed(() =>
                                 "
                             />
 
+                            <!--
+                                Opening a group makes its tabs exist, which is the moment
+                                `styles/motion.scss`'s `.mb-motion-enter` animation runs -
+                                a CSS animation fires when its element is created and never
+                                again, so this is an entry and not something that replays
+                                every time a label or a dirty dot changes.
+
+                                Nothing here can disturb the overflow measurement:
+                                `measure()` reads each segment's `offsetWidth`, and the
+                                animation moves only `opacity` and `transform`, neither of
+                                which a layout box has ever heard of. Collapsing stays
+                                instant - the tabs are removed with the `v-if`, and there is
+                                no exit to sit through before the strip is short again.
+                            -->
                             <template v-if="isGroupExpanded(segment.group, revealed)">
                                 <TabButton
                                     v-for="tab in segment.tabs"
                                     :key="tab.id"
+                                    class="mb-motion-enter"
                                     :tab="tab"
                                     :dom-id="tabDomId(tab.id)"
                                     :active="tab.id === strip.activeTabId"

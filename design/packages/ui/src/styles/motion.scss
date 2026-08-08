@@ -1,0 +1,261 @@
+/*
+ * Motion: the four moments that carry meaning, spending the tokens and nothing else.
+ *
+ * `md3.scss` publishes MD3 Expressive's easing set and duration ladder, and `global.scss`
+ * spends them on the *reactions* - a button tinting, a field focusing, a card settling.
+ * That is half a motion system. The other half is the moments where something arrives or
+ * leaves: a tab panel replacing another, a collapsed group opening, a list of renders
+ * painting for the first time, a notification joining or leaving the corner. Every one of
+ * those still happened between two frames, which is why an interface built entirely from
+ * M3 shape and M3 colour still read as a set of screenshots being swapped rather than as
+ * one surface changing.
+ *
+ * ## Why this is its own sheet
+ *
+ * `global.scss` is the load-bearing rules - the map layer's stacking, pointer-events, the
+ * focus rings, the reduced-motion kill switch - and every one of them is something you can
+ * break by looking at it wrong. This file declares no stacking, no pointer-events contract
+ * and no colour: it is only the transition and animation vocabulary the components below
+ * opt into by class name, so it can be retuned or deleted wholesale without going anywhere
+ * near `#map-container`.
+ *
+ * ## Not one hard-coded number
+ *
+ * Every duration and every curve below is a `var(--md-sys-motion-*)`. That is the whole
+ * point: the app slows down or speeds up as one decision, and `motion.test.ts` fails the
+ * build if a millisecond or a `cubic-bezier(` is typed into any rule here.
+ *
+ * ## Reduced motion, twice over
+ *
+ * `global.scss` ends with `#app, #app * { transition-duration: 0.01ms !important;
+ * animation-duration: 0.01ms !important }`, and every class below is used inside `#app`,
+ * so that alone already reaches all of it. It is not relied on alone, for two reasons:
+ *
+ *  - it zeroes durations but not *delays*, and the staggered list entry below has a delay.
+ *    A 0.01ms animation with a 200ms delay and `animation-fill-mode: both` is content held
+ *    invisible for a fifth of a second - motion removed, and a new defect in its place. The
+ *    block at the end of this file sets `animation: none` and `transition: none`, which
+ *    resets the delay as well as the duration, so nothing is ever held in a from-state;
+ *  - Vuetify's own overlay transitions live *outside* `#app` (`useTeleport` appends
+ *    `.v-overlay-container` to `<body>`, a sibling of `#app`, so no `#app *` rule can ever
+ *    reach a menu or a dialog). The scrim rule below is therefore written the way Vuetify
+ *    writes its own - inside `@media (prefers-reduced-motion: no-preference)` - so under
+ *    `reduce` the declaration does not exist at all rather than being overridden.
+ *
+ * The Vue `<Transition>`s that use the class families below degrade through the same block:
+ * they are driven by these CSS classes and nothing else, so removing the transition removes
+ * the animation and Vue settles the element on the same frame it was asked to.
+ *
+ * ## No `!important`, with the one exception this project already documented
+ *
+ * `global.scss` explains at length why an `!important` here would outrank the appearance
+ * editor's inline styles and lock a user out of their own theme - "except where it is
+ * re-pointing a Vuetify utility that is already `!important`". The overlay scrim is exactly
+ * that case: Vuetify ships `.fade-transition-enter-active { transition-duration: 0.3s
+ * !important }`, so a normal declaration cannot re-point it at any specificity. Only the
+ * duration and the curve are restated, only on Vuetify's own transition classes, and the
+ * appearance editor edits type and surface rather than motion, so nothing a user can set is
+ * reachable from here.
+ */
+
+/* ---------------------------------------------------------------------------
+ * A page arriving.
+ *
+ * `TabbedNavigation.vue` renders exactly one panel, and switching tabs replaced its whole
+ * contents between two frames. MD3's shared-axis answer is a short fade with a small
+ * vertical travel on the *incoming* surface, on the decelerate curve, which is what makes
+ * a page read as having arrived somewhere rather than as having been substituted.
+ *
+ * Enter only. There is deliberately no `.mb-page-leave-*` rule: with none, Vue's transition
+ * finds no duration on the leaving element and removes it on the next frame, so `out-in`
+ * costs a frame rather than a whole leave animation, and - the reason it is `out-in` at all
+ * - the old page is unmounted before the new one mounts. Overlapping them would put two
+ * pages on screen at once, and one of this application's pages owns a map renderer.
+ *
+ * `transform` and `opacity` only: both are composited, neither reflows, and neither can
+ * make the panel's own controls unclickable while it plays.
+ * ------------------------------------------------------------------------- */
+.mb-page-enter-active {
+    transition:
+        opacity var(--md-sys-motion-duration-medium1)
+            var(--md-sys-motion-easing-emphasized-decelerate),
+        transform var(--md-sys-motion-duration-medium1)
+            var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.mb-page-enter-from {
+    opacity: 0;
+    /* Eight pixels. Far enough to read as travel, short enough that no line of text is
+       legible in two places at once while it settles. */
+    transform: translateY(8px);
+}
+
+.mb-page-enter-to {
+    opacity: 1;
+    transform: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Something entering a list.
+ *
+ * A CSS animation rather than a Vue transition, on purpose: an animation runs when the
+ * element is created and never again, which is exactly the "entry only, not on every
+ * reactive update" rule. A render row whose progress ticks every second keeps the same
+ * keyed element and therefore never re-animates; a row that genuinely appears does.
+ *
+ * `.mb-motion-enter` is the single-element form (a tab revealed by opening its group).
+ * `.mb-motion-stagger` goes on a list container and gives its children the same entry with
+ * a short cascade, so a list of eight reads as one list arriving rather than eight things
+ * appearing simultaneously.
+ * ------------------------------------------------------------------------- */
+@keyframes mb-motion-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.mb-motion-enter,
+.mb-motion-stagger > * {
+    animation: mb-motion-rise var(--md-sys-motion-duration-medium1)
+        var(--md-sys-motion-easing-emphasized-decelerate) both;
+}
+
+/*
+ * The cascade, capped at four steps.
+ *
+ * One `short1` per row, and everything from the fifth row down shares the fourth row's
+ * delay. Uncapped, a twenty-row list would end a full second after it started; capped, the
+ * longest any element waits is four times `short1` plus one `medium1` - 450ms, inside
+ * `long4`, which is the ceiling this project holds motion to.
+ */
+.mb-motion-stagger > :nth-child(2) {
+    animation-delay: var(--md-sys-motion-duration-short1);
+}
+
+.mb-motion-stagger > :nth-child(3) {
+    animation-delay: calc(var(--md-sys-motion-duration-short1) * 2);
+}
+
+.mb-motion-stagger > :nth-child(4) {
+    animation-delay: calc(var(--md-sys-motion-duration-short1) * 3);
+}
+
+.mb-motion-stagger > :nth-child(n + 5) {
+    animation-delay: calc(var(--md-sys-motion-duration-short1) * 4);
+}
+
+/* ---------------------------------------------------------------------------
+ * The notification corner: a toast arriving, and a toast leaving.
+ *
+ * A toast joins at the bottom of the stack, so it rises into place; it leaves toward the
+ * edge it is anchored to, on the accelerate curve, which is what "this is going away" looks
+ * like in the M3 motion set.
+ *
+ * `pointer-events: none` on the way out is not decoration. For the 150ms of its exit the
+ * toast is still painted, still holds its place in the stack, and still has a dismiss button
+ * and possibly a "Retry" in it - all of them attached to a notice the user has already sent
+ * away. Clicks pass through instead.
+ *
+ * ## The reflow is deliberately not animated, and this is the reason
+ *
+ * The stack keeps its leaving toast *in flow*, so the toasts around it hold still until it
+ * is really gone and then settle in one step. Sliding them into the gap instead means taking
+ * the leaving toast out of flow, which is the documented `<TransitionGroup>` pattern and is
+ * wrong here specifically: an absolutely-positioned flex child's static position is the
+ * container's own content-box corner, so `TransitionGroup` would class the leaver as a moved
+ * child and animate it from where it was to the top of the stack - a dismissed toast flying
+ * up the corner. The alternative is measuring and pinning its old offset from JavaScript,
+ * which is logic, in a change that is meant to be presentation only. An un-animated settle is
+ * exactly what the corner does today; a toast flying across it would be new, and worse.
+ * ------------------------------------------------------------------------- */
+.mb-notice-enter-active {
+    transition:
+        opacity var(--md-sys-motion-duration-short4)
+            var(--md-sys-motion-easing-emphasized-decelerate),
+        transform var(--md-sys-motion-duration-short4)
+            var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.mb-notice-leave-active {
+    transition:
+        opacity var(--md-sys-motion-duration-short3)
+            var(--md-sys-motion-easing-emphasized-accelerate),
+        transform var(--md-sys-motion-duration-short3)
+            var(--md-sys-motion-easing-emphasized-accelerate);
+    pointer-events: none;
+}
+
+.mb-notice-enter-from {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.mb-notice-leave-to {
+    opacity: 0;
+    transform: translateX(24px);
+}
+
+/* ---------------------------------------------------------------------------
+ * The overlay scrim, re-pointed off Material 2's timing.
+ *
+ * Every dialog and menu in the app dims the page behind it through Vuetify's
+ * `fade-transition`, which ships at 0.3s on `cubic-bezier(0.4, 0, 0.2, 1)` - M2's standard
+ * curve, and the one piece of overlay motion that is reachable from CSS at all. See the
+ * file header for why the `!important` and the `no-preference` wrapper are both Vuetify's
+ * own idiom being matched rather than a new lock being added, and `motion.test.ts` for the
+ * assertion that keeps them confined to these two properties.
+ *
+ * The scrim only: `.fade-transition` is a general-purpose transition several components
+ * borrow, and re-pointing the bare class would reach every one of them.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+    .v-overlay__scrim.fade-transition-enter-active {
+        transition-duration: var(--md-sys-motion-duration-short4) !important;
+        transition-timing-function: var(--md-sys-motion-easing-emphasized-decelerate) !important;
+    }
+
+    .v-overlay__scrim.fade-transition-leave-active {
+        transition-duration: var(--md-sys-motion-duration-short3) !important;
+        transition-timing-function: var(--md-sys-motion-easing-emphasized-accelerate) !important;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Somebody asked their system for no motion, so there is none.
+ *
+ * `animation: none` and `transition: none` rather than a zeroed duration, because the
+ * shorthand also resets the delay - see the file header on why a zeroed duration alone
+ * would leave the staggered list holding its from-state.
+ *
+ * Each selector is written at the same specificity as the strongest rule above that sets
+ * the property it is turning off (`.mb-motion-stagger > :nth-child(n)` matches every child,
+ * at the same weight as the four delay rules) and comes last, so it wins without needing an
+ * `!important` that could outrank a user's own appearance override.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .mb-motion-enter,
+    .mb-motion-stagger > :nth-child(n) {
+        animation: none;
+    }
+
+    .mb-page-enter-active,
+    .mb-notice-enter-active,
+    .mb-notice-leave-active {
+        transition: none;
+    }
+
+    /* The from-states go too. With no transition they would otherwise be the state the
+       element is painted in for the one frame before Vue swaps the class. */
+    .mb-page-enter-from,
+    .mb-notice-enter-from,
+    .mb-notice-leave-to {
+        opacity: 1;
+        transform: none;
+    }
+}

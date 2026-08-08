@@ -64,7 +64,25 @@ function close(id: number): void {
 
 <template>
     <div class="mb-config-notices" role="region" :aria-label="t('config.notices.region', 'Notifications')">
-        <div class="mb-config-notices__stack" aria-live="polite">
+        <!--
+            The stack is the same element it always was - `TransitionGroup` renders the
+            `tag` it is given, so the class, the live region and the scroll behaviour are
+            unchanged - and the toasts inside it now arrive, leave and reflow through
+            `styles/motion.scss`'s `mb-notice` class family rather than blinking in and out.
+
+            A group rather than a plain `Transition` because the stack is a list: several
+            toasts can be arriving and leaving at once, and each has to be tracked by its own
+            key. `styles/motion.scss` explains why the leaving toast stays in flow rather
+            than sliding the others into its gap, and why it goes `pointer-events: none` on
+            the way out - for those 150ms it is a control panel for a notice the user has
+            already sent away.
+        -->
+        <TransitionGroup
+            tag="div"
+            name="mb-notice"
+            class="mb-config-notices__stack"
+            aria-live="polite"
+        >
             <v-alert
                 v-for="notice in state.live"
                 :key="notice.id"
@@ -121,7 +139,7 @@ function close(id: number): void {
                     />
                 </div>
             </v-alert>
-        </div>
+        </TransitionGroup>
 
         <div class="mb-config-notices__tools">
             <v-btn

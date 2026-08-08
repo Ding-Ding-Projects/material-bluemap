@@ -33,6 +33,11 @@ import "@fontsource/roboto-mono/500.css";
 // and `md3.scss` spells those particular tokens with exactly the values it has.
 import "./styles/md3.scss";
 import "./styles/global.scss";
+// The transition and animation vocabulary the components opt into by class name. After
+// `global.scss` so that its reduced-motion kill switch is already in force above these
+// rules, and before `markers.scss` so the marker layer keeps the last word on the handful of
+// token *values* it re-declares - this sheet declares no tokens of its own.
+import "./styles/motion.scss";
 import "./styles/markers.scss";
 import { installUiSize } from "./components/settings/index.js";
 

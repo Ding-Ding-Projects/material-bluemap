@@ -1359,8 +1359,14 @@ function clearSearch(): void {
     min-width: 0;
 }
 
+/* The reveal was 160ms on the browser's `ease` - a number and a curve that agreed with
+   nothing else in the product. Same gesture, said in the system's own vocabulary: the M3
+   short step for a disclosure this small, on the curve that means "arriving". Nothing else
+   about the animation changes, and `styles/md3.scss` is now the one place either value can
+   be retuned from. */
 .mb-home__panel--open {
-    animation: mb-home-panel-open 160ms ease both;
+    animation: mb-home-panel-open var(--md-sys-motion-duration-short4)
+        var(--md-sys-motion-easing-emphasized-decelerate) both;
 }
 
 @keyframes mb-home-panel-open {

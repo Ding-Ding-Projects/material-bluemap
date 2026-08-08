@@ -451,7 +451,15 @@ function percentLabel(row: ActiveRenderRow): string {
             </p>
         </div>
 
-        <ul v-else class="mb-renders__list">
+        <!--
+            `mb-motion-stagger` (styles/motion.scss) gives each row the M3 entry - a short
+            fade and rise, cascaded by one `short1` per row and capped at four steps. It is a
+            CSS animation, so it runs when a row's element is created and never again: a
+            render whose percentage ticks every second keeps the same keyed `<li>` and stays
+            perfectly still, which is the whole difference between animating an arrival and
+            animating an update.
+        -->
+        <ul v-else class="mb-renders__list mb-motion-stagger">
             <li v-for="row in filteredRows" :key="row.key" class="mb-renders__item">
                 <AppearanceTarget
                     :id="`renders.row.${row.key}`"

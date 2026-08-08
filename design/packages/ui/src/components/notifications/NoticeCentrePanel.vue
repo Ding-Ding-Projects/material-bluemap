@@ -346,7 +346,10 @@ async function copyVisible(): Promise<void> {
                 )
             }}
         </p>
-        <ul v-else class="mb-notice-centre__list">
+        <!-- The same entry the renders list uses, for the same reason: the history paints as
+             one list arriving. Entry only - a CSS animation runs on element creation, so
+             selecting, expanding or re-showing a notice never replays it. -->
+        <ul v-else class="mb-notice-centre__list mb-motion-stagger">
             <li v-for="notice in visible" :key="notice.id" class="mb-notice-centre__item">
                 <div class="mb-notice-centre__row">
                     <NoticeSelectCheckbox

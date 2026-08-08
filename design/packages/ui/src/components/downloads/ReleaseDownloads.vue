@@ -405,9 +405,16 @@ defineExpose({ downloads });
                 }}
             </p>
 
+            <!--
+                The single-element form of the same entry (styles/motion.scss). Not the
+                staggered container form the renders and notification lists use: these cards
+                share their parent with the search field and two explanatory notes, and a
+                cascade keyed on `nth-child` would count those as rows.
+            -->
             <DownloadRowCard
                 v-for="row in shownRows"
                 :key="row.downloadId"
+                class="mb-motion-enter"
                 :row="row"
                 :can-cancel="downloads.canCancel"
                 :can-open-settings="openSettings !== null"
