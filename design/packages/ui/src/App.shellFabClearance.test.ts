@@ -81,7 +81,10 @@ describe("the bottom-left FAB stack and the page hosts it floats over", () => {
     it("gives every page host a left gutter that clears the stack's own right edge with room to spare", () => {
         const host = rule("mb-world-host");
         const match = host.match(/padding-inline-start:\s*calc\((\d+)px/);
-        expect(match, "mb-world-host has no padding-inline-start reserving the gutter").not.toBeNull();
+        expect(
+            match,
+            "mb-world-host has no padding-inline-start reserving the gutter",
+        ).not.toBeNull();
 
         const reserved = Number(match?.[1] ?? 0);
         // 12px inset + 48px button = 60px is the stack's own right edge; the reserved
@@ -98,6 +101,34 @@ describe("the bottom-left FAB stack and the page hosts it floats over", () => {
         // drop this count and be caught here rather than silently losing its clearance.
         const hostUsages = source.match(/class="mb-world-host mb-interactive"/g) ?? [];
         expect(hostUsages.length).toBeGreaterThanOrEqual(8);
+    });
+
+    it("reserves the fixed two-button stack at the bottom of a left-docked tab strip", () => {
+        const match = source.match(
+            /\.mb-shell-tabs\s+:deep\(\.mb-shell-primary-tabs\s*>\s*\.mb-tabs-strip-row\[data-placement="left"\]\)\s*\{[^}]*\}/s,
+        );
+        expect(match, "the left tab strip has no FAB clearance rule").not.toBeNull();
+        const ruleText = match?.[0] ?? "";
+        expect(ruleText).toContain("padding-block-end");
+        expect(ruleText.match(/48px/g)).toHaveLength(2);
+        expect(ruleText).toContain("8px");
+        expect(ruleText).toContain("12px");
+    });
+
+    it("does not replace a vertical strip's bounded width with intrinsic auto sizing", () => {
+        const generic = source.match(
+            /\.mb-shell-tabs\s+:deep\(\.mb-shell-primary-tabs\s*>\s*\.mb-tabs-strip-row\)\s*\{[^}]*\}/s,
+        );
+        expect(generic).not.toBeNull();
+        expect(generic?.[0] ?? "").not.toContain("flex:");
+
+        const horizontal = source.match(
+            /data-placement="top"[\s\S]*?data-placement="bottom"[\s\S]*?\{[^}]*flex:\s*0\s+0\s+auto/s,
+        );
+        expect(
+            horizontal,
+            "top/bottom strips no longer keep their fixed chrome height",
+        ).not.toBeNull();
     });
 });
 
@@ -128,7 +159,10 @@ describe("the docked-surface chrome (Settings, the EULA panel) stacks above the 
     it("gives every docked surface's chrome an explicit, positive stacking level", () => {
         const docked = rule(dockedSource, "mb-docked");
         const match = docked.match(/z-index:\s*(\d+)/);
-        expect(match, ".mb-docked has no explicit z-index reserving its stacking level").not.toBeNull();
+        expect(
+            match,
+            ".mb-docked has no explicit z-index reserving its stacking level",
+        ).not.toBeNull();
         expect(Number(match?.[1] ?? 0)).toBeGreaterThan(0);
     });
 

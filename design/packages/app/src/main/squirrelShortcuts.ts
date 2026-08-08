@@ -1,10 +1,7 @@
-import { basename, dirname, resolve } from "node:path";
+import { win32 } from "node:path";
 
 export type SquirrelShortcutEvent =
-    | "--squirrel-install"
-    | "--squirrel-updated"
-    | "--squirrel-uninstall"
-    | "--squirrel-obsolete";
+    "--squirrel-install" | "--squirrel-updated" | "--squirrel-uninstall" | "--squirrel-obsolete";
 
 export interface SquirrelShortcutHost {
     readonly platform: NodeJS.Platform;
@@ -24,7 +21,9 @@ const SQUIRREL_EVENTS = new Set<string>([
 ]);
 
 function eventFrom(argv: readonly string[]): SquirrelShortcutEvent | null {
-    const candidate = argv.find((value): value is SquirrelShortcutEvent => SQUIRREL_EVENTS.has(value));
+    const candidate = argv.find((value): value is SquirrelShortcutEvent =>
+        SQUIRREL_EVENTS.has(value),
+    );
     return candidate ?? null;
 }
 
@@ -39,11 +38,20 @@ export function handleSquirrelShortcutEvent(host: SquirrelShortcutHost): boolean
     const event = eventFrom(host.argv);
     if (event === null) return false;
 
-    if (event === "--squirrel-install" || event === "--squirrel-updated" || event === "--squirrel-uninstall") {
-        const updateExe = resolve(dirname(host.execPath), "..", "Update.exe");
+    if (
+        event === "--squirrel-install" ||
+        event === "--squirrel-updated" ||
+        event === "--squirrel-uninstall"
+    ) {
+        // Squirrel lifecycle events are a Windows protocol even when this pure helper is
+        // exercised by CI on Linux. Parsing the supplied executable with the runner's native
+        // path flavour turns every backslash into an ordinary character there, so both the
+        // updater path and shortcut name become nonsense. Use the protocol's path flavour.
+        const updateExe = win32.resolve(win32.dirname(host.execPath), "..", "Update.exe");
         if (host.exists(updateExe)) {
-            const shortcut = basename(host.execPath);
-            const command = event === "--squirrel-uninstall" ? "--removeShortcut" : "--createShortcut";
+            const shortcut = win32.basename(host.execPath);
+            const command =
+                event === "--squirrel-uninstall" ? "--removeShortcut" : "--createShortcut";
             host.spawn(updateExe, [`${command}=${shortcut}`]);
         }
     }

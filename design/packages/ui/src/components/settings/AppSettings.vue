@@ -227,7 +227,11 @@ const sections = computed<SettingsSectionText[]>(() => {
     if (java.lastRender.value !== null) javaValues.push(java.lastRender.value.engine);
     if (!java.supported) javaValues.push(javaCopy.headline, javaCopy.discoveryOrder);
 
-    const storageValues = [storage.value.value, storage.saved.value, defaultMapStorageDir(storage.platform)];
+    const storageValues = [
+        storage.value.value,
+        storage.saved.value,
+        defaultMapStorageDir(storage.platform),
+    ];
     if (storage.resolved.value !== null) {
         storageValues.push(storage.resolved.value.current, storage.resolved.value.default);
     }
@@ -282,7 +286,12 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "language-and-tone",
             title: text["language-and-tone"].title,
             description: text["language-and-tone"].description,
-            values: [...languageSearchLabels(), productDisplayName.value, "Worldlens", "display name"],
+            values: [
+                ...languageSearchLabels(),
+                productDisplayName.value,
+                "Worldlens",
+                "display name",
+            ],
         },
         // The five size stops and the four theme names as the row's own buttons render
         // them, plus the live values - the percentage the interface is drawn at right now
@@ -442,7 +451,11 @@ const searchSummary = computed(() => {
 
 /** One tab per section, in the surface's own order, labelled from the live copy. */
 const settingsPages = computed<TabPage[]>(() =>
-    SETTINGS_SECTIONS.map((anchor) => ({ id: anchor, label: copy.value[anchor].title, icon: null })),
+    SETTINGS_SECTIONS.map((anchor) => ({
+        id: anchor,
+        label: copy.value[anchor].title,
+        icon: null,
+    })),
 );
 
 /* -------------------------------------------------------------------------- */
@@ -651,7 +664,9 @@ function onDrawer(value: boolean): void {
                     v-model:regex="regexMode"
                     v-model:flags="flags"
                     :label="t('settings.search.label', 'Search settings')"
-                    :placeholder="t('settings.search.hint', 'name, explanation, or a value on screen')"
+                    :placeholder="
+                        t('settings.search.hint', 'name, explanation, or a value on screen')
+                    "
                     :sample="sample"
                     :summary="searchSummary"
                     density="comfortable"
@@ -666,10 +681,24 @@ function onDrawer(value: boolean): void {
                 -->
                 <div v-if="matcher.active" class="mb-settings__results">
                     <p v-if="matcher.error !== null" class="mb-settings__empty" role="status">
-                        {{ t("settings.search.badPattern", "The pattern is not valid, so nothing is listed.") }}
+                        {{
+                            t(
+                                "settings.search.badPattern",
+                                "The pattern is not valid, so nothing is listed.",
+                            )
+                        }}
                     </p>
-                    <p v-else-if="matchedSections.length === 0" class="mb-settings__empty" role="status">
-                        {{ t("settings.search.noMatches", "No setting on this screen matches that.") }}
+                    <p
+                        v-else-if="matchedSections.length === 0"
+                        class="mb-settings__empty"
+                        role="status"
+                    >
+                        {{
+                            t(
+                                "settings.search.noMatches",
+                                "No setting on this screen matches that.",
+                            )
+                        }}
                     </p>
                     <ul v-else class="mb-settings__result-list">
                         <li v-for="match in matchedSections" :key="match.anchor">
@@ -679,7 +708,9 @@ function onDrawer(value: boolean): void {
                                 @click="goToSection(match.anchor)"
                             >
                                 <span class="mb-settings__result-title">{{ match.title }}</span>
-                                <span class="mb-settings__result-desc">{{ match.description }}</span>
+                                <span class="mb-settings__result-desc">{{
+                                    match.description
+                                }}</span>
                             </button>
                         </li>
                     </ul>
@@ -720,7 +751,9 @@ function onDrawer(value: boolean): void {
                         -->
                         <ConsentSettingsRow
                             ref="consentRow"
-                            :missing="props.anchor === 'mojang-download-consent' && props.anchorMissing"
+                            :missing="
+                                props.anchor === 'mojang-download-consent' && props.anchorMissing
+                            "
                         />
                     </SettingsSection>
                 </template>
@@ -748,7 +781,9 @@ function onDrawer(value: boolean): void {
                     >
                         <StorageSettingRow
                             :setting="storage"
-                            :missing="props.anchor === 'map-storage-directory' && props.anchorMissing"
+                            :missing="
+                                props.anchor === 'map-storage-directory' && props.anchorMissing
+                            "
                         />
                     </SettingsSection>
                 </template>
@@ -959,8 +994,14 @@ function onDrawer(value: boolean): void {
                         :title="copy.history.title"
                         :description="copy.history.description"
                     >
-                        <SimpleHistoryPanel :title="historyCopy.profiles" :host="profilesHistoryHost" />
-                        <SimpleHistoryPanel :title="historyCopy.appSettings" :host="appSettingsHistoryHost" />
+                        <SimpleHistoryPanel
+                            :title="historyCopy.profiles"
+                            :host="profilesHistoryHost"
+                        />
+                        <SimpleHistoryPanel
+                            :title="historyCopy.appSettings"
+                            :host="appSettingsHistoryHost"
+                        />
                     </SettingsSection>
                 </template>
 
@@ -1052,7 +1093,34 @@ function onDrawer(value: boolean): void {
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
     padding: 0 16px 24px;
+    overflow: hidden;
+}
+
+/*
+ * A vertical settings strip is sized against this panel, not the whole desktop.
+ * TabStrip's general 22vw cap is right for an application shell but at a wide desktop
+ * it can consume most of a 624px docked sheet and leave the selected setting narrower
+ * than its own controls. Keep a readable strip while guaranteeing most of the panel to
+ * the active setting. Everything inside is allowed to shrink rather than creating a
+ * second, horizontal scroll axis.
+ */
+.mb-settings__body .mb-tabs {
+    min-width: 0;
+}
+
+.mb-settings__body .mb-tabs-strip-row[data-placement="left"],
+.mb-settings__body .mb-tabs-strip-row[data-placement="right"] {
+    flex: 0 1 clamp(10rem, 32%, 15rem);
+    min-width: 10rem;
+    max-width: 40%;
+}
+
+.mb-settings__body .mb-tabs__panel,
+.mb-settings__body .mb-setting {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .mb-settings__body:focus-visible {

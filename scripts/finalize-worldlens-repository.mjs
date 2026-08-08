@@ -110,6 +110,16 @@ export const FINALIZATION_REPLACEMENTS = Object.freeze([
         1,
       ],
     ],
+    // Startup failures now render through the recovery surface, while repository-backed
+    // operations receive the build-time repository identity. That is already a finalized
+    // source state even though the retired crash-dialog URL is intentionally absent.
+    finalizedAlternative: {
+      required: ["__WORLDLENS_REPOSITORY__"],
+      absent: [
+        "https://github.com/Ding-Ding-Projects/material-bluemap/issues",
+        "https://github.com/Ding-Ding-Projects/worldlens/issues",
+      ],
+    },
   },
   {
     file: "design/packages/site/index.html",
@@ -224,6 +234,13 @@ export function verifyFinalText(file, text) {
   const plan = FINALIZATION_REPLACEMENTS.find((entry) => entry.file === file);
   if (plan === undefined)
     throw new Error(`No Worldlens finalization plan exists for ${file}.`);
+  const alternative = plan.finalizedAlternative;
+  if (
+    alternative !== undefined &&
+    alternative.required.every((needle) => occurrences(text, needle) > 0) &&
+    alternative.absent.every((needle) => occurrences(text, needle) === 0)
+  )
+    return;
   for (const [from, to, expected] of plan.changes) {
     if (occurrences(text, from) !== 0 || occurrences(text, to) < expected) {
       throw new Error(

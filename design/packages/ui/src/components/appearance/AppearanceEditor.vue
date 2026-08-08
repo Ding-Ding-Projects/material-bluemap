@@ -140,7 +140,11 @@ const userPresets = computed(() => state.value.presets.filter((entry) => !entry.
 
 /** The surface properties this tab is showing, after its own search. */
 const surfaceRows = computed(() => {
-    const matcher = createSettingMatcher(surfaceSearch.value, surfaceSearchRegex.value, surfaceSearchFlags.value);
+    const matcher = createSettingMatcher(
+        surfaceSearch.value,
+        surfaceSearchRegex.value,
+        surfaceSearchFlags.value,
+    );
     return SURFACE_PROPERTIES.filter((id) => matcher.test(`${surfaceLabel(id)} ${id}`));
 });
 
@@ -150,7 +154,11 @@ const surfaceCorpus = computed(() =>
 
 /** Presets after their own search. Built-in and saved alike: a name is a name. */
 const visiblePresets = computed(() => {
-    const matcher = createSettingMatcher(presetSearch.value, presetSearchRegex.value, presetSearchFlags.value);
+    const matcher = createSettingMatcher(
+        presetSearch.value,
+        presetSearchRegex.value,
+        presetSearchFlags.value,
+    );
     return userPresets.value.filter((entry) => matcher.test(entry.name));
 });
 
@@ -158,7 +166,10 @@ const presetCorpus = computed(() => state.value.presets.map((entry) => entry.nam
 
 const presetChoices = computed(() => [
     { title: t("appearance.preset.none", "Do not follow a preset"), value: "" },
-    ...state.value.presets.map((entry: AppearancePreset) => ({ title: entry.name, value: entry.id })),
+    ...state.value.presets.map((entry: AppearancePreset) => ({
+        title: entry.name,
+        value: entry.id,
+    })),
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -253,7 +264,10 @@ async function onFileChosen(event: Event): Promise<void> {
     const result = importTheme(await file.text());
     if (!result.ok) {
         importMessage.value = "";
-        importError.value = t(importErrorKey(result.error), "That file is not an appearance theme.");
+        importError.value = t(
+            importErrorKey(result.error),
+            "That file is not an appearance theme.",
+        );
         return;
     }
 
@@ -282,11 +296,19 @@ async function onFileChosen(event: Event): Promise<void> {
     <section
         class="mb-appearance-editor"
         :style="self.style.value.style"
-        :aria-label="t('appearance.editor.title', { element: targetLabel }, 'Appearance of {element}')"
+        :aria-label="
+            t('appearance.editor.title', { element: targetLabel }, 'Appearance of {element}')
+        "
     >
         <header class="mb-appearance-editor__head">
             <h2 class="mb-appearance-editor__title">
-                {{ t("appearance.editor.title", { element: targetLabel }, "Appearance of {element}") }}
+                {{
+                    t(
+                        "appearance.editor.title",
+                        { element: targetLabel },
+                        "Appearance of {element}",
+                    )
+                }}
             </h2>
             <v-btn
                 v-if="target.customised.value"
@@ -315,7 +337,11 @@ async function onFileChosen(event: Event): Promise<void> {
             }}
         </v-alert>
 
-        <v-tabs v-model="tab" density="compact" :aria-label="t('appearance.editor.tabs', 'Appearance sections')">
+        <v-tabs
+            v-model="tab"
+            density="compact"
+            :aria-label="t('appearance.editor.tabs', 'Appearance sections')"
+        >
             <v-tab value="typography">{{ t("appearance.editor.typographyTab", "Text") }}</v-tab>
             <v-tab value="surface">{{ t("appearance.editor.surfaceTab", "Surface") }}</v-tab>
             <v-tab value="presets">{{ t("appearance.editor.presetsTab", "Presets") }}</v-tab>
@@ -361,13 +387,17 @@ async function onFileChosen(event: Event): Promise<void> {
                             :model-value="resolved.surface.backgroundColor"
                             :label="surfaceLabel(id)"
                             :contrast-foreground="resolved.typography.textColor"
-                            @update:model-value="(value: string) => target.setSurface('backgroundColor', value)"
+                            @update:model-value="
+                                (value: string) => target.setSurface('backgroundColor', value)
+                            "
                         />
                         <ColorField
                             v-else-if="id === 'borderColor'"
                             :model-value="resolved.surface.borderColor"
                             :label="surfaceLabel(id)"
-                            @update:model-value="(value: string) => target.setSurface('borderColor', value)"
+                            @update:model-value="
+                                (value: string) => target.setSurface('borderColor', value)
+                            "
                         />
                         <v-select
                             v-else-if="id === 'borderStyle'"
@@ -377,10 +407,15 @@ async function onFileChosen(event: Event): Promise<void> {
                             density="compact"
                             variant="outlined"
                             hide-details
-                            @update:model-value="(value: 'none' | 'solid' | 'dashed' | 'dotted' | 'double') => target.setSurface('borderStyle', value)"
+                            @update:model-value="
+                                (value: 'none' | 'solid' | 'dashed' | 'dotted' | 'double') =>
+                                    target.setSurface('borderStyle', value)
+                            "
                         />
                         <template v-else>
-                            <span class="mb-appearance-editor__rowLabel">{{ surfaceLabel(id) }}</span>
+                            <span class="mb-appearance-editor__rowLabel">{{
+                                surfaceLabel(id)
+                            }}</span>
                             <v-slider
                                 :model-value="resolved.surface[id]"
                                 :min="id === 'opacity' ? 0 : 0"
@@ -390,7 +425,9 @@ async function onFileChosen(event: Event): Promise<void> {
                                 density="compact"
                                 hide-details
                                 :aria-label="surfaceLabel(id)"
-                                @update:model-value="(value: number) => target.setSurface(id, value)"
+                                @update:model-value="
+                                    (value: number) => target.setSurface(id, value)
+                                "
                             />
                         </template>
 
@@ -399,7 +436,13 @@ async function onFileChosen(event: Event): Promise<void> {
                             :icon="mdiRestore"
                             size="x-small"
                             variant="text"
-                            :aria-label="t('appearance.surface.reset', { property: surfaceLabel(id) }, 'Reset {property}')"
+                            :aria-label="
+                                t(
+                                    'appearance.surface.reset',
+                                    { property: surfaceLabel(id) },
+                                    'Reset {property}',
+                                )
+                            "
                             @click="target.resetSurfaceProperty(id)"
                         />
                     </div>
@@ -438,7 +481,12 @@ async function onFileChosen(event: Event): Promise<void> {
                             variant="outlined"
                             hide-details
                         />
-                        <v-btn :prepend-icon="mdiContentSave" size="small" variant="tonal" @click="savePreset">
+                        <v-btn
+                            :prepend-icon="mdiContentSave"
+                            size="small"
+                            variant="tonal"
+                            @click="savePreset"
+                        >
                             {{ t("appearance.preset.save", "Save") }}
                         </v-btn>
                     </div>
@@ -467,7 +515,11 @@ async function onFileChosen(event: Event): Promise<void> {
                     </p>
 
                     <ul class="mb-appearance-editor__presetList">
-                        <li v-for="entry in visiblePresets" :key="entry.id" class="mb-appearance-editor__row">
+                        <li
+                            v-for="entry in visiblePresets"
+                            :key="entry.id"
+                            class="mb-appearance-editor__row"
+                        >
                             <span class="mb-appearance-editor__rowLabel">{{ entry.name }}</span>
                             <!--
                                 Gated, because a saved preset is user work with no copy
@@ -478,9 +530,17 @@ async function onFileChosen(event: Event): Promise<void> {
                             -->
                             <ConfigSuperConfirm
                                 :title="t('appearance.preset.deleteTitle', 'Delete this preset')"
-                                :action="t('appearance.preset.deleteAction', { name: entry.name }, 'This deletes the preset {name}. Elements following it go back to their own settings, and the preset cannot be recovered.')"
+                                :action="
+                                    t(
+                                        'appearance.preset.deleteAction',
+                                        { name: entry.name },
+                                        'This deletes the preset {name}. Elements following it go back to their own settings, and the preset cannot be recovered.',
+                                    )
+                                "
                                 :affected="[entry.name]"
-                                :confirm-label="t('appearance.preset.deleteConfirm', 'Delete the preset')"
+                                :confirm-label="
+                                    t('appearance.preset.deleteConfirm', 'Delete the preset')
+                                "
                                 @confirm="deletePreset(entry.id)"
                             >
                                 <template #activator="{ props: activatorProps }">
@@ -489,7 +549,13 @@ async function onFileChosen(event: Event): Promise<void> {
                                         :icon="mdiDelete"
                                         size="x-small"
                                         variant="text"
-                                        :aria-label="t('appearance.preset.delete', { name: entry.name }, 'Delete the preset {name}')"
+                                        :aria-label="
+                                            t(
+                                                'appearance.preset.delete',
+                                                { name: entry.name },
+                                                'Delete the preset {name}',
+                                            )
+                                        "
                                     />
                                 </template>
                             </ConfigSuperConfirm>
@@ -497,13 +563,23 @@ async function onFileChosen(event: Event): Promise<void> {
                     </ul>
 
                     <p v-if="userPresets.length === 0" class="mb-appearance-editor__hint">
-                        {{ t("appearance.preset.none.saved", "No presets saved yet. The three built-in ones are always available.") }}
+                        {{
+                            t(
+                                "appearance.preset.none.saved",
+                                "No presets saved yet. The three built-in ones are always available.",
+                            )
+                        }}
                     </p>
 
                     <v-divider />
 
                     <div class="mb-appearance-editor__row">
-                        <v-btn :prepend-icon="mdiDownload" size="small" variant="tonal" @click="exportToFile">
+                        <v-btn
+                            :prepend-icon="mdiDownload"
+                            size="small"
+                            variant="tonal"
+                            @click="exportToFile"
+                        >
                             {{ t("appearance.theme.export", "Export the theme") }}
                         </v-btn>
                         <v-btn
@@ -540,20 +616,45 @@ async function onFileChosen(event: Event): Promise<void> {
                         nothing on screen afterwards to rebuild them from.
                     -->
                     <ConfigSuperConfirm
-                        :title="t('appearance.editor.resetAllTitle', 'Reset every element in the app')"
-                        :action="t('appearance.editor.resetAllAction', { count: Object.keys(state.elements).length }, 'This removes the appearance overrides on all {count} customised elements at once and cannot be undone. Saved presets are kept.')"
+                        :title="
+                            t('appearance.editor.resetAllTitle', 'Reset every element in the app')
+                        "
+                        :action="
+                            t(
+                                'appearance.editor.resetAllAction',
+                                { count: Object.keys(state.elements).length },
+                                'This removes the appearance overrides on all {count} customised elements at once and cannot be undone. Saved presets are kept.',
+                            )
+                        "
                         :affected="Object.keys(state.elements)"
-                        :confirm-label="t('appearance.editor.resetAllConfirm', 'Reset every element')"
+                        :confirm-label="
+                            t('appearance.editor.resetAllConfirm', 'Reset every element')
+                        "
                         :disabled="Object.keys(state.elements).length === 0"
                         @confirm="target.resetEverything()"
                     >
                         <template #activator="{ props: activatorProps }">
-                            <v-btn v-bind="activatorProps" size="small" variant="text" color="error">
-                                {{ t("appearance.editor.resetAll", "Reset every element in the app") }}
+                            <v-btn
+                                v-bind="activatorProps"
+                                size="small"
+                                variant="text"
+                                color="error"
+                            >
+                                {{
+                                    t(
+                                        "appearance.editor.resetAll",
+                                        "Reset every element in the app",
+                                    )
+                                }}
                                 <v-tooltip
                                     activator="parent"
                                     location="top"
-                                    :text="t('appearance.editor.resetAllHint', 'Removes every appearance override. Saved presets are kept.')"
+                                    :text="
+                                        t(
+                                            'appearance.editor.resetAllHint',
+                                            'Removes every appearance override. Saved presets are kept.',
+                                        )
+                                    "
                                 />
                             </v-btn>
                         </template>
@@ -577,12 +678,15 @@ async function onFileChosen(event: Event): Promise<void> {
      */
     max-block-size: min(78vh, 720px);
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 12px;
     border-radius: 16px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    box-shadow: 0 6px 10px 4px rgba(0, 0, 0, 0.15), 0 2px 3px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 6px 10px 4px rgba(0, 0, 0, 0.15),
+        0 2px 3px rgba(0, 0, 0, 0.3);
 }
 
 .mb-appearance-editor__head {
@@ -617,6 +721,7 @@ async function onFileChosen(event: Event): Promise<void> {
 
 .mb-appearance-editor__body {
     overflow: visible;
+    min-inline-size: 0;
 }
 
 .mb-appearance-editor__surface,
@@ -631,6 +736,10 @@ async function onFileChosen(event: Event): Promise<void> {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-inline-size: 0;
+}
+
+.mb-appearance-editor__row > :not(.mb-appearance-editor__rowLabel) {
     min-inline-size: 0;
 }
 
