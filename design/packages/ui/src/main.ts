@@ -27,6 +27,11 @@ import "@fontsource/roboto/700.css";
 // browser's synthetic bold.
 import "@fontsource/roboto-mono/400.css";
 import "@fontsource/roboto-mono/500.css";
+// The M3 token vocabulary (shape, type, elevation, state, motion) has to be declared before
+// the two sheets that spend it. Import order is also what settles the handful of token names
+// `markers.scss` re-declares for the raw-DOM marker layer: it comes last, so its values win,
+// and `md3.scss` spells those particular tokens with exactly the values it has.
+import "./styles/md3.scss";
 import "./styles/global.scss";
 import "./styles/markers.scss";
 import { installUiSize } from "./components/settings/index.js";

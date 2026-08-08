@@ -23,7 +23,7 @@ import { VApp } from "vuetify/components";
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import { appearanceTargets } from "../appearance/index.js";
 import TabbedNavigation from "./TabbedNavigation.vue";
-import type { TabPage } from "./tabModel.js";
+import type { TabGroupSeed, TabPage } from "./tabModel.js";
 
 const cells = new Map<string, string>();
 
@@ -1103,6 +1103,379 @@ describe("pinnedPageIds and ensurePage", () => {
         await nextTick();
 
         expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)).toHaveLength(3);
+        view.unmount();
+    });
+});
+
+/**
+ * Seeding a fresh workspace into named groups, which is the answer to a shell whose strip
+ * opens as a flat list of every destination it has.
+ *
+ * The claims worth proving are all about *which* workspace gets shaped this way. A brand-new
+ * one is arranged into a short strip of loose tabs and collapsed groups; a saved one is
+ * restored exactly as its owner left it and never re-shaped; and in both cases every
+ * destination is still there, because a group is a disclosure and not a deletion.
+ */
+const SEED_PAGES: readonly TabPage[] = [
+    { id: "home", label: "Home", icon: null },
+    { id: "map", label: "Map", icon: null },
+    { id: "world", label: "Make a map", icon: null },
+    { id: "renders", label: "Renders", icon: null },
+    { id: "cirender", label: "GitHub runners", icon: null },
+    { id: "servers", label: "Servers", icon: null },
+    { id: "pages", label: "Publish to Pages", icon: null },
+    { id: "backups", label: "Backups", icon: null },
+    { id: "docs", label: "Docs", icon: null },
+];
+
+/** The shape `App.vue` declares, in miniature: three named groups, all collapsed. */
+const SEED_GROUPS: readonly TabGroupSeed[] = [
+    {
+        id: "seed-rendering",
+        name: "Rendering",
+        color: "primary",
+        collapsed: true,
+        pageIds: ["renders", "cirender"],
+    },
+    {
+        id: "seed-finished",
+        name: "Finished maps",
+        color: "tertiary",
+        collapsed: true,
+        pageIds: ["servers", "pages"],
+    },
+    {
+        id: "seed-copies",
+        name: "Keeping a copy",
+        color: "secondary",
+        collapsed: true,
+        pageIds: ["backups"],
+    },
+];
+
+/** Every label the nine pages carry, in the order the seeded strip puts them in. */
+const EVERY_SEEDED_LABEL = [
+    "Home",
+    "Map",
+    "Make a map",
+    "Docs",
+    "Renders",
+    "GitHub runners",
+    "Servers",
+    "Publish to Pages",
+    "Backups",
+];
+
+function mountSeeded(storageKey: string): VueWrapper<InstanceType<typeof TabbedNavigation>> {
+    return mount(TabbedNavigation, {
+        props: {
+            pages: SEED_PAGES,
+            windowLabel: "Worldlens",
+            stripLabel: "Main",
+            storageKey,
+            pinnedPageIds: ["home"],
+            initialGroups: SEED_GROUPS,
+        },
+        global: { plugins: [vuetify, i18n] },
+        attachTo: document.body,
+    });
+}
+
+function titles(view: VueWrapper<InstanceType<typeof TabbedNavigation>>): (string | undefined)[] {
+    return view.findAll('[role="tab"]').map((tab) => tab.attributes("title"));
+}
+
+/** Each group header as it is announced, with whether it is showing its members. */
+function headers(
+    view: VueWrapper<InstanceType<typeof TabbedNavigation>>,
+): { label: string | undefined; expanded: string | undefined }[] {
+    return view.findAll(".mb-tabs-strip__group-head").map((head) => ({
+        label: head.attributes("aria-label"),
+        expanded: head.attributes("aria-expanded"),
+    }));
+}
+
+/** The groups as they were actually written to storage, rather than as they are drawn. */
+function storedGroups(
+    storageKey: string,
+): { id: string; name: string; color: string; collapsed: boolean; members: number }[] {
+    const raw = cells.get(storageKey);
+    if (raw === undefined) throw new Error(`nothing was written under ${storageKey}`);
+    const parsed = JSON.parse(raw) as {
+        strips: {
+            groups: {
+                id: string;
+                name: string;
+                color: string;
+                collapsed: boolean;
+                tabIds: string[];
+            }[];
+        }[];
+    };
+    return (parsed.strips[0]?.groups ?? []).map((group) => ({
+        id: group.id,
+        name: group.name,
+        color: group.color,
+        collapsed: group.collapsed,
+        members: group.tabIds.length,
+    }));
+}
+
+describe("seeding a fresh workspace into groups", () => {
+    it("opens a fresh install as loose tabs and named, collapsed groups rather than one tab per page", async () => {
+        const view = mountSeeded("test-seed-fresh");
+        await nextTick();
+
+        // Four rows instead of nine: the landing tab, the two things a newcomer does, and
+        // the one they reach for when stuck.
+        expect(titles(view)).toEqual(["Home", "Map", "Make a map", "Docs"]);
+        expect(headers(view)).toEqual([
+            { label: "Rendering, 2 tabs", expanded: "false" },
+            { label: "Finished maps, 2 tabs", expanded: "false" },
+            { label: "Keeping a copy, 1 tabs", expanded: "false" },
+        ]);
+        view.unmount();
+    });
+
+    it("keeps the pinned landing tab first and outside every group", async () => {
+        const view = mountSeeded("test-seed-pinned");
+        await nextTick();
+
+        expect(isPinned(view, "Home")).toBe(true);
+        expect(titles(view)[0]).toBe("Home");
+        expect(
+            view.findAll('[role="tab"]').find((tab) => tab.attributes("aria-selected") === "true")
+                ?.attributes("title"),
+        ).toBe("Home");
+        view.unmount();
+    });
+
+    it("loses no destination: every declared page still has a tab, collapsed or not", async () => {
+        const view = mountSeeded("test-seed-reachable");
+        await nextTick();
+
+        // The searchable strip list counts a collapsed group's members, because collapsed is
+        // a display state rather than a claim that the tabs have gone. Read off the document
+        // because Vuetify teleports overlay content out of the component's own tree.
+        expect(document.body.textContent).toContain("Showing 9 of 9");
+
+        for (const head of view.findAll(".mb-tabs-strip__group-head")) {
+            await head.trigger("click");
+            await nextTick();
+        }
+
+        expect(titles(view)).toEqual(EVERY_SEEDED_LABEL);
+        view.unmount();
+    });
+
+    it("reveals a group's own tabs when its header is expanded, and writes only that preference", async () => {
+        const view = mountSeeded("test-seed-expand");
+        await nextTick();
+
+        await view.findAll(".mb-tabs-strip__group-head")[0]?.trigger("click");
+        await nextTick();
+
+        expect(titles(view)).toEqual([
+            "Home",
+            "Map",
+            "Make a map",
+            "Docs",
+            "Renders",
+            "GitHub runners",
+        ]);
+        // The one group that was opened, and only it: expanding a group is a preference
+        // about that group, not a state the other two share.
+        expect(storedGroups("test-seed-expand")).toEqual([
+            {
+                id: "seed-rendering",
+                name: "Rendering",
+                color: "primary",
+                collapsed: false,
+                members: 2,
+            },
+            {
+                id: "seed-finished",
+                name: "Finished maps",
+                color: "tertiary",
+                collapsed: true,
+                members: 2,
+            },
+            {
+                id: "seed-copies",
+                name: "Keeping a copy",
+                color: "secondary",
+                collapsed: true,
+                members: 1,
+            },
+        ]);
+        view.unmount();
+    });
+
+    it("survives a save and a reload with its groups, membership and collapse state intact", async () => {
+        const first = mountSeeded("test-seed-roundtrip");
+        await nextTick();
+        // One deliberate change, so the layout actually reaches storage: seeding on mount is
+        // not itself something the persisting watcher sees - see the `ensurePage` test above,
+        // which needs the same nudge for the same reason.
+        await first.findAll(".mb-tabs-strip__group-head")[1]?.trigger("click");
+        await nextTick();
+        first.unmount();
+
+        const second = mountSeeded("test-seed-roundtrip");
+        await nextTick();
+
+        expect(headers(second)).toEqual([
+            { label: "Rendering, 2 tabs", expanded: "false" },
+            { label: "Finished maps, 2 tabs", expanded: "true" },
+            { label: "Keeping a copy, 1 tabs", expanded: "false" },
+        ]);
+        expect(titles(second)).toEqual([
+            "Home",
+            "Map",
+            "Make a map",
+            "Docs",
+            "Servers",
+            "Publish to Pages",
+        ]);
+        second.unmount();
+    });
+
+    it("never re-shapes a workspace somebody already arranged, however little it looks like the seed", async () => {
+        // A layout saved by an earlier build: no groups at all, a different order, and a page
+        // this build declares that the record has never heard of. Restoring repairs it and
+        // stops there; the seed is for a workspace that does not exist yet.
+        cells.set(
+            "test-seed-saved",
+            JSON.stringify({
+                version: 2,
+                strips: [
+                    {
+                        id: "strip-main",
+                        label: "Main",
+                        windowId: "window-main",
+                        windowLabel: "Worldlens",
+                        placement: "left",
+                        tabs: [
+                            { id: "t-backups", pageId: "backups", label: "Backups" },
+                            { id: "t-map", pageId: "map", label: "Map" },
+                            { id: "t-home", pageId: "home", label: "Home" },
+                        ],
+                        groups: [],
+                        pinnedOrder: [],
+                        slots: [
+                            { kind: "tab", tabId: "t-backups" },
+                            { kind: "tab", tabId: "t-map" },
+                            { kind: "tab", tabId: "t-home" },
+                        ],
+                        activeTabId: "t-map",
+                    },
+                ],
+            }),
+        );
+
+        const view = mountSeeded("test-seed-saved");
+        await nextTick();
+
+        expect(headers(view)).toEqual([]);
+        expect(titles(view)).toEqual(["Backups", "Map", "Home"]);
+        // Not even the pin is re-applied to a tab that already existed: `pinnedPageIds` is a
+        // promise about the first time a page appears, not a standing rule.
+        expect(isPinned(view, "Home")).toBe(false);
+        expect(
+            view.findAll('[role="tab"]').find((tab) => tab.attributes("aria-selected") === "true")
+                ?.attributes("title"),
+        ).toBe("Map");
+        view.unmount();
+    });
+
+    it("adds a page a saved workspace predates as a loose tab, never into a seeded group", async () => {
+        // `ensurePage` is the upgrade path, and it deliberately knows nothing about the seed:
+        // filing a newly declared page into a group the user may have renamed, emptied or
+        // taken apart months ago would be this component repairing a layout nobody asked it
+        // to touch. The first mount is a build that predates "Publish to Pages" - the seed
+        // names it, and a page with no tab is skipped rather than seeding a phantom member.
+        const older = SEED_PAGES.filter((page) => page.id !== "pages");
+        const seed = mount(TabbedNavigation, {
+            props: {
+                pages: older,
+                windowLabel: "Worldlens",
+                stripLabel: "Main",
+                storageKey: "test-seed-ensure",
+                pinnedPageIds: ["home"],
+                initialGroups: SEED_GROUPS,
+            },
+            global: { plugins: [vuetify, i18n] },
+            attachTo: document.body,
+        });
+        await nextTick();
+        expect(headers(seed).map((head) => head.label)).toContain("Finished maps, 1 tabs");
+        seed.vm.revealPage("map");
+        await nextTick();
+        seed.unmount();
+
+        const view = mountSeeded("test-seed-ensure");
+        await nextTick();
+        view.vm.ensurePage("pages");
+        await nextTick();
+
+        // A loose tab at the end of the ordinary region, and the group it was named for is
+        // left at the size the saved workspace had it.
+        expect(titles(view)).toEqual(["Home", "Map", "Make a map", "Docs", "Publish to Pages"]);
+        expect(headers(view).map((head) => head.label)).toEqual([
+            "Rendering, 2 tabs",
+            "Finished maps, 1 tabs",
+            "Keeping a copy, 1 tabs",
+        ]);
+        view.unmount();
+    });
+
+    it("revealPage shows a tab inside a collapsed group without rewriting the saved preference", async () => {
+        // The palette, a finished render and a glossary link all navigate through
+        // `revealPage`, and a destination this shell files into a collapsed group would
+        // otherwise draw its panel with no selected tab visible anywhere in the strip.
+        const view = mountSeeded("test-seed-reveal");
+        await nextTick();
+
+        view.vm.revealPage("cirender");
+        await nextTick();
+
+        expect(titles(view)).toEqual([
+            "Home",
+            "Map",
+            "Make a map",
+            "Docs",
+            "Renders",
+            "GitHub runners",
+        ]);
+        expect(
+            view.findAll('[role="tab"]').find((tab) => tab.attributes("aria-selected") === "true")
+                ?.attributes("title"),
+        ).toBe("GitHub runners");
+        // Shown, not expanded: the group's own collapsed preference is the user's, and only
+        // the header writes it.
+        expect(storedGroups("test-seed-reveal")[0]).toMatchObject({
+            id: "seed-rendering",
+            collapsed: true,
+        });
+        view.unmount();
+    });
+
+    it("seeds one loose tab per page, exactly as it always has, when the host declares no groups", async () => {
+        const view = mount(TabbedNavigation, {
+            props: {
+                pages: SEED_PAGES,
+                windowLabel: "Worldlens",
+                stripLabel: "Main",
+                storageKey: "test-seed-none",
+                pinnedPageIds: ["home"],
+            },
+            global: { plugins: [vuetify, i18n] },
+            attachTo: document.body,
+        });
+        await nextTick();
+
+        expect(headers(view)).toEqual([]);
+        expect(titles(view)).toEqual(SEED_PAGES.map((page) => page.label));
         view.unmount();
     });
 });

@@ -121,6 +121,11 @@ const props = withDefaults(
          * here. Left empty - the default - the strip seeds exactly as it always has, one
          * loose tab per page.
          *
+         * A host is expected to leave its landing page out of every seed - pinning it, as
+         * `pinnedPageIds` does, or leaving it loose. Seeding the first declared page into a
+         * collapsed group is not refused, but it opens on a tab that is not drawn until the
+         * group is expanded, which is a layout nobody would choose on purpose.
+         *
          * Consulted only when there is no saved workspace to restore. It is a default
          * layout, not a structure this component maintains: nothing re-applies a seed to a
          * workspace that already exists, no later mount repairs a group the user renamed,
@@ -292,6 +297,11 @@ function openPage(pageId: string): void {
  * That is the behaviour a person expects from a destination - "take me there", not "make me
  * another one" - and it is why closing the map tab still leaves the palette able to reach the
  * map rather than silently doing nothing.
+ *
+ * A tab inside a collapsed group is revealed on the way, through the same runtime set a search
+ * result uses: the strip would otherwise show a panel with no selected tab anywhere in it,
+ * which reads as the navigation having gone wrong. Revealed rather than expanded, so the
+ * group's own saved preference is left exactly as the user set it - see `revealed` above.
  */
 function revealPage(pageId: string): void {
     const existing = strip.value.tabs.find((tab) => tab.pageId === pageId);
@@ -299,6 +309,8 @@ function revealPage(pageId: string): void {
         openPage(pageId);
         return;
     }
+    const holding = strip.value.groups.find((group) => group.tabIds.includes(existing.id));
+    if (holding !== undefined && holding.collapsed) reveal(holding.id);
     update(setActiveTab(strip.value, existing.id));
 }
 

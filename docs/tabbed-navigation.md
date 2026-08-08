@@ -17,7 +17,7 @@ never overwrite another's:
 
 | Surface                                  | `storageKey`                    | What each tab is                                                                                                              |
 | ---------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| The application shell (`App.vue`)        | `worldlens-tabs` (the default)  | Map, world wizard, servers, projects, backups, GitHub runners, Pages hosting                                                  |
+| The application shell (`App.vue`)        | `worldlens-tabs` (the default)  | Twelve destinations, seeded into four loose tabs and three named groups - see [What a fresh workspace opens as](#what-a-fresh-workspace-opens-as) |
 | Settings (`AppSettings.vue`)             | `worldlens-settings-tabs`       | One tab per setting section - consent, Java, storage folder, world folder, GitHub account, language and tone, panel placement |
 | The options editor (`ConfigScreen.vue`)  | `worldlens-config-editor-tabs`  | One tab per config screen, plus history                                                                                       |
 | The project editor (`ProjectEditor.vue`) | `worldlens-project-editor-tabs` | Maps, storages, how it renders, and the four whole-file singletons                                                            |
@@ -59,6 +59,52 @@ tab lives inside its group's run; those are two places on screen and a tab canno
 Keeping the membership and merely hiding the tab from the group's run would make the per-group
 search report a tab that is demonstrably not in the group, which is worse than losing the
 membership because it is a lie rather than a loss.
+
+### What a fresh workspace opens as
+
+The shell has twelve destinations and every one of them is somebody's whole reason for opening
+the application, so none of them is removed. Seeded as twelve flat, equal-weight tabs, though,
+they are the single biggest source of "cluttered" a newcomer meets: the two things they need on
+the first day sit in a list with nine they need later and one they need when stuck, all in the
+same typeface, none of them explaining the others.
+
+So `App.vue` passes `initial-groups`, and a workspace with nothing saved yet opens as four rows
+and three named, collapsed groups instead:
+
+| Where it sits              | What is in it                                    | Why those belong together                                                                                                                        |
+| -------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pinned                     | Home                                             | The landing page, first in the strip and outside every group, because the pinned region is what keeps it there. `pinned-page-ids` names it.       |
+| Loose                      | Map, Make a map, Docs                            | The two things a newcomer actually does, and the one they reach for when the rest has stopped making sense. Docs is one tab, and a group holding one tab is a header that hides exactly one row. |
+| **Rendering** (collapsed)  | Projects, GitHub runners, Renders                | How a render is set up and what it is doing: the settings a project carries, the fourth answer to "where does this render run", and the count in flight. |
+| **Finished maps** (collapsed) | Maps and servers, Publish to Pages, Watch it live | A map that already exists, and the three places it can be looked at: this application's own list, somebody else's static host, and this computer serving it off its own disk. |
+| **Keeping a copy** (collapsed) | Backups, World repository                     | The two ways a world or a render is put somewhere that is not this one machine: a versioned upload to GitHub, and a git repository a second computer can adopt. |
+
+Three things this deliberately is not:
+
+- **It is not a fixed structure.** A seeded group is an ordinary group from the moment it is
+  drawn: rename it, recolour it, drag a tab out of it, reorder it, ungroup it keeping every tab,
+  delete it. The result is what gets persisted, and nothing re-applies the seed afterwards.
+- **It is not applied to a workspace that already exists.** `seedStrip` runs only where
+  `readTabWorkspace` returned null, which is the same condition it has always run under. A
+  returning user's order, pins, groups and collapsed states are restored exactly as they left
+  them; a strip somebody arranged by hand is never re-shaped to match a default they never saw.
+  `ensurePage`, the upgrade path below, adds its tab **outside** every group for the same
+  reason.
+- **It is not hiding anything.** A collapsed group's members are still in the strip, still in
+  every search, still counted by a bulk close and still reachable in one click on the header.
+  `revealPage` - the route the command palette, a finished render and a glossary link all take -
+  reveals a collapsed group holding the tab it activates, through the runtime `revealed` set, so
+  the strip never shows a panel whose tab is nowhere on screen and the group's saved preference
+  is still not rewritten.
+
+The mechanics are two pure functions in `tabModel.ts`, both proven in `tabModel.test.ts`:
+`seedTabOrder` decides the order the tabs are created in (ungrouped pages first, in declared
+order, then each group's pages), which is what makes the groups land after the loose tabs in
+declared order rather than at the arithmetically-correct-but-unpredictable positions
+`createGroup`'s "position of its first member" rule produces out of an interleaved list; and
+`applyGroupSeeds` creates one group per seed, skipping a pinned tab (pinning wins - the pinned
+region is the promise that the landing tab stays at the front), skipping a page with no tab, and
+creating nothing at all for a seed left with no members.
 
 ### Reaching a page a saved workspace predates
 
@@ -126,7 +172,12 @@ the group held.
 A collapsed group is a display state, not a claim that its tabs have gone. Its members are still
 searched, still counted and still closed by a close-to-the-right. What must not happen is a search
 result writing that preference back, so a group revealed to show a hit is expanded on screen and
-unchanged on disk.
+unchanged on disk. The same runtime reveal is what `revealPage` uses when a host navigates to a
+page whose tab is inside a collapsed group.
+
+A host may also hand `TabbedNavigation` a list of groups to seed a **fresh** workspace into - see
+[What a fresh workspace opens as](#what-a-fresh-workspace-opens-as). Those are defaults, not
+structure: they are ordinary groups the moment they exist, and nothing re-applies them.
 
 ### The four searches
 
@@ -248,12 +299,12 @@ filtering a menu is typing what they can read on it.
 
 | Test                           | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tabModel.test.ts`             | Every ordering rule: where an unpinned tab lands, what happens to a removed group's members, which tab becomes active when the active one closes, that pinning clears membership, that every id lives in exactly one place after `normalizeStrip`, the four valid placements, and the overflow arithmetic including paying for the overflow button.                                                                                                                                                                                                                                                                    |
+| `tabModel.test.ts`             | Every ordering rule: where an unpinned tab lands, what happens to a removed group's members, which tab becomes active when the active one closes, that pinning clears membership, that every id lives in exactly one place after `normalizeStrip`, the four valid placements, the overflow arithmetic including paying for the overflow button, and the seeding arithmetic - creation order, groups landing after the loose tabs in declared order, collapsed by default, a pinned tab left pinned, a page with no tab skipped, and a seeded group answering every ordinary group command. |
 | `tabSearch.test.ts`            | Four scopes searched independently, collapsed group members found, hits carrying window, strip, group, pinned state and index, and only the visible label matched.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `closePlans.test.ts`           | The partition property for any query in either mode, plans that close nothing on an empty or uncompilable query, pinned and unsaved tabs held back and named, scope carried on the plan, and `applyClosePlan` reporting kept tabs honestly.                                                                                                                                                                                                                                                                                                                                                                            |
 | `tabStorage.test.ts`           | Placement and the six persisted orderings round-tripping, schema-v1 migration defaulting only the missing edge to left, `dirty` dropped, queries and patterns never written, appearance records preserved verbatim, a blocked storage staying silent, and a file this build cannot read seeding defaults instead.                                                                                                                                                                                                                                                                                                      |
 | `tabMenus.test.ts`             | The menu's own search filters its items without changing what they do.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `TabbedNavigation.test.ts`     | Mounted: roles and roving focus, selection moving panel and tab order together, axis-aware arrows on all four edges including RTL, Enter/Space activation, Home and End, the advertised keyboard commands, the placement picker and persisted restoration, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, `revealPage` activating an existing tab or reopening a closed one, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. |
+| `TabbedNavigation.test.ts`     | Mounted: roles and roving focus, selection moving panel and tab order together, axis-aware arrows on all four edges including RTL, Enter/Space activation, Home and End, the advertised keyboard commands, the placement picker and persisted restoration, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, `revealPage` activating an existing tab, reopening a closed one or revealing a collapsed group's tab without rewriting its preference, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. Seeding: a fresh workspace opening as loose tabs plus named collapsed groups with the pinned landing tab first and outside them, every declared page still present, expanding a header revealing that group's members and writing only that group's preference, the whole structure surviving a save and reload, a saved workspace left exactly as it was, `ensurePage` adding a later page outside every group, and a host that declares no groups seeding one loose tab per page as it always did. |
 | `projectSurfaceSizing.test.ts` | The project editor, tab strip, search controls and live-speed controls keep 44px targets, wrapping text, responsive stacking and viewport-bounded scrollable overlays rather than clipping at narrow widths.                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 Run them with `npx vitest run packages/ui/src/components/tabs` from `design/`.

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { capabilityHaystack, capabilityMatchesText, filterCapabilities, homeSampleText, type HomeCapability } from "./homeCatalog.js";
+import {
+    capabilityHaystack,
+    capabilityMatchesText,
+    filterCapabilities,
+    groupCapabilities,
+    homeSampleText,
+    type HomeCapability,
+} from "./homeCatalog.js";
 
 function capability(overrides: Partial<HomeCapability> = {}): HomeCapability {
     return {
@@ -113,6 +120,61 @@ describe("filterCapabilities", () => {
         const matcher = createSettingMatcher("a", false, "i");
         const result = filterCapabilities(catalogue, matcher);
         expect(result.map((item) => item.id)).toEqual(["world", "backups", "docs"]);
+    });
+});
+
+describe("groupCapabilities", () => {
+    const catalogue = [
+        capability({ id: "world", title: "Make a map", group: "Get started" }),
+        capability({ id: "backups", title: "Backups", group: "Share and back up" }),
+        capability({ id: "pages", title: "Publish to Pages", group: "Share and back up" }),
+        capability({ id: "docs", title: "Docs", group: "Learn" }),
+    ];
+
+    const definitions = [
+        { id: "share", heading: "Share and back up" },
+        { id: "learn", heading: "Learn" },
+        { id: "viewer", heading: "The open map" },
+    ];
+
+    it("files each card under the section whose heading it names", () => {
+        const sections = groupCapabilities(catalogue, definitions);
+        expect(sections.map((section) => section.id)).toEqual(["share", "learn"]);
+        expect(sections[0]?.items.map((item) => item.id)).toEqual(["backups", "pages"]);
+        expect(sections[1]?.items.map((item) => item.id)).toEqual(["docs"]);
+    });
+
+    it("keeps the declared section order rather than the catalogue's", () => {
+        const sections = groupCapabilities(catalogue, [
+            { id: "learn", heading: "Learn" },
+            { id: "share", heading: "Share and back up" },
+        ]);
+        expect(sections.map((section) => section.id)).toEqual(["learn", "share"]);
+    });
+
+    it("drops a section with nothing in it rather than heading an empty one", () => {
+        // "The open map" with no map open is not an honest "(0)", it is a control wired to
+        // nothing - the same rule the command palette holds the viewer menu to.
+        expect(groupCapabilities(catalogue, definitions).some((section) => section.id === "viewer")).toBe(
+            false,
+        );
+    });
+
+    it("carries the count a collapsed heading has to state", () => {
+        const share = groupCapabilities(catalogue, definitions).find((section) => section.id === "share");
+        expect(share?.items).toHaveLength(2);
+        expect(share?.heading).toBe("Share and back up");
+    });
+
+    it("leaves a card whose group no section claims out of every section", () => {
+        const filed = groupCapabilities(catalogue, definitions).flatMap((section) =>
+            section.items.map((item) => item.id),
+        );
+        expect(filed).not.toContain("world");
+    });
+
+    it("is empty for an empty catalogue rather than a row of empty headings", () => {
+        expect(groupCapabilities([], definitions)).toEqual([]);
     });
 });
 

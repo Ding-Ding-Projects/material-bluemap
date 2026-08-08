@@ -122,6 +122,287 @@ body {
     outline-offset: 2px;
 }
 
+/* ===========================================================================
+ * The Material Design 3 token system, applied to the whole component surface.
+ *
+ * `styles/md3.scss` publishes the vocabulary (shape, type, elevation, state, motion) as
+ * custom properties. Nothing below invents a value; every rule points something that was
+ * already deciding a look - a Vuetify utility class, an unstyled heading, a theme variable -
+ * at one of those tokens instead. That is the whole reason this is here rather than spread
+ * across components: the app already had 134 hand-written radii and 493 hand-written font
+ * sizes, and adding a 135th and a 494th would have been the same mistake with new numbers.
+ *
+ * ## On selector strength, and the appearance editor
+ *
+ * `components/appearance/**` lets a user override typography and surface per element. It
+ * resolves active-preset -> global record -> the element's own preset -> the element's own
+ * overrides (`appearanceStore.ts`'s `resolveTarget`) and applies the result as an *inline
+ * style* on the `AppearanceTarget` wrapper. Inline styles outrank every selector here, so
+ * none of these rules can lock a user out of their own theme - with one thing to keep true:
+ * an `!important` declaration WOULD outrank an inline style, so no rule below adds one
+ * except where it is re-pointing a Vuetify utility that is already `!important` (the
+ * `.rounded-*` and `.elevation-*` classes). Those classes never appear on an
+ * `AppearanceTarget` wrapper, so re-pointing them cannot reach a user override either.
+ *
+ * The typography rules go further and use `:where()`, which contributes zero specificity, so
+ * any component that has already made a deliberate choice keeps it and these only fill in
+ * where nothing has spoken.
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * Shape: Vuetify's radius vocabulary, re-pointed at the M3 corner scale.
+ *
+ * `rounded="lg"` on a component emits the class `.rounded-lg`, and Vuetify's scale behind
+ * those class names is 0 / 2px / 4px / 8px / 24px - Material 2 arithmetic wearing M3 names.
+ * That is why every card in the app reads as a near-flat rectangle with a hairline: 8px on a
+ * 950px-wide wizard card is a radius you have to look for.
+ *
+ * Redefining the six classes is the single change that moves every rounded surface in the
+ * product at once, including the ones inside Vuetify's own components (menus, dialogs,
+ * selects) that no component file can reach. The `!important` is not new - each of these
+ * classes is `!important` in Vuetify's own stylesheet and could not be overridden without
+ * it; this replaces the declaration, it does not add a lock that was not already there.
+ *
+ * `.rounded-md` has no Vuetify equivalent at all: its scale simply has no 12px step. It is
+ * defined here because `useRounded` builds the class name straight from the prop value, so
+ * `rounded="md"` works the moment the class exists - which is what lets the text fields
+ * below sit at the M3 medium corner instead of at Vuetify's 4px default.
+ * ------------------------------------------------------------------------- */
+.rounded-0 {
+    border-radius: var(--md-sys-shape-corner-none) !important;
+}
+
+.rounded {
+    border-radius: var(--md-sys-shape-corner-xs) !important;
+}
+
+.rounded-sm {
+    border-radius: var(--md-sys-shape-corner-sm) !important;
+}
+
+.rounded-md {
+    border-radius: var(--md-sys-shape-corner-md) !important;
+}
+
+.rounded-lg {
+    border-radius: var(--md-sys-shape-corner-lg) !important;
+}
+
+.rounded-xl {
+    border-radius: var(--md-sys-shape-corner-xl) !important;
+}
+
+.rounded-pill {
+    border-radius: var(--md-sys-shape-corner-full) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * Elevation: the same treatment, for the same reason.
+ *
+ * Vuetify's `.elevation-N` utilities emit Material 2's three-part umbra/penumbra/ambient
+ * shadow, which at any given level is both darker and blurrier than M3's two-part key +
+ * ambient pair. Side by side with M3 colour it reads as haze under the card rather than as
+ * the card being lifted, and it is the other half of why elevated surfaces here look heavy.
+ *
+ * The token names are `--md-sys-elevation-shadow-levelN`, not `--md-sys-elevation-levelN`:
+ * the marker sheet owns the latter for a `drop-shadow()` filter chain. See `md3.scss`.
+ * ------------------------------------------------------------------------- */
+.elevation-0 {
+    box-shadow: var(--md-sys-elevation-shadow-level0) !important;
+}
+
+.elevation-1 {
+    box-shadow: var(--md-sys-elevation-shadow-level1) !important;
+}
+
+.elevation-2 {
+    box-shadow: var(--md-sys-elevation-shadow-level2) !important;
+}
+
+.elevation-3 {
+    box-shadow: var(--md-sys-elevation-shadow-level3) !important;
+}
+
+.elevation-4 {
+    box-shadow: var(--md-sys-elevation-shadow-level4) !important;
+}
+
+.elevation-5 {
+    box-shadow: var(--md-sys-elevation-shadow-level5) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * State layers: M3's four opacities, in the place Vuetify actually reads them from.
+ *
+ * Vuetify publishes `--v-hover-opacity` and friends per theme and every state overlay in the
+ * framework - button, list item, chip, tab, table row - resolves `opacity` through them. The
+ * shipped values are Material 2's (hover 4%, focus 12%, pressed 12%, dragged 8%), so a hover
+ * is too faint to notice over a busy map render while a focus tint is heavy enough to look
+ * like a selection. Re-pointing the four variables retunes every interactive surface in the
+ * product from one place.
+ *
+ * Unit-less decimals rather than the `%` form the `--md-sys-state-*-opacity` tokens use,
+ * because these feed `opacity:` and `rgba()` in Vuetify's own stylesheets. Same four
+ * numbers; if one of them moves, move it in both files.
+ * ------------------------------------------------------------------------- */
+:root,
+.v-theme--dark,
+.v-theme--light,
+.v-theme--contrast {
+    --v-hover-opacity: 0.08;
+    --v-focus-opacity: 0.1;
+    --v-pressed-opacity: 0.1;
+    --v-dragged-opacity: 0.16;
+}
+
+/* ---------------------------------------------------------------------------
+ * Type: the M3 scale on the app chrome, instead of whatever the browser defaults to.
+ *
+ * Unstyled headings currently render at the user-agent's own sizes (h1 at 2em bold, h2 at
+ * 1.5em, and so on down a ladder nobody chose) with a browser line height and no tracking,
+ * which is why an `<h3>` in one panel and an `<h3>` in the next agree only by accident.
+ * The mapping below is M3's: h1/h2 take the headline ramps, h3/h4 the title ramps, h5/h6 the
+ * label ramps, which is the same descent the spec's own layouts use.
+ *
+ * Every selector is wrapped in `:where()` so it carries zero specificity. That is deliberate
+ * twice over: a component that has already sized its own heading keeps that size (this is a
+ * floor, not a takeover), and a user's appearance override still wins on anything it reaches.
+ *
+ * No root font size is set here, by anything, ever. `components/settings/uiSizeSetting.ts`
+ * owns interface scale and applies it through Chromium's `webFrame.setZoomFactor` or the CSS
+ * `zoom` property on the document element; a stylesheet that also wrote a root size would
+ * fight the dial and the dial would lose at four of its five stops.
+ * ------------------------------------------------------------------------- */
+:where(#app) {
+    font-family: var(--md-ref-typeface-plain);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+    /*
+     * Body tracking (M3 body-medium asks for 0.25px) is deliberately not set globally. It is
+     * the one token in the scale that makes every string in the app *wider*, and this build
+     * is already fixing text that clips its container; widening all of it at once to chase a
+     * quarter-pixel is a bad trade. The token is published and available per surface.
+     */
+}
+
+:where(#app) :where(h1) {
+    font-size: var(--md-sys-typescale-headline-large-size);
+    line-height: var(--md-sys-typescale-headline-large-line-height);
+    font-weight: var(--md-sys-typescale-headline-large-weight);
+    letter-spacing: var(--md-sys-typescale-headline-large-tracking);
+}
+
+:where(#app) :where(h2) {
+    font-size: var(--md-sys-typescale-headline-small-size);
+    line-height: var(--md-sys-typescale-headline-small-line-height);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+}
+
+:where(#app) :where(h3) {
+    font-size: var(--md-sys-typescale-title-large-size);
+    line-height: var(--md-sys-typescale-title-large-line-height);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    letter-spacing: var(--md-sys-typescale-title-large-tracking);
+}
+
+:where(#app) :where(h4) {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+}
+
+:where(#app) :where(h5) {
+    font-size: var(--md-sys-typescale-title-small-size);
+    line-height: var(--md-sys-typescale-title-small-line-height);
+    font-weight: var(--md-sys-typescale-title-small-weight);
+    letter-spacing: var(--md-sys-typescale-title-small-tracking);
+}
+
+:where(#app) :where(h6) {
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+
+/* ---------------------------------------------------------------------------
+ * Measure: prose stops at a readable line length.
+ *
+ * On a 1920px window the setup wizard's content column is about 950px wide and its body
+ * copy runs the full width of it - roughly 150 characters per line, about double what a
+ * reader can track without losing their place on the return sweep, and a large part of why
+ * the app reads as dense rather than as calm. Two surfaces had already discovered this and
+ * capped themselves by hand (`EulaSectionPanel.vue` at 68ch, `RendersScreen.vue` at 60ch);
+ * this is the same decision made once, where every screen gets it.
+ *
+ * `<p>` only, and nothing else. A `max-inline-size` on a layout container would break
+ * grids, toolbars and anything centred; on a table it would crush columns; on a path
+ * readout, a command line or an engine log it would wrap text whose whole value is that it
+ * is one unbroken string. `<p>` is the one element in this codebase that is always a
+ * paragraph of prose, and the escape hatch below hands the width straight back inside the
+ * containers where even that is not true.
+ *
+ * Zero specificity again, so a component that wants a different measure just says so.
+ * ------------------------------------------------------------------------- */
+:where(#app) {
+    /*
+     * Not an `--md-sys-*` name: M3 has no measure token, this is this app's own call. 68ch
+     * is inside the 45-75 character band typography practice settles on and matches what the
+     * EULA panel had already chosen for the same reason.
+     */
+    --mb-measure-prose: 68ch;
+}
+
+:where(#app) p {
+    max-inline-size: var(--mb-measure-prose);
+}
+
+/* Tables, code, preformatted output and monospace readouts need every pixel they can get,
+   and a paragraph inside one of them is a layout cell rather than prose. */
+:where(#app) :where(table, .v-table, .v-data-table, pre, code, kbd, samp) p {
+    max-inline-size: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion: one easing curve and one duration ladder for the interactive chrome.
+ *
+ * Vuetify tunes each component's transition separately, so a button, a list row and a tab
+ * settle at three different speeds on three different curves - individually unremarkable,
+ * collectively the reason the interface feels twitchy rather than composed. MD3 Expressive's
+ * emphasized curve is the opposite: it leaves fast and arrives slowly, so a state change
+ * reads as deliberate.
+ *
+ * These carry real specificity (`#app .v-btn`) rather than `:where()`, because they have to
+ * beat Vuetify's own class-level `transition` shorthands, and unlike the type scale there is
+ * nothing here a user can override through the appearance editor - it edits type and
+ * surface, not motion. It is also the same idiom the focus-ring block above already uses.
+ *
+ * Only the duration and the curve are set, never `transition-property`: each component keeps
+ * deciding *what* animates, this only decides how it moves. And the reduced-motion block
+ * that follows still wins outright - it is `!important`, which beats any normal declaration
+ * regardless of which token fed it.
+ * ------------------------------------------------------------------------- */
+#app .v-btn,
+#app .v-list-item,
+#app .v-chip,
+#app .v-tab,
+#app .v-switch .v-selection-control__wrapper,
+#app .v-field {
+    transition-duration: var(--md-sys-motion-duration-short4);
+    transition-timing-function: var(--md-sys-motion-easing-emphasized);
+}
+
+/* Surfaces that arrive rather than react - a card lifting, a sheet settling - get the longer
+   step and the decelerate curve, which is what "arriving" means in the M3 motion set. */
+#app .v-card,
+#app .v-sheet,
+#app .v-navigation-drawer {
+    transition-duration: var(--md-sys-motion-duration-medium2);
+    transition-timing-function: var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
 /* The user asked for no motion, so the chrome's transitions go too, not only the ones on the
    floating controls. Vuetify already does this for v-main on its own. */
 @media (prefers-reduced-motion: reduce) {

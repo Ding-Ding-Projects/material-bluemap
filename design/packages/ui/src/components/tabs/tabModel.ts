@@ -888,7 +888,15 @@ export function applyGroupSeeds(
                 state.groups.map((group) => group.id),
                 "group",
             );
-        const grouped = createGroup(state, { id, name: seed.name, color: seed.color }, members);
+        // `color` is spread in only when the seed carries one, rather than passed as
+        // `undefined`: under `exactOptionalPropertyTypes` an absent property and one holding
+        // `undefined` are different things, and only the absent one gets `createGroup`'s own
+        // default.
+        const grouped = createGroup(
+            state,
+            { id, name: seed.name, ...(seed.color === undefined ? {} : { color: seed.color }) },
+            members,
+        );
         return seed.collapsed === false ? grouped : setGroupCollapsed(grouped, id, true);
     }, strip);
 }

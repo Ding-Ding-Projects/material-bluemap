@@ -56,19 +56,59 @@ second, inevitably drifting way to open the same surface.
 
 ### One deliberate order, not a wall of equal cards
 
-Rendered top to bottom rather than as one undifferentiated grid:
+The first version of this page named every capability and then showed all twenty-five of them at
+once, in one grid of identically weighted cards. That answers "what can this do" and not "what do
+I do now", which is the question a newcomer actually arrives with - so the same cards are now
+weighted and disclosed rather than poured out. Rendered top to bottom:
 
 1. **The one-sentence explanation** - what BlueMap actually makes - shown by default and
    collapsible, remembering that choice (`homeState.ts`) so a newcomer reads it once and a
    returning user never has to scroll past it again. "Tell me more" opens the standalone "what is
    this?" panel (`WelcomeSurface.vue`) rather than repeating its prose here a second time.
-2. **Get started** - the newcomer's one obvious next step ("Make a map", weighted `primary`),
-   alongside the explanation panel and the interactive tour.
+2. **The search field**, which replaces everything below it the moment it has a query.
 3. **Continue** - only for a returning user with something to continue: every profile except the
-   seeded demo server, each opened by making it the active map.
-4. **Every other capability**, grouped: making and managing maps, sharing and backing up, learning
-   (docs, the licence), settings and tools, and - only while a map is actually open - that map's
-   own menu.
+   seeded demo server, each opened by making it the active map. It keeps its precedence above the
+   hero: somebody who already has a map wants that map, not the guide that would make another.
+4. **The hero** - the single `primary` capability, "Make a map", full width, on
+   `primary-container`, carrying the page's only large button. Not one tile among equals: a grid
+   of identically weighted cards has no answer in it to "where do I start", which is the exact
+   complaint this page exists to fix. There is deliberately only one, because a page with two
+   primary actions has none. It is never a disabled card either - "Make a map" is the remedy every
+   gated capability below points at, so there is nothing for it to be waiting on.
+5. **The rest of "Get started"** - the explanation panel and the interactive tour - as two
+   supporting cards beneath the hero, on `surface-container-high`.
+6. **Everything else**, in the same five sections as before, each one a collapsed disclosure:
+   making and managing maps, sharing and backing up, learning (docs, the licence), settings and
+   tools, and - only while a map is actually open - that map's own menu. A "Show every section"
+   control opens all five at once for anyone who would rather see the whole inventory.
+
+### Collapsed is not hidden
+
+Every section keeps every card it had. What changed is that a newcomer sees the headings first:
+
+- A section heading is a real `<button>` inside a real heading element, labelled with what the
+  section holds **and how many** - "Share and back up (2)", "Settings and tools (9)". A section
+  that folded its cards away without saying how many it took with it would be hiding them rather
+  than tidying them, so the count is part of the visible label rather than a badge or a tooltip.
+- The five sections default to collapsed and the choice is remembered per section, for good
+  (`homeState.ts`, key `worldlens.home.expandedSections`). The default is never re-applied over a
+  choice somebody made.
+- An empty section is dropped rather than headed with "(0)" - "The open map" with no map open is
+  a control wired to nothing, which is the same rule the command palette holds that group to.
+- **Search bypasses the disclosure entirely.** The flat result grid is built from the full
+  capability list, collapsed sections included, so a card being folded away never makes it
+  unfindable. `HomeScreen.test.ts` holds that directly: with every section in its newcomer
+  default, searching for "point of interest" - a keyword only the collapsed viewer section's
+  Markers card carries - returns that card.
+
+### Surfaces rather than outlines
+
+The hierarchy is carried by Material's own surface roles, which `vuetify.ts` now defines in full:
+`primary-container` for the hero, `surface-container-high` for the two orientation cards,
+`surface-container` for a section's own heading button, and `surface-container-low` for the
+capability cards. Nothing on this page draws a border to say "this is a thing", and no colour
+here is a hex literal - every one is a `--v-theme-*` role, so the page follows the light, dark
+and high-contrast themes without a second copy of the palette to keep in step.
 
 ### Honest about what is not ready yet
 
@@ -131,9 +171,14 @@ rewritten here. Two surfaces describing one destination in two different sentenc
 drift out of agreement about what a button actually does; reusing the key is what keeps Home and
 the command palette saying the same thing about "Make a map" for as long as both files exist, at
 the cost of zero new copy for the dozen cards that map onto an existing page or shell surface. Only
-what is genuinely new to Home - its own heading, its search chrome, its section headings, and the
-one "render a map first" sentence Backups and Publish to Pages share - lives in
-`copy/surfaces/home.ts`.
+what is genuinely new to Home - its own heading, its search chrome, its section headings, its four
+disclosure labels (`home.section.everythingElse`, `home.section.count`, `home.sections.showAll`,
+`home.sections.hideAll`), and the one "render a map first" sentence Backups and Publish to Pages
+share - lives in `copy/surfaces/home.ts`.
+
+The hero's own eyebrow is the same rule applied once more: it renders
+`setupI18n.t("action.startHere")`, the words the standalone "what is this?" panel already puts on
+its own button, rather than a fifth new key that would eventually disagree with it.
 
 `palette.page.map`, `.world`, `.projects`, `.ciRender`, `.servers`, `.backups` and `.pages` used to
 render their English fallback in every language, at every funny level, despite `components/palette`
@@ -151,7 +196,19 @@ sites regardless, since the catalogue is one merged set keyed by string.
 | Setting | Where it lives | Default |
 |---|---|---|
 | Whether the introduction is collapsed | `homeState.ts`, key `worldlens.home.introCollapsed`, through `setupStorage()` | Expanded |
+| Which secondary sections are open | `homeState.ts`, key `worldlens.home.expandedSections`, through `setupStorage()` | All collapsed |
 | Whether Home's tab is pinned | `TabbedNavigation.vue`'s `pinnedPageIds` prop, applied once at the moment Home's tab first exists | Pinned; unpinning it by hand is never re-applied |
+
+Both preferences are mirrored into the shared application-settings history under the single key
+`home`, registered in `stores/appSettingsHistorySync.ts`'s `APP_SETTINGS_HISTORY_KEYS` and held to
+its real call site by `appSettingsHistoryManifest.test.ts`. `localStorage` stays the source of
+truth, exactly as `docs/config-history.md`'s staged plan says; the mirror is fire-and-forget and a
+failed history write never turns a fold into an error.
+
+The record stores the sections a person has **opened**, not the ones they have closed. An install
+nobody has touched therefore stores nothing at all, and a section a later build adds starts
+collapsed like every other one rather than inheriting "not in the closed list, so open it" from a
+record written before it existed.
 
 Nothing else about Home persists on its own. The tab's position, its pinned state after that first
 moment, and its membership in any group all live in the ordinary tab-workspace record every other
@@ -159,6 +216,10 @@ tab already uses (`tabbed-navigation.md`).
 
 ## Failure modes
 
+- **A capability is inside a collapsed section.** It is one press from the heading that names it
+  and its count, and it is found by the search regardless, because the search runs over the whole
+  capability list rather than over what is currently drawn. Nothing on this page can be reached
+  only by having already opened the right section.
 - **A card's destination cannot be reached.** Every action here is a shell action `App.vue` already
   performs for a button of its own; there is no case where Home offers a card whose action silently
   does nothing, because the card would not exist without a real handler wired up for it.
@@ -185,9 +246,22 @@ validated route to any of them.
 
 ## Accessibility
 
-Home is a labelled `<section>`; its four regions - the introduction, the "get started" cards, the
-continue row and the grouped capability grid - are each real headings, so a screen reader can move
-between them the way it moves through any other document. Every capability card is a `role="list"`
+Home is a labelled `<section>`; its regions - the introduction, the continue row, "Get started"
+with its hero, and "Everything else" - are each real headings, so a screen reader can move between
+them the way it moves through any other document. The outline is a genuine hierarchy rather than a
+flat run of same-level headings: `h2` for the page, `h3` per region, `h4` for the hero's own title
+and for each collapsible section, `h5` for a card inside one.
+
+Each collapsible section is a real `<button type="button">` inside its `h4`, carrying
+`aria-expanded` and an `aria-controls` pointing at the panel it actually opens, so the heading
+carries the level and the button carries the state. Being a native button is what makes Enter,
+Space, tabbing and every assistive technology's own "activate" gesture work without this file
+implementing any of them. It is not a `.v-btn`, so `global.scss`'s app-wide `:focus-visible`
+outline does not reach it and it states its own - focus has to stay visible on the only control
+into a collapsed section. The reveal is a 160ms fade that a `prefers-reduced-motion: reduce` block
+in this component turns off outright, on top of the app-wide rule `global.scss` already applies.
+
+Every capability card is a `role="list"`
 item carrying a real button per available action, each with an accessible name that states which
 capability it opens ("Open {title}") rather than a bare "Open". A disabled action's button is
 disabled in the DOM, named the same way, and paired with the remedy button that actually resolves
@@ -201,9 +275,10 @@ application.
 
 | Test | What it holds |
 |---|---|
-| `homeCatalog.test.ts` | The pure logic: what a card's searchable text contains (including its disabled reason and its keywords), the one-line-per-card search sample, and `filterCapabilities` against an inactive matcher, a plain-text match, a keyword-only match, an invalid pattern, and catalogue-order preservation. |
-| `homeState.test.ts` | The one persisted preference: defaults to expanded, round-trips a collapse and an expand, treats a junk stored value as expanded, and removes the record on expand rather than writing a second falsy value. |
-| `HomeScreen.test.ts` | Mounted: every capability group actually renders; the viewer's own menu group is entirely absent with no map open and appears once one is; Backups and Publish to Pages name the missing prerequisite and offer the real remedy, then drop both the moment a map is rendered; the introduction shows by default and its collapse persists across a remount; the continue row is absent on a first launch and offers every rendered map by name once one exists, opening it and asking for the map tab; search narrows the grid to a plain-text match, offers the regex-builder toggle, and says plainly (with a working way back) when nothing matches; and every shell-owned action (Settings at an anchor, the options editor at a screen, the EULA panel, "what is this?", the command palette) emits rather than acting on its own. |
+| `homeCatalog.test.ts` | The pure logic: what a card's searchable text contains (including its disabled reason and its keywords), the one-line-per-card search sample, `filterCapabilities` against an inactive matcher, a plain-text match, a keyword-only match, an invalid pattern and catalogue-order preservation, and `groupCapabilities` filing each card under its declared section, in declared order, dropping an empty section rather than heading one, and leaving a card no section claims out of all of them. |
+| `homeState.test.ts` | Both persisted preferences: the introduction defaults to expanded, round-trips a collapse and an expand, treats a junk stored value as expanded, and removes its record on expand rather than writing a second falsy value; the sections default to none open, round-trip one being opened without disturbing its neighbours, record an id once however often it is opened, read a record with stray whitespace as the ids it names, treat a section the record has never heard of as closed, remove the record once the last section closes again, and stay independent of the introduction's own flag. |
+| `HomeScreen.test.ts` | Mounted. **The inventory**: the full set of capability ids is written out by hand and asserted exactly, with no map open and again with a live one carrying markers and players, so a future edit that drops a card fails here rather than passing quietly - and every rendered card is checked to carry a real button, so "present" means "reachable". **The hero**: exactly one, carrying the `primary` capability, outside every collapsible panel, opening the guide from its own action, and below "Continue" for a returning user. **The disclosure**: every section starts collapsed, states what it holds and how many ("Share and back up (2)"), expands and collapses on press without disturbing its neighbours, remembers the choice across a remount, reads a choice made before the mount out of storage, and opens and closes all five from one control. **Its semantics**: a real `<button type="button">` inside an `h4`, whose `aria-controls` names the panel that actually exists, under one `h2` with the regions as `h3`. **Search**: finds a card inside a still-collapsed section, searches the whole inventory rather than what is on screen (a keyword only the collapsed viewer section carries), counts against the full total, and puts the hero and every card back when cleared. Alongside those, everything the page held before: the viewer's own menu group is entirely absent with no map open and appears once one is; Backups and Publish to Pages name the missing prerequisite and offer the real remedy, then drop both the moment a map is rendered; the introduction shows by default and its collapse persists across a remount; the continue row is absent on a first launch and offers every rendered map by name once one exists; and every shell-owned action (Settings at an anchor, the options editor at a screen, the EULA panel, "what is this?", the command palette) emits rather than acting on its own, from a section a person has actually opened. |
+| `appSettingsHistoryManifest.test.ts` | The `home` key in `APP_SETTINGS_HISTORY_KEYS` names `components/home/homeState.ts`, and that file really does call `recordAppSetting("home", ...)`. |
 | `App.test.ts` | Mounted, from the shell: the strip now separates into nine pages with Home first, Home is reachable through its own pinned tab, and a freshly seeded workspace with no persisted layout starts on Home - the Map tab's own state message is reached by choosing it explicitly. Separately, and driving the real path rather than a pre-seeded workspace: a fresh install lands on Home the moment `FirstRunSetup` genuinely emits `finished` (not a pre-seeded workspace that would pass regardless of what the handler does), a returning user with a saved workspace stays on their last active tab rather than being forced back to Home, and pressing "Start here" inside the standalone "what is this?" panel still goes straight to the wizard, which is the one first-run-adjacent route this page's landing fix deliberately left unchanged. |
 | `TabbedNavigation.test.ts` | `pinnedPageIds` pins a page's tab from the moment it is first seeded; `ensurePage` adds a tab for a page a saved workspace predates, pins it, and never disturbs the tab a returning user was already looking at; and neither ever re-pins a tab the user has since unpinned by hand. |
 | `catalogueCoverage.test.ts` | `components/home` joins the list of surfaces every one of whose rendered keys has a real catalogue entry, in every language, at every funny level. |

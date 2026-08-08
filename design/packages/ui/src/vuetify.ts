@@ -176,8 +176,75 @@ export const THEME_SCHEMES: Readonly<Record<"dark" | "light" | "contrast", Theme
     contrast: contrastScheme,
 };
 
+/**
+ * One shape language, declared once, reaching every screen.
+ *
+ * The app is built from Vuetify components, so the fastest honest way to change how it looks
+ * is to change what those components default to - not to edit forty component files, each of
+ * which then owns its own opinion about what a rounded card is. This object is that single
+ * lever, and the intent behind it is MD3 Expressive: generous corners, pressable things fully
+ * rounded, overlays the most generous of all.
+ *
+ * The values are Vuetify's `rounded` vocabulary; `styles/global.scss` re-points that
+ * vocabulary at the M3 corner scale in `styles/md3.scss`, so `"lg"` here means M3's 16px
+ * rather than Vuetify's 8px and `"xl"` means 28px rather than 24px. Both halves are needed:
+ * without the defaults nothing asks for the shape, without the remap the shape is Material 2.
+ *
+ * `createVuetify` does `mergeDeep(blueprint, options)`, so this merges over the md3
+ * blueprint rather than replacing it - everything the blueprint sets and this does not
+ * mention (the outlined field variants, the date picker's geometry, `VList`'s prepend gap)
+ * survives untouched.
+ *
+ * Three things worth knowing about the entries below:
+ *
+ * - `VDialog` and `VMenu` take no `rounded` prop of their own; an overlay's visible corner is
+ *   the corner of the card, sheet or list *inside* it. So they are expressed as nested
+ *   defaults, which Vuetify provides down the component tree (the same mechanism the
+ *   blueprint's own `VBtnGroup: { VBtn: ... }` uses) and which follows the component
+ *   hierarchy through the overlay's teleport rather than the DOM.
+ * - `VSelect`, `VAutocomplete`, `VCombobox` and `VFileInput` all render a `VTextField`
+ *   internally and pass their own field props through with `undefined` where nothing was
+ *   set - and Vuetify's defaults treat an explicit `undefined` as "not provided" - so the
+ *   one `VTextField` entry reaches all of them.
+ * - `"md"` is not in Vuetify's radius scale at all. `useRounded` builds the class name from
+ *   the prop value, and `global.scss` defines `.rounded-md`, so the 12px step the M3 scale
+ *   has and Vuetify's does not is available to fields here.
+ */
+export const COMPONENT_DEFAULTS = {
+    /* Things you press are fully round. This is the single loudest signal of the new look,
+       and M3 Expressive is unambiguous about it. `VBtnGroup` re-states the blueprint's own
+       `VBtn: { rounded: null }` so the segments inside a group stay square against each
+       other and only the group's outer edge is a pill. */
+    VBtn: { rounded: "pill" },
+    VBtnGroup: { rounded: "pill", VBtn: { rounded: null } },
+    VChip: { rounded: "pill" },
+
+    /* Containers: the M3 large corner. The blueprint already said `"lg"` for cards; it is
+       restated rather than inherited so the shape of a card is declared in the file that
+       decides shape, and so a test can hold it there. */
+    VCard: { rounded: "lg" },
+    VSheet: { rounded: "lg" },
+    VAlert: { rounded: "lg" },
+    VBanner: { rounded: "lg" },
+    VSnackbar: { rounded: "lg" },
+    VExpansionPanel: { rounded: "lg" },
+    VList: { rounded: "lg" },
+    VListItem: { rounded: "lg" },
+
+    /* Overlays get the extra-large corner: a dialog or a menu is the surface furthest from
+       the page and should read that way. Expressed through what they actually contain. */
+    VDialog: { VCard: { rounded: "xl" }, VSheet: { rounded: "xl" }, VList: { rounded: "xl" } },
+    VMenu: { VCard: { rounded: "xl" }, VSheet: { rounded: "xl" }, VList: { rounded: "xl" } },
+
+    /* Fields sit one step tighter than their container, which is what keeps a form inside a
+       card from looking like a stack of pills. */
+    VTextField: { rounded: "md" },
+    VTextarea: { rounded: "md" },
+} as const;
+
 export const vuetify = createVuetify({
     blueprint: md3,
+    defaults: COMPONENT_DEFAULTS,
     // `createVuetify` registers NOTHING by itself: it only calls app.component() for what it
     // is handed here. Without this the whole UI compiled down to resolveComponent("v-app-bar")
     // calls that resolved to nothing, so every Vuetify tag rendered as an unknown inline HTML

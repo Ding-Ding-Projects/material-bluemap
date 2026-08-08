@@ -56,6 +56,25 @@ import {
  * The landing tab: every capability this app has, weighted so a newcomer sees the one thing
  * to do first and a returning user sees what they were doing last.
  *
+ * ## Weight first, then disclosure
+ *
+ * The first version of this page named all twenty-five capabilities and then drew all
+ * twenty-five at once, in one grid of identically weighted cards. That answers "what can
+ * this do" and not "what do I do now", which is the question somebody meeting this
+ * application actually arrives with. Nothing has been taken away since: the same cards, in
+ * the same five sections, with the same actions. What changed is the weighting.
+ *
+ *  - the one `primary` capability is a full-width hero on `primary-container`, carrying the
+ *    page's only large button, above everything except a returning user's "Continue" row;
+ *  - the five secondary sections are collapsed disclosures whose headings state what they
+ *    hold and how many ("Share and back up (2)"), so a folded section is honest about what
+ *    it took with it rather than quietly smaller;
+ *  - each section's open/closed state is the user's, remembered for good in `homeState.ts`;
+ *  - and the search reads {@link capabilities} directly rather than what is drawn, so a card
+ *    inside a collapsed section is still one query away. That is the whole difference
+ *    between disclosure and removal, and `HomeScreen.test.ts` asserts it rather than
+ *    assuming it.
+ *
  * ## Why this reads a pile of shared stores directly
  *
  * `CommandPalette` takes a `PaletteShellActions` object because it is mounted with no

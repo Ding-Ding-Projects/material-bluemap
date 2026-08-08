@@ -30,8 +30,10 @@ import {
     pinnedTabs,
     regionOfTab,
     removeGroup,
+    renameGroup,
     seedTabOrder,
     setGroupAppearance,
+    setGroupColor,
     setGroupCollapsed,
     setTabAppearance,
     setTabPlacement,
@@ -231,6 +233,149 @@ describe("groups", () => {
             "a",
             "b",
         ]);
+    });
+});
+
+/**
+ * The two halves of "a fresh workspace opens as a few named groups rather than a wall of
+ * tabs", proven here as arithmetic rather than through a mounted strip: which order the tabs
+ * are created in, and what `applyGroupSeeds` does with the ones a seed names.
+ *
+ * The position rules are the part that goes wrong silently. `createGroup` places a group
+ * where its first member sat *among the slots that are left*, so seeding three groups out of
+ * an interleaved page list lands the later ones at positions that are correct and impossible
+ * to predict from reading the list - which is a poor thing to hand somebody as a default.
+ */
+describe("seeding a fresh strip into groups", () => {
+    const page = (id: string): TabPage => ({ id, label: id, icon: null });
+    const PAGES: readonly TabPage[] = ["home", "map", "world", "renders", "backups", "docs"].map(
+        page,
+    );
+
+    const SEEDS: readonly TabGroupSeed[] = [
+        { id: "g-render", name: "Rendering", pageIds: ["renders"] },
+        { id: "g-copies", name: "Keeping a copy", pageIds: ["backups"] },
+    ];
+
+    /** One tab per page, ids equal to page ids, in the order given. */
+    function stripOfPages(...pageIds: readonly string[]): TabStripState {
+        return pageIds.reduce<TabStripState>(
+            (strip, id) => addTab(strip, { id, pageId: id, label: id }),
+            EMPTY,
+        );
+    }
+
+    it("creates the ungrouped pages first, then each group's pages in the order it names them", () => {
+        expect(seedTabOrder(PAGES, SEEDS).map((entry) => entry.id)).toEqual([
+            "home",
+            "map",
+            "world",
+            "docs",
+            "renders",
+            "backups",
+        ]);
+    });
+
+    it("keeps a page named by two seeds in the first group that named it", () => {
+        const order = seedTabOrder(PAGES, [
+            { name: "One", pageIds: ["renders", "backups"] },
+            { name: "Two", pageIds: ["backups"] },
+        ]);
+        expect(order.map((entry) => entry.id)).toEqual([
+            "home",
+            "map",
+            "world",
+            "docs",
+            "renders",
+            "backups",
+        ]);
+    });
+
+    it("seeds nothing at all when the host declares no groups", () => {
+        expect(seedTabOrder(PAGES, []).map((entry) => entry.id)).toEqual(
+            PAGES.map((entry) => entry.id),
+        );
+        expect(applyGroupSeeds(stripOfPages("home", "map"), []).groups).toEqual([]);
+    });
+
+    it("puts the groups after the loose tabs, in the order they were declared", () => {
+        const strip = applyGroupSeeds(
+            stripOfPages("home", "map", "world", "docs", "renders", "backups"),
+            SEEDS,
+        );
+        expect(strip.slots).toEqual([
+            { kind: "tab", tabId: "home" },
+            { kind: "tab", tabId: "map" },
+            { kind: "tab", tabId: "world" },
+            { kind: "tab", tabId: "docs" },
+            { kind: "group", groupId: "g-render" },
+            { kind: "group", groupId: "g-copies" },
+        ]);
+    });
+
+    it("collapses a seeded group by default, and expands the one that asks to be", () => {
+        const strip = applyGroupSeeds(stripOfPages("renders", "backups"), [
+            { id: "g-render", name: "Rendering", pageIds: ["renders"] },
+            { id: "g-copies", name: "Keeping a copy", collapsed: false, pageIds: ["backups"] },
+        ]);
+        expect(strip.groups.map((group) => [group.id, group.collapsed])).toEqual([
+            ["g-render", true],
+            ["g-copies", false],
+        ]);
+    });
+
+    it("carries the seed's own name and colour onto the group", () => {
+        const strip = applyGroupSeeds(stripOfPages("renders"), [
+            { id: "g-render", name: "Rendering", color: "tertiary", pageIds: ["renders"] },
+        ]);
+        expect(strip.groups[0]).toMatchObject({ name: "Rendering", color: "tertiary" });
+    });
+
+    it("leaves a pinned tab pinned rather than pulling it into a group that named it", () => {
+        const pinned = pinTab(stripOfPages("home", "renders"), "home");
+        const strip = applyGroupSeeds(pinned, [
+            { id: "g-render", name: "Rendering", pageIds: ["home", "renders"] },
+        ]);
+        expect(strip.pinnedOrder).toEqual(["home"]);
+        expect(strip.groups[0]?.tabIds).toEqual(["renders"]);
+    });
+
+    it("skips a page with no tab rather than seeding a name with nothing under it", () => {
+        const strip = applyGroupSeeds(stripOfPages("map"), [
+            { id: "g-gone", name: "Not in this build", pageIds: ["no-such-page"] },
+        ]);
+        expect(strip.groups).toEqual([]);
+        expect(ids(strip)).toEqual(["map"]);
+    });
+
+    it("loses no tab: every seeded page is still in the strip, collapsed or not", () => {
+        const strip = applyGroupSeeds(
+            stripOfPages("home", "map", "world", "docs", "renders", "backups"),
+            SEEDS,
+        );
+        // `tabOrder` deliberately includes a collapsed group's members: collapsed is a
+        // display state, not a claim that the tabs have gone.
+        expect(ids(strip)).toEqual(["home", "map", "world", "docs", "renders", "backups"]);
+        expect(focusOrder(strip).map((tab) => tab.id)).toEqual(["home", "map", "world", "docs"]);
+    });
+
+    it("hands a seeded group over to the ordinary group commands, which is what makes it a default", () => {
+        const seeded = applyGroupSeeds(stripOfPages("map", "renders", "backups"), SEEDS);
+
+        // Renamed, recoloured, expanded, and finally taken apart without closing a tab:
+        // everything a hand-made group can do, on a group nobody made by hand.
+        let strip = renameGroup(seeded, "g-render", "Mine");
+        strip = setGroupColor(strip, "g-render", "warning");
+        strip = setGroupCollapsed(strip, "g-render", false);
+        expect(strip.groups.find((group) => group.id === "g-render")).toMatchObject({
+            name: "Mine",
+            color: "warning",
+            collapsed: false,
+        });
+
+        strip = removeGroup(strip, "g-render");
+        expect(strip.groups.map((group) => group.id)).toEqual(["g-copies"]);
+        expect(ids(strip)).toEqual(["map", "renders", "backups"]);
     });
 });
 
