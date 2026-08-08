@@ -1,5 +1,14 @@
 # Handoff
 
+## 2026-08-08 — #117 RemoteFileBrowser has no narrow-dialog horizontal scroll trap
+
+At 30rem and below, the remote file listing now uses a fixed table layout, retains the name and
+size columns, hides only the timestamp column, and collapses a world-status badge to its already
+accessible icon. The grid wrapper clips horizontal overflow rather than exposing a sideways scroll
+region inside a dialog. `remoteFileBrowserSizing.test.ts` guards the responsive rules; 16 focused
+remote-browser tests and the UI typecheck pass. The issue stays open until a genuine built narrow
+dialog capture and exact-main CI verdict are available.
+
 ## 2026-08-08 — #116 tab finder and group-menu viewport clamp
 
 `TabFinder` and `TabGroupMenu` previously imposed desktop intrinsic minimum widths (340px and

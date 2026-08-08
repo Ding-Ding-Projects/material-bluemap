@@ -715,6 +715,43 @@ defineExpose({ load, currentPath, entries, shown, sort, activeIndex, goUp, goBac
     justify-content: flex-end;
 }
 
+/* A remote target is often edited in a narrow dialog. Do not turn its listing into a
+   hidden horizontal scroll region: keep the path/name useful, retain size, and remove
+   only the least immediate column (timestamp) as width runs out. The world classification
+   remains exposed through the badge's accessible name while its visual label collapses to
+   the existing icon. */
+@media (max-width: 30rem) {
+    .mb-remote-browse__gridWrap {
+        overflow-x: clip;
+    }
+
+    .mb-remote-browse__grid {
+        table-layout: fixed;
+    }
+
+    .mb-remote-browse__grid th:nth-child(2),
+    .mb-remote-browse__sizeCell {
+        width: 4.75rem;
+    }
+
+    .mb-remote-browse__grid th:nth-child(3),
+    .mb-remote-browse__modifiedCell {
+        display: none;
+    }
+
+    .mb-remote-browse__nameCell,
+    .mb-remote-browse__name {
+        min-width: 0;
+    }
+
+    .mb-remote-browse__badge {
+        flex: 0 0 auto;
+        gap: 0;
+        padding-inline: 4px;
+        font-size: 0;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .mb-remote-browse__row {
         transition: none;
