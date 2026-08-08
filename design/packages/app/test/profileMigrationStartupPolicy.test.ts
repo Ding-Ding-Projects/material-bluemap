@@ -9,7 +9,7 @@ const source = readFileSync(join(packageRoot, "src", "main", "index.ts"), "utf8"
 describe("Worldlens profile migration startup policy", () => {
     it("pins the immutable user-data root before Electron becomes ready", () => {
         const setName = source.indexOf("app.setName(WORLDLENS_IDENTITY.shippedName)");
-        const setPath = source.indexOf('app.setPath("userData"');
+        const setPath = source.search(/app\.setPath\(\s*["']userData["']/);
         const ready = source.indexOf("app.whenReady()");
         expect(setName).toBeGreaterThan(-1);
         expect(setPath).toBeGreaterThan(setName);
