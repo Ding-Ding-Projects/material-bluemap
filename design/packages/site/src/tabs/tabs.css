@@ -1,10 +1,14 @@
 /*
  * Tab strip, groups, panels and the bulk-close dialog.
  *
- * Nothing here truncates a label. Tabs wrap their text and grow taller rather than cutting it
- * with an ellipsis, and a page that does not fit on the strip moves into the overflow menu by
- * name instead of being clipped at the edge. The only element allowed to scroll is the pinned
- * region, which scrolls rather than hides so a pinned page is always reachable.
+ * A wide strip never truncates a label. Tabs wrap their text and grow taller rather than
+ * cutting it with an ellipsis, and a page that does not fit on the strip moves into the
+ * overflow menu by name instead of being clipped at the edge. The compact (<= 720px)
+ * horizontal strip below is the one deliberate exception: its single-line labels truncate
+ * with a visible ellipsis rather than spilling over their neighbours, with the full name
+ * kept on each tab's aria-label - see that block's own comment. The only element allowed to
+ * scroll on a wide strip is the pinned region, which scrolls rather than hides so a pinned
+ * page is always reachable.
  */
 
 :root {
@@ -239,8 +243,9 @@
 }
 
 /*
- * Labels wrap. They are never cut with an ellipsis, because a truncated tab name is a name
- * the visitor cannot read, and the overflow menu already exists for pages that do not fit.
+ * Labels wrap on a wide strip. They are never cut with an ellipsis here, because the
+ * overflow menu already exists for pages that do not fit. Only the compact strip's media
+ * block below trades that wrapping for a single visibly ellipsised line.
  */
 .tab__label {
     flex: 1 1 auto;
@@ -327,12 +332,20 @@
     }
 
     /* Labels stay on one line at this width: a compact strip scans left-to-right, and a
-       label that wraps to two lines would make every tab a different height. Nothing is
-       truncated - the tab simply takes the width its one-line label needs, up to the
-       max-width above, and the row scrolls past whatever does not fit on screen. */
+       label that wraps to two lines would make every tab a different height. A label
+       longer than its tab's cap (.tab's 18rem max-width, .tab-group__header's 14rem)
+       truncates with a visible ellipsis: the label is the flex item with min-width: 0,
+       so flex shrink only narrows its box - without overflow: hidden the nowrap text
+       kept painting out of it, over the close button and the neighbouring tab. The
+       bilingual .i18n-secondary span inside the label clips under the same ellipsis.
+       The full name is never lost: TabStrip.ts sets every tab's aria-label to the
+       complete label when it renders the tab, and the row scrolls, so the tab itself
+       is always reachable. */
     .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab__label,
     .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab-group__name {
+        overflow: hidden;
         white-space: nowrap;
+        text-overflow: ellipsis;
     }
 
     /* Nothing is ever hidden into a menu at this width, so the control that would open

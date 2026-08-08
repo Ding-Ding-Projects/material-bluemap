@@ -16,11 +16,13 @@
  * The fix drops the fixed-budget strategy below `COMPACT_TAB_STRIP_MAX_WIDTH` for the other
  * Material 3 pattern - scrollable tabs. Below that width nothing is measured or hidden: every
  * destination stays a real, fully labelled tab, `.tab-strip__pinned` stops shrinking below its
- * content, and `.tab-strip__main` scrolls horizontally instead of clipping. These tests cover
- * both halves: the CSS source (jsdom cannot lay out real widths, so this reads the stylesheet
- * the way `theme/base.test.ts` already does for the same reason) and the DOM/JS side that
- * `layout()` actually controls (nothing hidden, nothing truncated, every destination still
- * activatable).
+ * content, and `.tab-strip__main` scrolls horizontally instead of clipping. A label longer
+ * than its tab's max-width truncates with a *visible* ellipsis on the compact strip (the one
+ * place the stylesheet allows it), with the full name kept in the DOM and on the tab's
+ * aria-label. These tests cover both halves: the CSS source (jsdom cannot lay out real
+ * widths, so this reads the stylesheet the way `theme/base.test.ts` already does for the
+ * same reason) and the DOM/JS side that `layout()` actually controls (nothing hidden, the
+ * complete label text kept, every destination still activatable).
  */
 
 import { readFileSync } from "node:fs";
@@ -172,8 +174,24 @@ describe("tabs.css compact media query", () => {
         expect(block).not.toContain(".tab-group {");
     });
 
-    it("never truncates a label with an ellipsis anywhere in the stylesheet", () => {
-        expect(tabsCss).not.toMatch(/text-overflow\s*:\s*ellipsis/);
+    it("truncates a too-long compact label with a visible ellipsis instead of spilling it", () => {
+        // The compact strip's one-line labels (`white-space: nowrap`, asserted in the
+        // placement-scoping test below) used to paint over the close button and the
+        // neighbouring tab: `.tab__label` is the flex item with `min-width: 0`, so flex
+        // shrink narrows its *box* while the nowrap text keeps rendering out of it, and
+        // `.tab` caps at 18rem with no overflow handling of its own. `overflow: hidden`
+        // clips honestly and `text-overflow: ellipsis` makes the clipping visible; the
+        // full name stays on the tab's aria-label (TabStrip.ts sets it in render, and the
+        // phone-width describe block below asserts it), and the bilingual .i18n-secondary
+        // span clips under the same ellipsis instead of spilling on its own.
+        const block = compactBlock();
+        expect(block).toMatch(/\.tab__label,[^{]*\.tab-group__name\s*\{[^}]*overflow:\s*hidden/);
+        expect(block).toMatch(/\.tab__label,[^{]*\.tab-group__name\s*\{[^}]*text-overflow:\s*ellipsis/);
+    });
+
+    it("keeps ellipsis truncation scoped to the compact block - wide-strip labels still wrap", () => {
+        const outsideCompactBlock = tabsCss.replace(compactBlock(), "");
+        expect(outsideCompactBlock).not.toMatch(/text-overflow\s*:\s*ellipsis/);
     });
 
     it("keeps every tab close button at the shared 44px minimum target", () => {

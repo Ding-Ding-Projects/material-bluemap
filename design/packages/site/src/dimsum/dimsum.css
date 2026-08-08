@@ -64,12 +64,26 @@
     height: 18px;
 }
 
-@media (width <= 600px) {
+/*
+ * The width the two corner cards genuinely need side by side: 22rem for this card, 24rem
+ * for notifications.css's .toast-region, and three 16px gutters (left edge, the gap
+ * between them, right edge) - 352px + 384px + 48px = 784px. Any narrower and the two
+ * share the bottom edge overlapping, with the toast region (z-index 90) painting over
+ * this card (z-index 80), so from here down the card stacks above the toast stack
+ * instead. index.test.ts derives this number from both stylesheets' widths, so the
+ * breakpoint cannot silently drift away from the cards it separates.
+ */
+@media (width <= 784px) {
     .dimsum {
         right: var(--md-sys-spacing-2);
         left: var(--md-sys-spacing-2);
-        /* Sits above the toast stack on a narrow screen, so neither covers the other. */
-        bottom: calc(var(--md-sys-spacing-2) + 5.5rem);
+        /* Sits above the toast stack by measurement, not by guess: Notifications.ts
+           publishes the stack's observed height as --mbm-toast-stack-height (re-published
+           on every add and remove, with a ResizeObserver catching growth that has neither
+           behind it - wrapping text, a wrapped action row, a bilingual second line). The
+           5.5rem fallback only matters if that script never ran, and degrades to the old
+           fixed clearance rather than to zero. */
+        bottom: calc(var(--md-sys-spacing-2) + var(--mbm-toast-stack-height, 5.5rem) + var(--md-sys-spacing-2));
         width: auto;
     }
 }
