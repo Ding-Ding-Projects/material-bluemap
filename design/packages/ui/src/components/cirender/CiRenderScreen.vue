@@ -46,6 +46,7 @@ import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
 import type {
     CiBootstrapEvent,
+    CiBootstrapFailureCode,
     CiBootstrapFileOutcome,
     CiBootstrapPhase,
     CiBootstrapReport,
@@ -613,6 +614,15 @@ const canBootstrapAutomatically = computed(
 const bootstrapping = ref(false);
 const bootstrapReport = ref<CiBootstrapReport | null>(null);
 const bootstrapFailureMessage = ref<string | null>(null);
+const bootstrapFailureCode = ref<CiBootstrapFailureCode | null>(null);
+const bootstrapConflict = computed(
+    () =>
+        bootstrapFailureCode.value === "user-authored-conflict" ||
+        bootstrapFailureCode.value === "managed-file-modified" ||
+        bootstrapFailureCode.value === "newer-marker-version" ||
+        bootstrapFailureCode.value === "newer-template-version" ||
+        bootstrapFailureCode.value === "concurrent-update",
+);
 /** True only for the one failure a re-authorisation button actually fixes. */
 const bootstrapMissingScope = ref(false);
 /** The single line shown while a bootstrap runs: the current phase, or the latest log line. */
@@ -678,18 +688,22 @@ function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
  * pressed the button lands on the next real decision (starting a render) rather than back
  * where they began.
  */
-async function setupRepositoryAutomatically(): Promise<void> {
+async function setupRepositoryAutomatically(): Promise<boolean> {
+    // The disabled button is the visible guard; this check is the real re-entry guard for
+    // keyboard submission and direct calls while the first bootstrap is still in flight.
+    if (bootstrapping.value) return false;
     const targetOwner = owner.value.trim();
     const targetRepo = repo.value.trim();
-    if (targetOwner === "" || targetRepo === "") return;
+    if (targetOwner === "" || targetRepo === "") return false;
     if (bridge === null || !canBootstrapAutomatically.value) {
         openRepositorySetup();
-        return;
+        return false;
     }
 
     bootstrapping.value = true;
     bootstrapReport.value = null;
     bootstrapFailureMessage.value = null;
+    bootstrapFailureCode.value = null;
     bootstrapMissingScope.value = false;
     bootstrapProgressText.value = bootstrapPhaseLabel("checking-scopes");
     unsubscribeBootstrap?.();
@@ -713,14 +727,19 @@ async function setupRepositoryAutomatically(): Promise<void> {
             // The workflow now exists (or Actions is now known to be off) - re-read the
             // repository so the card reflects it rather than the stale "needs setup" state.
             await check();
+            return result.report.ready;
         } else {
             bootstrapFailureMessage.value = result.failure.message;
+            bootstrapFailureCode.value = result.failure.code;
             bootstrapMissingScope.value = result.failure.code === "missing-scope";
             bootstrapProgressText.value = null;
+            return false;
         }
     } catch (error) {
         bootstrapFailureMessage.value = error instanceof Error ? error.message : String(error);
+        bootstrapFailureCode.value = null;
         bootstrapProgressText.value = null;
+        return false;
     } finally {
         bootstrapping.value = false;
         unsubscribeBootstrap?.();
@@ -856,6 +875,10 @@ async function check(): Promise<void> {
 }
 
 async function start(): Promise<void> {
+    // Bootstrap immediately before dispatch, even when the last preflight was ready. This
+    // is what safely rolls an unchanged managed workflow forward and, just as importantly,
+    // surfaces a user edit or newer-template conflict before any render starts.
+    if (canBootstrapAutomatically.value && !(await setupRepositoryAutomatically())) return;
     const result = await renders.start({
         worldFolder: worldFolder.value.trim(),
         owner: owner.value.trim(),
@@ -1546,6 +1569,18 @@ onBeforeUnmount(() => {
                         class="mb-3"
                         data-test="bootstrap-failure"
                     >
+                        <p
+                            v-if="bootstrapConflict"
+                            class="font-weight-medium"
+                            data-test="bootstrap-conflict"
+                        >
+                            {{
+                                t(
+                                    "cirender.bootstrap.conflict",
+                                    "Managed workflow conflict — no repository files were changed.",
+                                )
+                            }}
+                        </p>
                         {{ bootstrapFailureMessage }}
                         <div v-if="bootstrapMissingScope" class="mt-2">
                             <VBtn
@@ -1702,8 +1737,8 @@ onBeforeUnmount(() => {
 
                     <VBtn
                         :prepend-icon="mdiCloudSyncOutline"
-                        :disabled="blockedBecause !== null"
-                        :loading="renders.starting.value"
+                        :disabled="blockedBecause !== null || bootstrapping"
+                        :loading="renders.starting.value || bootstrapping"
                         color="primary"
                         data-test="start"
                         @click="start"

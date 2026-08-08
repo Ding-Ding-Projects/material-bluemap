@@ -1242,6 +1242,10 @@ export const CIRENDER_FIXED = {
         en: "Sign in again and grant it",
         yue: "再登入一次，畀返個權限",
     },
+    "cirender.bootstrap.conflict": {
+        en: "Managed workflow conflict — no repository files were changed.",
+        yue: "受管理 workflow 有衝突——倉庫入面一個檔案都冇改過。",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {

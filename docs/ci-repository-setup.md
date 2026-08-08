@@ -1,6 +1,6 @@
 # Setting a repository up for CI rendering
 
-**This is the piece that stops an empty repository from being a dead end.** [Rendering a
+**This is the piece that stops a repository without render workflows from being a dead end.** [Rendering a
 world in GitHub Actions](./render-in-actions.md) needs `render-world.yml` committed to a
 repository's default branch before anything can start — and before this existed, nothing in
 this application ever put it there. A freshly created repository, or an existing project
@@ -25,36 +25,36 @@ simply that nothing had been set up yet. This is the app doing that setup itself
 
 ## What "set up" means
 
-Two files, committed to the repository's default branch:
+Three files, committed together to the repository's default branch:
 
 - `.github/workflows/render-world.yml` — the workflow a sync dispatches.
 - `.github/workflows/render-shard-wave.yml` — the reusable workflow every sharded wave calls
   by local path (`uses: ./.github/workflows/render-shard-wave.yml`), so it has to be on the
   repository too, not only referenced from this project's own copy.
+- `.github/workflows/scheduled-render.yml` — the scheduled check that decides whether a
+  recorded world has changed and should be rendered again.
 
-Both are written verbatim, read fresh off this build's own disk (a packaged installer ships
-them under its resources; a development checkout reads them straight from `.github/workflows/`
-— see `cirender/workflowTemplates.ts`), so the copy landing on the target repository is
-always exactly the workflow this build actually drives, never a hand-typed approximation of
-it.
+All three are written verbatim. A packaged installer must contain the complete set under its
+own resources; if even one file is missing, setup fails closed and never borrows a file from a
+developer checkout. Development runs may read the checkout's `.github/workflows/` directory.
+See `cirender/workflowTemplates.ts`.
 
 ## The four states this handles
 
-1. **Truly empty — no commits at all.** A repository fresh out of `gh repo create` or the
-   GitHub website has no default-branch ref until its first commit lands. GitHub's Contents
-   API tolerates this directly: a `PUT .../contents/{path}` with no `sha` on an empty
-   repository creates the very first commit and, with it, the default branch — there is no
-   separate "initialize this repository" step to get wrong, and nothing here needs a branch
-   to already exist first.
-2. **Has content, no workflow.** The same call creates the workflow file alongside whatever
-   is already there. Nothing else on the repository is read or written — see
+1. **Truly empty — no commits at all.** GitHub's Git Data API cannot create the first branch
+   ref in an empty repository. Setup therefore fails closed before creating candidate objects
+   and asks for one starter commit. Repositories created in this application already receive
+   that starter commit automatically; an externally created empty repository needs one before
+   retrying.
+2. **Has content, no workflow.** One new tree is based on the current default-branch tree and
+   adds the workflow set alongside it. Nothing else on the repository is changed — see
    [What it never does](#what-it-never-does) for why that is a guarantee rather than a
    promise.
-3. **This application prepared it before, and the shipped workflow has moved on.** The
-   committed file's content is compared against the current template — not a version number
-   alone, so a hand-edited copy still compares as changed — and updated with the file's
-   current `sha`, GitHub's own optimistic-concurrency check against clobbering a write that
-   landed after this one was read.
+3. **This application prepared it before, and the shipped workflow has moved on.** An update
+   is allowed only when the current UTF-8 bytes still have the exact SHA-256 recorded when
+   that file was installed. A hand edit, including a deletion, becomes a typed conflict and
+   is never overwritten. A marker or template version newer than this build is never
+   downgraded.
 4. **Looks prepared, cannot run.** The workflow files can be present and current and GitHub
    Actions can still be off for the repository, or restricted by an organisation policy. That
    is reported honestly rather than smoothed into a ready state — see
@@ -62,24 +62,29 @@ it.
 
 ## What it never does
 
-Every write is a single-file `PUT` through the Contents API, at one of exactly two workflow
-paths plus a marker file. There is no force-push, no branch replacement, and nothing here
-can touch a path it was not explicitly given — that follows from what the operation is
-capable of calling, not from a rule remembered every time it runs. A repository with years
-of history and an active default branch is exactly as safe to point this at as a repository
-created thirty seconds ago.
+Every candidate blob, the complete tree, and the commit are built out of sight through the
+Git Data API. The only repository-visible mutation is the final default-branch ref update,
+made with `force: false` and guarded by the exact head SHA read before planning. Marker and
+workflow ownership reads are pinned to that same SHA rather than to a moving branch name. If
+another writer advances the branch, the update is a typed concurrent-update conflict and none
+of the candidate bytes become visible. There is no force-push, branch replacement, sequential
+single-file commit, or rollback that has to guess what another writer did.
 
 ## The marker, and why a foreign file is refused rather than replaced
 
-Every file this writes is recorded in `.worldlens-ci.json`, at the repository root,
-naming the tool, the template version, and which paths it placed — the same pattern
+Every file this writes is recorded in `.worldlens-ci.json`, at the repository root. Schema 2
+records the marker schema version, a monotonic numeric template-set version, every managed
+path, and the exact SHA-256 of the UTF-8 bytes installed at each path — the same pattern
 [publishing to GitHub Pages](./pages-hosting.md) already uses for its own marker. Before a
 file that already exists is touched, its content is compared to the template:
 
-- **Identical** → left alone; nothing is written.
-- **Different, and the marker lists this path** → this application wrote the earlier copy,
-  so it is updated.
-- **Different, and the marker does not list this path** → refused outright. Somebody's own
+- **Identical and recorded by the marker** → left alone; nothing is written.
+- **Different, recorded by the marker, and still equal to the marker's installed hash** →
+  this is an unchanged older template, so it may be updated safely.
+- **Different from the installed hash, or deleted after installation** → refused as a
+  managed-file conflict. The application never treats its marker as permission to erase a
+  later user edit.
+- **Not recorded by the marker** → refused outright. Somebody's own
   file happens to share this exact path, and nothing here overwrites it without being told
   to. The whole run refuses, even when only one of several managed files conflicts — a
   half-prepared repository is worse than an unprepared one, because it looks finished.
@@ -121,11 +126,11 @@ started there.
 
 ## Running it twice
 
-Idempotent by construction, not by a special case: a second run reads the same content it
-would write, finds it identical, and writes nothing. The marker is only rewritten when
-something actually changed. Running the operation against an already-current repository is
-therefore always safe, and the interface can offer "set this repository up" as a repeatable
-action rather than a one-time step somebody has to get right the first time.
+Idempotent by construction: a second run validates all three workflow hashes and the marker,
+then performs no Git mutation at all. The CI-render screen runs this check immediately before
+every dispatch, so a safe managed update lands first while a user-edit, downgrade, or
+concurrent-update conflict stops before a workflow run is started. The detailed conflict is
+shown at the control that initiated the render.
 
 ## Failure modes
 
@@ -139,12 +144,21 @@ Every refusal names the exact cause rather than a generic failure:
   private repository nobody has access to and a genuinely missing one the same way, which
   the message says plainly rather than guessing.
 - **The credential can see the repository but cannot write to it.**
+- **The repository has no first commit** — asks for one starter commit and changes nothing;
+  the in-app repository creator already supplies it.
 - **A foreign file is in the way** — see [the marker section](#the-marker-and-why-a-foreign-file-is-refused-rather-than-replaced)
   above.
-- **A network or GitHub-side failure partway through** — whatever was already written stays
-  written (the Contents API commits one file at a time; there is nothing to roll back), and
-  running the operation again picks up from what is actually on the repository rather than
-  from what the previous attempt assumed.
+- **A managed file was edited or deleted** — names the conflicting path; none of the three
+  workflows or the marker are changed.
+- **A newer marker schema or template version is present** — the older application refuses
+  to downgrade it.
+- **The default branch moved concurrently** — the expected-head check refuses the final ref
+  update without force.
+- **A network or GitHub-side failure partway through object creation** — the branch still
+  points at its original tree. Candidate Git objects may be unreachable, but no partial
+  workflow set or marker is visible and a later retry starts from the actual branch head.
+- **A packaged resource is missing** — no checkout fallback is attempted and the repository
+  is not contacted for a write.
 
 None of these is a spinner that hides what happened. Every one names its cause and, where
 there is one, the exact fix.
