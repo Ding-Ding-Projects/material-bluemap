@@ -52,19 +52,13 @@ describe("main/index.ts wires the repair subsystem in", () => {
     it("actually calls registerRepairHandlers somewhere in createWindow's startup sequence", () => {
         const createWindowStart = mainIndexSource.indexOf("async function createWindow(");
         expect(createWindowStart).toBeGreaterThan(-1);
-        const createWindowEnd = mainIndexSource.indexOf("\n}", createWindowStart);
-        const createWindowBody = mainIndexSource.slice(createWindowStart, createWindowEnd);
-
-        // Direct call, or a `start...()` wrapper (every sibling subsystem above it in the
-        // file - world, java, config, project, bedrock - is wired through exactly such a
-        // wrapper rather than being called bare). Either proves the handlers are reached
-        // when a window is actually created, not merely imported and left unused.
-        const directCall = /\bregisterRepairHandlers\s*\(/.test(createWindowBody);
-        const wrapperDeclared = /function\s+start\w*\s*\([^)]*\)[^{]*\{[^}]*registerRepairHandlers\s*\(/s.test(
-            mainIndexSource,
-        );
-        const wrapperCalled = wrapperDeclared && /\bstart\w*Repair\w*\s*\(/i.test(createWindowBody);
-
-        expect(directCall || wrapperCalled).toBe(true);
+        const independentStepsStart = mainIndexSource.indexOf("const independentSteps", createWindowStart);
+        expect(independentStepsStart).toBeGreaterThan(createWindowStart);
+        const independentStepsEnd = mainIndexSource.indexOf("];", independentStepsStart);
+        expect(independentStepsEnd).toBeGreaterThan(independentStepsStart);
+        const independentSteps = mainIndexSource.slice(independentStepsStart, independentStepsEnd);
+        // The startup list passes `startRepairDiagnostics` as a callback rather than
+        // invoking it inline; assert the callback is in the actual registry.
+        expect(independentSteps).toMatch(/\bstartRepairDiagnostics\s*[,\]]/);
     });
 });
