@@ -70,6 +70,16 @@ const regexMode = ref(false);
 const flags = ref("im");
 const showAdvanced = ref(false);
 const rawOpen = ref(false);
+/**
+ * The raw-source disclosure needs a real, stable target for its `aria-controls`.
+ *
+ * `file.path` is the config file's identity within a workspace, and normalising it
+ * keeps the resulting DOM id valid even for map and storage paths such as
+ * `maps/overworld.conf`.
+ */
+const rawPanelId = computed(
+    () => `mb-config-form-source-${props.file.path.replace(/[^A-Za-z0-9_-]+/g, "-")}`,
+);
 const worldOrientation = computed<WorldOrientation>(() => props.world);
 const copyState = ref("");
 
@@ -290,6 +300,7 @@ async function copyText(): Promise<void> {
                         class="mb-responsive-card-title__action"
                         :prepend-icon="mdiCodeBraces"
                         :aria-expanded="rawOpen ? 'true' : 'false'"
+                        :aria-controls="rawPanelId"
                         variant="text"
                         size="small"
                         density="comfortable"
@@ -301,7 +312,7 @@ async function copyText(): Promise<void> {
                         {{ t("config.form.copy", "Copy") }}
                     </v-btn>
                 </v-card-title>
-                <v-card-text v-if="rawOpen">
+                <v-card-text v-if="rawOpen" :id="rawPanelId">
                     <pre class="mb-config-form__pre">{{ file.text }}</pre>
                 </v-card-text>
             </v-card>
