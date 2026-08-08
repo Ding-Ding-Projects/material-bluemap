@@ -482,17 +482,18 @@ function emergencyExit(): Locator {
  * all until this function's own click opens it, so there is only ever one to find.
  */
 async function openShellTab(label: RegExp): Promise<void> {
-    // Most destinations sit inside a collapsed group on a fresh workspace, so a tab that is
-    // working perfectly is simply not on screen until its group is opened. Done before the
-    // overflow fallback below, because a collapsed group is not an overflow condition and
-    // the menu would not list it.
-    await expandShellTabGroups();
     const shellTabs = page.locator(".mb-shell-tabs");
     const direct = shellTabs.locator('[role="tab"]', { hasText: label }).first();
-    const directlyVisible = await direct
+    let directlyVisible = await direct
         .waitFor({ state: "visible", timeout: 2_000 })
         .then(() => true)
         .catch(() => false);
+
+    // Most destinations sit inside a collapsed group on a seeded workspace, so a tab that is
+    // working perfectly is simply not on screen yet. Tried before the overflow fallback
+    // below, because a collapsed group is not an overflow condition and the menu does not
+    // list what is inside one.
+    if (!directlyVisible) directlyVisible = await revealTabInGroups(label);
 
     if (directlyVisible) {
         if ((await direct.getAttribute("aria-selected")) !== "true") {
@@ -668,8 +669,7 @@ async function expandShellTabGroups(): Promise<void> {
     // group changes the strip: the tabs it reveals take height, and on a short window that
     // pushes a later group out of the strip and into the overflow menu, where its header no
     // longer exists. A loop holding a stale handle then waits the full timeout on an element
-    // that has been gone since the first click - which is exactly how this helper turned one
-    // real defect into three false ones on its first outing.
+    // that has been gone since the first click.
     for (let guard = 0; guard < 8; guard += 1) {
         const collapsed = page
             .locator('.mb-shell-tabs .mb-tabs-strip__group-head[aria-expanded="false"]')
@@ -685,6 +685,54 @@ async function expandShellTabGroups(): Promise<void> {
         if (!clicked) return;
         await page.waitForTimeout(150);
     }
+}
+
+/**
+ * Opens collapsed groups one at a time, looking for `label`, and closes each one again when
+ * it is not the one holding it.
+ *
+ * Expanding every group at once is what a first attempt did, and it works on a roomy window
+ * and fails in CI: the seeded strip is vertical, a short viewport fits only so many rows, and
+ * three groups' worth of revealed tabs push the later tabs - and then the group headers
+ * themselves - into the overflow menu, so the very control the search depends on goes out of
+ * reach. Opening one at a time keeps the strip about as tall as it started, which is the
+ * state the overflow fallback was written against.
+ *
+ * Returns true when the tab is on screen and can be clicked.
+ */
+async function revealTabInGroups(label: RegExp): Promise<boolean> {
+    const shellTabs = page.locator(".mb-shell-tabs");
+    const tab = shellTabs.locator('[role="tab"]', { hasText: label }).first();
+
+    for (let guard = 0; guard < 8; guard += 1) {
+        const collapsed = shellTabs
+            .locator('.mb-tabs-strip__group-head[aria-expanded="false"]')
+            .first();
+        if ((await collapsed.count()) === 0) return false;
+
+        const opened = await collapsed
+            .click({ timeout: 2_000 })
+            .then(() => true)
+            .catch(() => false);
+        if (!opened) return false;
+        await page.waitForTimeout(150);
+
+        const visible = await tab
+            .waitFor({ state: "visible", timeout: 1_000 })
+            .then(() => true)
+            .catch(() => false);
+        if (visible) return true;
+
+        // Not this one: put it back, so the strip stays short for the next attempt and the
+        // capture that follows photographs a strip in its seeded shape rather than one this
+        // harness quietly unfolded.
+        const justOpened = shellTabs
+            .locator('.mb-tabs-strip__group-head[aria-expanded="true"]')
+            .first();
+        await justOpened.click({ timeout: 2_000 }).catch(() => undefined);
+        await page.waitForTimeout(100);
+    }
+    return false;
 }
 
 async function closeSideSheet(): Promise<void> {
@@ -1302,17 +1350,12 @@ test("captures the map and server profile manager", async () => {
         // removed it when it became tabbed - a tab and a FAB reaching one surface are two
         // navigation models arguing on one screen - so this waited fifteen seconds for a
         // control that was deliberately deleted, and the capture quietly left the set.
-        await expandShellTabGroups();
-        const serversTab = page.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
-        await serversTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        if ((await serversTab.getAttribute("aria-selected")) !== "true") {
-            // The label, not the tab: a tab carries its own close button, and a click on the
-            // tab's centre is a coin toss between selecting it and closing it.
-            await serversTab
-                .locator(".mb-tabs-strip__label")
-                .first()
-                .click({ timeout: ELEMENT_TIMEOUT });
-        }
+        // Through `openShellTab`, which is the one place that knows both ways a tab can be
+        // off screen on a seeded workspace: inside a collapsed group, and - once opening
+        // that group has made the strip taller - inside the overflow menu. Locating the
+        // tab directly here worked on a roomy window and timed out in CI, where the
+        // shorter viewport pushes the later tabs into the menu.
+        await openShellTab(/maps and servers/i);
         await page.waitForSelector('[role="tabpanel"]', {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
@@ -1338,15 +1381,12 @@ test("captures the backup screen", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     await attempt("Backup screen", async () => {
-        await expandShellTabGroups();
-        const backupsTab = page.locator('[role="tab"]', { hasText: /backups/i }).first();
-        await backupsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        if ((await backupsTab.getAttribute("aria-selected")) !== "true") {
-            await backupsTab
-                .locator(".mb-tabs-strip__label")
-                .first()
-                .click({ timeout: ELEMENT_TIMEOUT });
-        }
+        // Through `openShellTab`, which is the one place that knows both ways a tab can be
+        // off screen on a seeded workspace: inside a collapsed group, and - once opening
+        // that group has made the strip taller - inside the overflow menu. Locating the
+        // tab directly here worked on a roomy window and timed out in CI, where the
+        // shorter viewport pushes the later tabs into the menu.
+        await openShellTab(/backups/i);
         await page.waitForSelector(".mb-backup", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
         await shoot(
@@ -1761,15 +1801,12 @@ test("captures the remaining first-class screens", async () => {
     await dismiss();
 
     await attempt("Projects", async () => {
-        await expandShellTabGroups();
-        const projectsTab = page.locator('[role="tab"]', { hasText: /^Projects$/i }).first();
-        await projectsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        if ((await projectsTab.getAttribute("aria-selected")) !== "true") {
-            await projectsTab
-                .locator(".mb-tabs-strip__label")
-                .first()
-                .click({ timeout: ELEMENT_TIMEOUT });
-        }
+        // Through `openShellTab`, which is the one place that knows both ways a tab can be
+        // off screen on a seeded workspace: inside a collapsed group, and - once opening
+        // that group has made the strip taller - inside the overflow menu. Locating the
+        // tab directly here worked on a roomy window and timed out in CI, where the
+        // shorter viewport pushes the later tabs into the menu.
+        await openShellTab(/^Projects$/i);
         const projects = page.locator(".mb-projects-screen");
         await projects.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
@@ -1781,15 +1818,12 @@ test("captures the remaining first-class screens", async () => {
     });
 
     await attempt("CI-render screen", async () => {
-        await expandShellTabGroups();
-        const ciTab = page.locator('[role="tab"]', { hasText: /GitHub runners/i }).first();
-        await ciTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        if ((await ciTab.getAttribute("aria-selected")) !== "true") {
-            await ciTab
-                .locator(".mb-tabs-strip__label")
-                .first()
-                .click({ timeout: ELEMENT_TIMEOUT });
-        }
+        // Through `openShellTab`, which is the one place that knows both ways a tab can be
+        // off screen on a seeded workspace: inside a collapsed group, and - once opening
+        // that group has made the strip taller - inside the overflow menu. Locating the
+        // tab directly here worked on a roomy window and timed out in CI, where the
+        // shorter viewport pushes the later tabs into the menu.
+        await openShellTab(/GitHub runners/i);
         const ci = page.locator(".ci-render-screen");
         await ci.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
