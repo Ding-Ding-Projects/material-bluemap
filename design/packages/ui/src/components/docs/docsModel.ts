@@ -74,6 +74,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "tabbed-navigation.md",
     "project-editor.md",
     "appearance-editors.md",
+    "design-system.md",
     "super-confirmation.md",
     "language-and-tone.md",
     "display-and-ease-of-use.md",
