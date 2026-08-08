@@ -347,3 +347,88 @@ describe("the review cards' heads, which turn their <v-card-title> into a flex r
         expect(rule).toContain("white-space: normal");
     });
 });
+
+describe("the 'How to run it' row, where any one label may wrap", () => {
+    /**
+     * Regression: `docs/screenshots/guide-3-review-and-start.png` catches the English
+     * build with "Let the engine report anonymous usage" wrapped to two lines between
+     * "Render everything again" and "Redraw the map edges", which fit on one each. Its
+     * first line sits twelve pixels - half a line - above theirs, and its tick floats in
+     * the gap between its own two lines.
+     *
+     * Two default alignments meeting is the cause, not the wrap itself. The row's grid
+     * stretched every `.v-input` to the tallest cell's height; `.v-input--horizontal` is
+     * `grid-template-rows: 1fr auto`, so the surplus all went to the control row rather
+     * than the hint row; and `.v-selection-control` centres the tick and the label inside
+     * whatever height it is given. Centring one line and centring two lines in the same
+     * tall row cannot put their first lines on one baseline.
+     *
+     * Below the labels that screenshot looks level only because all three hints happen to
+     * run to three lines, which made the three stretched control rows the same height. At
+     * a narrower width, in another locale, or in bilingual mode - a second language on its
+     * own line for every label and every hint - the hint counts diverge, each column
+     * divides the surplus differently, and the ticks separate as well.
+     *
+     * The fix is the house shape for this: no stretching, boxes sized to their own
+     * content from a shared top edge, the tick anchored to the top of its label. These
+     * assertions read the shipped rules out of the component source because this
+     * workspace's `vitest.config.ts` does not enable `test.css` - no stylesheet is
+     * attached to a mounted component, so a real cascade is not observable from a test
+     * here at all. `RunScreen.test.ts` and the block above check their own CSS the same
+     * way.
+     */
+    function rule(selector: string): string {
+        const pattern = new RegExp(`${selector.replaceAll(/[.*+>|]/g, "\\$&")}\\s*\\{[^}]*\\}`, "s");
+        const found = pattern.exec(wizardReviewStepSource)?.[0] ?? "";
+        expect(found, `no rule for \`${selector}\` in WizardReviewStep.vue`).not.toBe("");
+        return found;
+    }
+
+    it("sizes each column to its own content instead of stretching it to the tallest", () => {
+        const found = rule(".mb-world-review__run");
+        expect(found).toContain("align-items: start");
+        // The stretch is a default rather than a declaration, so there is nothing to
+        // assert the absence of beyond this: `align-items: start` is the whole of it.
+        expect(found).toMatch(/row-gap:\s*8px/);
+        expect(found).toMatch(/column-gap:\s*24px/);
+        // The shorthand said the same thing, but only while both halves stayed in it; the
+        // row axis is the one this fix depends on, so it is named.
+        expect(found).not.toMatch(/(?<!-)\bgap:/);
+    });
+
+    it("stops a long unbreakable word in a hint from widening its column", () => {
+        expect(rule(".mb-world-review__run > *")).toContain("min-width: 0");
+    });
+
+    it("anchors the tick to the top of its label rather than the middle of it", () => {
+        expect(rule(".mb-world-review__run .v-selection-control")).toContain(
+            "align-items: flex-start",
+        );
+    });
+
+    it("keeps the tick on the first line's centre, so single-line labels do not move", () => {
+        const found = rule(".mb-world-review__run .v-selection-control .v-label");
+        // Half the difference between the tick's target box and one line of text, both
+        // read from tokens that scale with density and with the display's own scaling
+        // rather than from the pixel counts this fix was measured at.
+        expect(found).toMatch(
+            /padding-block-start:\s*calc\(\(var\(--v-selection-control-size\) - 1\.5em\) \/ 2\)/,
+        );
+    });
+
+    it("still renders the three run options it is aligning", async () => {
+        const wrapper = render();
+        await settle();
+
+        const labels = wrapper
+            .findAll(".mb-world-review__run .v-selection-control .v-label")
+            .map((node) => node.text());
+        expect(labels).toEqual([
+            "Render everything again",
+            "Redraw the map edges",
+            "Let the engine report anonymous usage",
+        ]);
+
+        wrapper.unmount();
+    });
+});

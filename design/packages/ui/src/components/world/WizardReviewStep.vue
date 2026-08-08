@@ -486,8 +486,65 @@ async function copyConfig(): Promise<void> {
 .mb-world-review__run {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 8px 24px;
+    column-gap: 24px;
+    row-gap: 8px;
     margin-block-start: 8px;
+    /*
+     * Three checkboxes side by side, each carrying a label whose length is the
+     * translator's decision rather than ours, so any one of them can wrap.
+     * `docs/screenshots/guide-3-review-and-start.png` is the English build doing exactly
+     * that: "Let the engine report anonymous usage" takes two lines while its two
+     * neighbours take one, and its first line sits half a line - twelve pixels, measured -
+     * above theirs, with its tick floating in the gap between its own two lines.
+     *
+     * Two default alignments meeting is what does it. This grid stretched every
+     * `.v-input` to the height of the tallest cell in the row; `.v-input--horizontal`
+     * lays itself out as `grid-template-rows: 1fr auto`, so all of that surplus height
+     * landed in the control row rather than the hint row; and `.v-selection-control`
+     * centres its tick and its label inside whatever height it is handed. A one-line
+     * label centred in a tall row and a two-line label centred in the same tall row do
+     * not put their first lines on one baseline, and no width can make them.
+     *
+     * Below the labels the screenshot looks level only by coincidence: all three hints
+     * happen to run to three lines there, so the three stretched control rows came out
+     * the same height. Change the width, change the locale, or turn bilingual mode on -
+     * where every label and every hint gains a second language on its own line - and the
+     * hint line counts diverge, the surplus is divided differently in each column, and
+     * the ticks separate too.
+     *
+     * So nothing is stretched here. Each box sizes to its own content from a shared top
+     * edge, and the two rules below sit the tick beside the first line of its label
+     * rather than halfway down it, which is what keeps the columns level however many
+     * lines any one label costs.
+     */
+    align-items: start;
+}
+
+.mb-world-review__run > * {
+    /* A grid item's `min-width: auto` floor is its longest unbreakable word, so one long
+       path in a hint could widen a track past its share and push the row out of shape. */
+    min-width: 0;
+}
+
+.mb-world-review__run .v-selection-control {
+    /*
+     * Vuetify centres the tick against the label block taken as a whole. That is right
+     * for one line and wrong for two, and it is what lifted the third label's first line
+     * clear of its neighbours'. Anchored to the top instead, the tick's centre lands the
+     * same distance below the top of every column whatever its label costs in lines.
+     */
+    align-items: flex-start;
+}
+
+.mb-world-review__run .v-selection-control .v-label {
+    /*
+     * The tick's target box is taller than the line of text beside it - 28px against 24px
+     * at this density - so a label flush with the top would read high against it. Half
+     * the difference puts the first line back on the tick's centre, which is exactly
+     * where a single-line label has always sat: the labels that never wrapped do not
+     * move, and the one that wraps now joins them.
+     */
+    padding-block-start: calc((var(--v-selection-control-size) - 1.5em) / 2);
 }
 
 .mb-world-review__search {
