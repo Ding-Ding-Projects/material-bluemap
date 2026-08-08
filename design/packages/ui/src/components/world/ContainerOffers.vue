@@ -34,10 +34,14 @@ const flags = ref("i");
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
 
 function offerText(offer: ContainerOffer): string[] {
-    return [offer.containerName, offer.where, ...offer.mapIds, offer.message].filter((value) => value !== "");
+    return [offer.containerName, offer.where, ...offer.mapIds, offer.message].filter(
+        (value) => value !== "",
+    );
 }
 
-const list = computed(() => all.value.filter((offer) => offerText(offer).some((value) => matcher.value.test(value))));
+const list = computed(() =>
+    all.value.filter((offer) => offerText(offer).some((value) => matcher.value.test(value))),
+);
 const sample = computed(() => all.value.map((offer) => offerText(offer).join(" ")).join("\n"));
 
 onMounted(() => {
@@ -58,16 +62,31 @@ function dismiss(renderId: string): void {
 </script>
 
 <template>
-    <section v-if="all.length > 0 || strays.length > 0 || offers.failure.value" class="mb-container-offers">
+    <section
+        v-if="all.length > 0 || strays.length > 0 || offers.failure.value"
+        class="mb-container-offers"
+    >
         <h3 class="mb-container-offers__title">
             <v-icon :icon="mdiDocker" size="20" aria-hidden="true" />
             {{ t("world.containers.title", "Containers left running") }}
         </h3>
         <p class="mb-container-offers__blurb">
-            {{ t("world.containers.blurb", "A container can go on rendering after this app closes. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own.") }}
+            {{
+                t(
+                    "world.containers.blurb",
+                    "A container can go on rendering after this app closes. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own.",
+                )
+            }}
         </p>
 
-        <v-alert v-if="offers.failure.value" type="error" density="compact" variant="tonal" class="mb-2" role="alert">
+        <v-alert
+            v-if="offers.failure.value"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mb-2"
+            role="alert"
+        >
             {{ offers.failure.value }}
         </v-alert>
 
@@ -77,20 +96,45 @@ function dismiss(renderId: string): void {
                 v-model:regex="regexMode"
                 v-model:flags="flags"
                 :label="t('world.containers.searchLabel', 'Search these containers')"
-                :placeholder="t('world.containers.searchHint', 'a container name, or where it is running')"
+                :placeholder="
+                    t('world.containers.searchHint', 'a container name, or where it is running')
+                "
                 :sample="sample"
             />
         </div>
 
-        <p v-if="all.length > 0 && list.length === 0" class="mb-container-offers__blurb" role="status">
-            {{ t("world.containers.noMatch", "No container matches that search. Clearing it brings them all back; nothing was declined.") }}
+        <p
+            v-if="all.length > 0 && list.length === 0"
+            class="mb-container-offers__blurb"
+            role="status"
+        >
+            {{
+                t(
+                    "world.containers.noMatch",
+                    "No container matches that search. Clearing it brings them all back; nothing was declined.",
+                )
+            }}
         </p>
 
-        <v-card v-for="offer in list" :key="offer.renderId" variant="tonal" class="mb-container-offers__card">
+        <v-card
+            v-for="offer in list"
+            :key="offer.renderId"
+            variant="tonal"
+            class="mb-container-offers__card"
+        >
             <v-card-title class="mb-container-offers__head mb-responsive-card-title">
                 <span class="mb-responsive-card-title__text">{{ offer.containerName }}</span>
-                <v-chip class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ offer.where }}</v-chip>
-                <v-chip v-for="mapId in offer.mapIds" :key="mapId" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ mapId }}</v-chip>
+                <v-chip class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{
+                    offer.where
+                }}</v-chip>
+                <v-chip
+                    v-for="mapId in offer.mapIds"
+                    :key="mapId"
+                    class="mb-responsive-card-title__meta"
+                    size="x-small"
+                    variant="outlined"
+                    >{{ mapId }}</v-chip
+                >
             </v-card-title>
             <v-card-text>
                 <p class="mb-container-offers__line">{{ offer.message }}</p>
@@ -129,9 +173,27 @@ function dismiss(renderId: string): void {
             </v-card-text>
         </v-card>
 
-        <v-alert v-if="strays.length > 0" type="info" density="compact" variant="tonal" class="mt-2" role="status">
-            <p class="mb-container-offers__line">{{ t("world.containers.strayNote", "This app started these too, but their record is gone, so nothing here can say which render they belong to. They are named rather than stopped.") }}</p>
-            <p v-for="stray in strays as StrayContainer[]" :key="stray.containerName" class="mb-container-offers__line mb-container-offers__line--muted">
+        <v-alert
+            v-if="strays.length > 0"
+            type="info"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+            role="status"
+        >
+            <p class="mb-container-offers__line">
+                {{
+                    t(
+                        "world.containers.strayNote",
+                        "This app started these too, but their record is gone, so nothing here can say which render they belong to. They are named rather than stopped.",
+                    )
+                }}
+            </p>
+            <p
+                v-for="stray in strays as StrayContainer[]"
+                :key="stray.containerName"
+                class="mb-container-offers__line mb-container-offers__line--muted"
+            >
                 {{ stray.containerName }} - {{ stray.where }} - {{ stray.message }}
             </p>
         </v-alert>
@@ -186,6 +248,25 @@ function dismiss(renderId: string): void {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
+}
+
+/*
+ * A remote host description and a map id can both be longer than the header's available
+ * width. Vuetify's chip base rule clips them as one unmarked line, so the visible label no
+ * longer agrees with the complete text available to assistive technology. These metadata
+ * chips stay inside the card and wrap their actual strings instead.
+ */
+.mb-container-offers__head .mb-responsive-card-title__meta.v-chip {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.mb-container-offers__head .mb-responsive-card-title__meta .v-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    padding-block: 2px;
 }
 
 .mb-container-offers__line {
